@@ -500,3 +500,36 @@ select:focus-visible {
   justify-content: space-between;
   gap: 0.5rem;
 }
+
+/* the widget gallery (development and tests only) */
+.gallery .gallery-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gallery-pre {
+  white-space: pre-wrap;
+  font-size: 0.8rem;
+  max-height: 10rem;
+  overflow: auto;
+  background: var(--surface-2);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.gallery-card {
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gallery-note {
+  margin: 0 0 0.25rem;
+}

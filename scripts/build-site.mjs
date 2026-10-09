@@ -111,7 +111,7 @@ export function precacheList(out, config) {
   return [...new Set(list)].sort();
 }
 
-export async function assemble({ distribution = process.cwd(), out = path.join(distribution, '_site'), legacy = true, log = () => {} } = {}) {
+export async function assemble({ distribution = process.cwd(), out = path.join(distribution, '_site'), legacy = true, gallery = false, log = () => {} } = {}) {
   distribution = path.resolve(distribution);
   const config = await loadDistribution(distribution);
   fs.rmSync(out, { recursive: true, force: true });
@@ -167,7 +167,7 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
 
   // 7. the hub pages: React, built by Vite into index.html, settings.html and assets/
   log('building the hub');
-  await build(siteConfig({ distribution, out, config }));
+  await build(siteConfig({ distribution, out, config, gallery }));
 
   // 8. the site service worker: what to precache, versioned by its contents
   const shell = precacheList(out, config);

@@ -49,10 +49,11 @@ function kiwiDistribution(config, distribution, { dev = false } = {}) {
 }
 
 /**
- * @param {{ distribution: string, out?: string, config: object, dev?: boolean }} o
- *   distribution: the distribution's root; config: its DISTRIBUTION; out: where the build goes
+ * @param {{ distribution: string, out?: string, config: object, dev?: boolean, gallery?: boolean }} o
+ *   distribution: the distribution's root; config: its DISTRIBUTION; out: where the build goes;
+ *   gallery: also build widgets.html, the widget gallery (tests; never in a deployed site)
  */
-export function siteConfig({ distribution, out = path.join(distribution, '_site'), config, dev = false }) {
+export function siteConfig({ distribution, out = path.join(distribution, '_site'), config, dev = false, gallery = false }) {
   return {
     configFile: false,
     envFile: false,
@@ -71,7 +72,13 @@ export function siteConfig({ distribution, out = path.join(distribution, '_site'
       target: 'es2022',
       modulePreload: { polyfill: false },
       sourcemap: false,
-      rollupOptions: { input: { index: path.join(hub, 'index.html'), settings: path.join(hub, 'settings.html') } },
+      rollupOptions: {
+        input: {
+          index: path.join(hub, 'index.html'),
+          settings: path.join(hub, 'settings.html'),
+          ...(gallery ? { widgets: path.join(hub, 'widgets.html') } : {}),
+        },
+      },
     },
   };
 }

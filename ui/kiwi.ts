@@ -14,6 +14,7 @@ import { AccountSettings } from '../shared/settings.js';
 import { LocalStore } from '../shared/store.js';
 import { Sync } from '../shared/sync.js';
 import { applyTheme, setTheme, theme, watchDeviceSettings } from '../shared/theme.js';
+import { setSprite } from '../shared/ui.js';
 
 export interface Identity {
   sk: string;
@@ -141,6 +142,7 @@ export class Kiwi {
 /** Open the store, connect the relays, load the strings and the account's settings. */
 export async function bootKiwi({ current = 'hub', base = './', sprite = 'icons.svg', dirs = ['locales/'] }: KiwiOptions = {}): Promise<Kiwi> {
   applyTheme();
+  setSprite(sprite); // the framework's plain-DOM dialogs (confirmDialog) draw their icons from the same sprite
   if (!import.meta.env.DEV && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register(`${base}sw.js`).catch(() => {});
   }
