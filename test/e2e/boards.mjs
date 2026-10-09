@@ -6,7 +6,7 @@
 //
 // A distribution runs it against its own site and route:
 //   import { boardsSuite } from 'kiwi-framework/test/e2e/boards.mjs';
-//   await run('loadout', (env) => boardsSuite(env, { app: `${env.base}loadout/`, settings: `${env.base}settings.html` }), { webRoot: site });
+//   await run('loadout', (env) => boardsSuite(env, { app: `${env.base}loadout/`, settings: `${env.base}settings.html`, name: 'Loadout' }), { webRoot: site });
 // Run directly, it builds a small test hub that mounts the app at boards/.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -22,9 +22,9 @@ const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textCont
 
 /**
  * @param {any} env  from env.mjs (run)
- * @param {{ app: string, settings: string }} where  the app's URL and the hub's settings page
+ * @param {{ app: string, settings: string, name: string }} where  the app's URL, the hub's settings page, the mount's name
  */
-export async function boardsSuite(env, { app, settings }) {
+export async function boardsSuite(env, { app, settings, name }) {
   const APP = app;
   const SETTINGS = settings;
   const init = (relay) => localStorage.setItem('wjs.relays', JSON.stringify([relay]));
@@ -68,6 +68,7 @@ export async function boardsSuite(env, { app, settings }) {
   step('A creates a grocery list');
   const A = await dev('A');
   await open(A);
+  assert.equal(await A.title(), name, 'the tab says the name the hub mounts the app under');
   await newBoard(A, 'check', 'Groceries');
   await addItems(A, ['2x milk', 'Eggs', '# Produce', 'Apples x6']);
   await until(async () => (await texts(A, '[data-part=active] .text')).join('|') === 'milk|Eggs|Produce|Apples', 'items in typed order');
@@ -605,5 +606,5 @@ export async function testSite() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const site = await testSite();
-  await run('boards', (env) => boardsSuite(env, { app: `${env.base}boards/`, settings: `${env.base}settings.html` }), { webRoot: site });
+  await run('boards', (env) => boardsSuite(env, { app: `${env.base}boards/`, settings: `${env.base}settings.html`, name: 'Boards' }), { webRoot: site });
 }

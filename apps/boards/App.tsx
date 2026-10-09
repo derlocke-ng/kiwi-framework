@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { tErr } from '../../shared/i18n.js';
 import { AccountSettings } from '../../shared/settings.js';
-import { AppShell } from '../../ui/AppShell';
+import { AppShell, useMount } from '../../ui/AppShell';
 import { useIdentity, useKiwi, usePeople, useT } from '../../ui/hooks';
 import { toast } from '../../ui/toast';
 import { carryOver } from './data/carry.js';
@@ -95,9 +95,12 @@ export function BoardsApp() {
     return sync.onError(({ reason }: { reason: string }) => toast(t('sync.rejected', { reason }), 'error', 8000));
   }, [kiwi, t]);
 
+  // The tab says the mount's name (a board's page puts its title in front).
+  const mount = useMount();
   useEffect(() => {
     document.body.dataset.route = route.name;
-  }, [route.name]);
+    if (route.name !== 'board') document.title = mount.name;
+  }, [route.name, mount.name]);
 
   const page =
     route.name === 'board' ? (
