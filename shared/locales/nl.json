@@ -88,7 +88,7 @@
   "account.relaysText": "Relays geven ondertekende, versleutelde events door tussen je apparaten. Ze zien wanneer je synchroniseert en hoeveel, nooit wat. Kies relays die je vertrouwt, bij je in de buurt, onder wetgeving die je bevalt.",
   "account.editRelays": "Relays bewerken",
   "account.oneUrlPerLine": "Eén URL per regel",
-  "account.saveReconnect": "Opslaan &amp; opnieuw verbinden",
+  "account.saveReconnect": "Opslaan & opnieuw verbinden",
   "account.resetRelays": "Terug naar standaard",
   "account.invalidRelay": "Relay-URL’s beginnen met wss:// (of ws:// voor localhost).",
   "account.signOut": "Uitloggen",

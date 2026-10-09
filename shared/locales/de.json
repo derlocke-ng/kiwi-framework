@@ -88,7 +88,7 @@
   "account.relaysText": "Relays reichen signierte, verschlüsselte Events zwischen deinen Geräten weiter. Sie sehen, wann du synchronisierst und wie viel – nie was. Wähle welche, denen du vertraust: in deiner Nähe und unter Gesetzen, die dir passen.",
   "account.editRelays": "Relays bearbeiten",
   "account.oneUrlPerLine": "Eine URL pro Zeile",
-  "account.saveReconnect": "Speichern &amp; neu verbinden",
+  "account.saveReconnect": "Speichern & neu verbinden",
   "account.resetRelays": "Auf Standard zurücksetzen",
   "account.invalidRelay": "Relay-URLs beginnen mit wss:// (oder ws:// für localhost).",
   "account.signOut": "Abmelden",

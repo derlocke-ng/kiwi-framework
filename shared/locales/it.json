@@ -90,7 +90,7 @@
   "account.relaysText": "I relay trasmettono eventi firmati e cifrati tra i tuoi dispositivi. Possono vedere quando sincronizzi e quanto, ma mai cosa. Scegline alcuni di cui ti fidi, vicini a te e soggetti a leggi che ti vanno bene.",
   "account.editRelays": "Modifica relay",
   "account.oneUrlPerLine": "Un URL per riga",
-  "account.saveReconnect": "Salva &amp; riconnetti",
+  "account.saveReconnect": "Salva & riconnetti",
   "account.resetRelays": "Ripristina predefiniti",
   "account.invalidRelay": "Gli URL dei relay iniziano con wss:// (o ws:// per localhost).",
   "account.signOut": "Esci",

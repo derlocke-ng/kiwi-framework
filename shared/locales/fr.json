@@ -90,7 +90,7 @@
   "account.relaysText": "Les relais transmettent des événements signés et chiffrés entre vos appareils. Ils voient quand vous synchronisez et combien, jamais quoi. Choisissez des relais de confiance, proches de vous, soumis à des lois qui vous conviennent.",
   "account.editRelays": "Modifier les relais",
   "account.oneUrlPerLine": "Une URL par ligne",
-  "account.saveReconnect": "Enregistrer &amp; reconnecter",
+  "account.saveReconnect": "Enregistrer & reconnecter",
   "account.resetRelays": "Valeurs par défaut",
   "account.invalidRelay": "Les URL de relais commencent par wss:// (ou ws:// pour localhost).",
   "account.signOut": "Se déconnecter",

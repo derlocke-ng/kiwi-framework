@@ -4,7 +4,6 @@
 // which the apps not yet ported still use.
 import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { MOUNTS } from '../shared/apps.js';
 import { relTime } from '../shared/i18n.js';
 import { savedRelays } from '../shared/relays.js';
 import { useIdentity, useKiwi, useKiwiTick, useNetTick, useOutboxWaiting, useRelayInfos, useT, useUnsynced } from './hooks';
@@ -73,7 +72,7 @@ function Switcher({ open, onClose }: { open: boolean; onClose: (viaHistory?: boo
   }, [open, onClose]);
   if (!visible) return null;
   const skip = new Set(kiwi.hiddenApps());
-  const apps = MOUNTS.filter((a) => !skip.has(a.id));
+  const apps = kiwi.orderedApps().filter((a) => !skip.has(a.id));
   const { base, current } = kiwi;
   const item = (href: string, cls: boolean, icon: string, label: ReactNode, ref?: React.Ref<HTMLAnchorElement>) => (
     <li>

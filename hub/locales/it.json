@@ -17,10 +17,10 @@
   "hub.settings": "Impostazioni",
   "settings.title": "Impostazioni",
   "settings.back": "Torna all’inizio",
-  "settings.deviceSettings": "Lingua &amp; aspetto",
+  "settings.deviceSettings": "Lingua & aspetto",
   "settings.deviceText": "Scelti qui, usati da ogni strumento. Con un account ti seguono sugli altri dispositivi.",
   "settings.apps": "App",
-  "settings.appsText": "Nascondi gli strumenti che non usi; spariscono dalla pagina iniziale su ogni dispositivo con il tuo account.",
+  "settings.appsText": "Trascina per scegliere l’ordine della pagina iniziale e del selettore di app, e togli la spunta a ciò che non usi. Entrambe le scelte valgono su ogni dispositivo con il tuo account.",
   "settings.backupText": "Un file con la tua chiave e tutto ciò che i tuoi dispositivi sanno: bacheche, impostazioni, il tuo account. Cifrato con una frase segreta, ripristina tutto anche se ogni relay ti ha dimenticato.",
   "settings.deviceCardText": "Azzerare rimuove la tua chiave e tutti i dati in cache da questo browser. Senza account, chiave esportata o backup, ciò che aveva solo questo dispositivo va perso.",
   "settings.wipe": "Azzera questo dispositivo",
@@ -61,5 +61,10 @@
   "settings.circleEmpty": "Aggiungi prima degli amici; poi spunta chi fa parte di questa cerchia.",
   "settings.requestSent": "Richiesta inviata.",
   "settings.nowFriends": "Ora siete amici.",
-  "settings.selfKey": "Questa è la tua chiave."
+  "settings.selfKey": "Questa è la tua chiave.",
+  "settings.tab.account": "Account",
+  "settings.tab.general": "Generale",
+  "settings.tab.network": "Rete",
+  "settings.tab.data": "Dati",
+  "settings.appsReset": "Usa l’ordine dell’hub"
 }

@@ -36,6 +36,16 @@ test('every language has every key of the English catalog, with the same placeho
   }
 });
 
+test('no HTML entities in the catalogs: text is shown as text, markup uses real tags', () => {
+  for (const dir of DIRS) {
+    for (const lang of Object.keys(LANGUAGES)) {
+      for (const [key, value] of Object.entries(read(dir, lang))) {
+        for (const form of forms(value)) assert.doesNotMatch(String(form), /&[a-z]+;|&#\d+;/, `${dir}/${lang}.json ${key}: write the character itself`);
+      }
+    }
+  }
+});
+
 test('picks the best supported language from browser preferences', () => {
   assert.equal(pickLanguage(['de-DE', 'en-US']), 'de');
   assert.equal(pickLanguage(['pt-BR']), 'pt');

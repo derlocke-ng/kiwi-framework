@@ -533,3 +533,78 @@ select:focus-visible {
 .gallery-note {
   margin: 0 0 0.25rem;
 }
+
+/* settings: four tabs */
+.settings-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin: 0 0 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.settings-tabs button {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-tabs button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+[role='tabpanel'] {
+  display: grid;
+  gap: inherit;
+}
+
+/* settings: the apps, in order */
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem 0.35rem 0.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  touch-action: pan-y;
+}
+
+.app-row.dragging {
+  position: relative;
+  z-index: 10;
+  box-shadow: var(--shadow-pop);
+  border-color: var(--accent);
+}
+
+.app-row-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.app-row .check-row {
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  min-height: 2.4rem;
+}
+
+.app-row .check-row input {
+  margin: 0;
+}

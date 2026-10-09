@@ -5,7 +5,7 @@
 // that matters to the UI goes through kiwi.emit().
 
 import { ID_KEY, loadIdentity } from '../shared/account.js';
-import { MOUNT_IDS } from '../shared/apps.js';
+import { MOUNT_IDS, orderedMounts } from '../shared/apps.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
 import { People } from '../shared/people.js';
@@ -130,6 +130,20 @@ export class Kiwi {
   hiddenApps(): string[] {
     const list = (this.suite?.get('hiddenApps', []) as string[] | undefined) || [];
     return list.filter((a) => MOUNT_IDS.includes(a));
+  }
+
+  /** The mounts in this person's order (the start page, the switcher and the settings follow it). */
+  orderedApps(): ReturnType<typeof orderedMounts> {
+    return orderedMounts(this.suite?.get('appOrder', []));
+  }
+
+  /** Save a new order (mount ids); [] goes back to the hub's own. Follows the account to every device. */
+  setAppOrder(order: string[]): Promise<void> {
+    return this.suite.set({ appOrder: order.filter((id) => MOUNT_IDS.includes(id)) });
+  }
+
+  hasCustomOrder(): boolean {
+    return ((this.suite?.get('appOrder', []) as string[] | undefined) || []).length > 0;
   }
 
   setAppHidden(app: string, hidden: boolean): Promise<void> {

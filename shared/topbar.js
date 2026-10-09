@@ -35,7 +35,7 @@ export function accountLink({ href, identity, label = null, id = 'accountLink', 
   return `<a class="icon-btn" href="${h(href)}" id="${h(id)}" title="${h(title)}" aria-label="${h(title)}">${body}</a>`;
 }
 
-export function mountTopbar(header, { base, current, brand, right = '', hidden, sprite = 'icons.svg' }) {
+export function mountTopbar(header, { base, current, brand, right = '', hidden, order, sprite = 'icons.svg' }) {
   ensureStyles(base);
   header.classList.add('wjs-top');
   header.innerHTML = `
@@ -43,7 +43,7 @@ export function mountTopbar(header, { base, current, brand, right = '', hidden, 
     <a class="wjs-brand" href="${h(brand.href)}" aria-label="${h(brand.label || brand.name)}">${brand.mark || SITE_MARK}<span class="wjs-brand-name">${brand.html || h(brand.name)}</span></a>
     <span class="wjs-spacer"></span>
     <div class="wjs-right">${right}</div>`;
-  mountSwitcher(header.querySelector('#switcher'), { base, current, hidden, sprite });
+  mountSwitcher(header.querySelector('#switcher'), { base, current, hidden, order, sprite });
   header.querySelector('.wjs-switcher').title = t('switcher.open');
   return header;
 }

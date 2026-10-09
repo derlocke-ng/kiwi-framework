@@ -17,10 +17,10 @@
   "hub.settings": "Settings",
   "settings.title": "Settings",
   "settings.back": "Back to start",
-  "settings.deviceSettings": "Language &amp; appearance",
+  "settings.deviceSettings": "Language & appearance",
   "settings.deviceText": "Chosen here, used by every tool. With an account they follow you to your other devices.",
   "settings.apps": "Apps",
-  "settings.appsText": "Hide the tools you don’t use; they disappear from the start page on every device signed in as you.",
+  "settings.appsText": "Drag to set the order of the start page and the switcher, and untick what you don’t use. Both follow you to every device signed in as you.",
   "settings.backupText": "One file with your key and everything your devices know: boards, settings, your account. Encrypted with a passphrase, it restores everything even if every relay forgot you.",
   "settings.deviceCardText": "Wiping removes your key and all cached data from this browser. Without an account, an exported key or a backup, whatever only this device had is lost.",
   "settings.wipe": "Wipe this device",
@@ -60,5 +60,10 @@
   "settings.circleEmpty": "Add friends first; then tick who belongs to this circle.",
   "settings.requestSent": "Request sent.",
   "settings.nowFriends": "You are friends now.",
-  "settings.selfKey": "That is your own key."
+  "settings.selfKey": "That is your own key.",
+  "settings.tab.account": "Account",
+  "settings.tab.general": "General",
+  "settings.tab.network": "Network",
+  "settings.tab.data": "Data",
+  "settings.appsReset": "Use the hub’s order"
 }

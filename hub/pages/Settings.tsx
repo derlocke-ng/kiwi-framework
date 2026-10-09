@@ -2,7 +2,7 @@
 // but the runtime, so a fork can drop or reorder cards without touching the rest.
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { adoptIdentity, decodeKey, forgetIdentity, npub, pubkeyOf } from '../../shared/account.js';
-import { MOUNTS } from '../../shared/apps.js';
+import { mountById } from '../../shared/apps.js';
 import { decryptBackup, encryptBackup } from '../../shared/backup.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { fingerprint, isHex64 } from '../../shared/events.js';
@@ -15,6 +15,8 @@ import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components
 import { useBlocks, useIdentity, useKiwi, useKiwiTick, usePeople, useRelayInfos, useT } from '../../ui/hooks';
 import { usePeopleNotices } from '../../ui/notices';
 import { copyText, toast } from '../../ui/toast';
+import { useSortable } from '../../ui/widgets/useSortable';
+import '../../shared/widgets.css';
 import { Account } from './Account';
 
 const LAST_BACKUP = 'wjs.lastBackup';
@@ -107,29 +109,42 @@ function PowCard() {
   );
 }
 
+/** The apps, in this person's order: drag (or Alt+↑/↓) to move one, untick to hide it. */
 function AppsCard() {
   const kiwi = useKiwi();
   const t = useT();
   useKiwiTick();
   const hidden = kiwi.hiddenApps();
+  const ordered = kiwi.orderedApps();
+  const sort = useSortable({ ids: ordered.map((a) => a.id), onMove: (_id, order) => kiwi.setAppOrder(order).catch(fail) });
   return (
     <Card id="apps" icon="list-checks" title={t('settings.apps')}>
       <p className="muted">{t('settings.appsText')}</p>
-      <ul className="app-toggles" id="appToggles">
-        {MOUNTS.map((app) => (
-          <li key={app.id}>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                data-app={app.id}
-                checked={!hidden.includes(app.id)}
-                onChange={(e) => kiwi.setAppHidden(app.id, !e.target.checked).catch(fail)}
-              />
-              <span>{app.name}</span>
-            </label>
-          </li>
-        ))}
+      <ul className="app-toggles" id="appToggles" {...sort.listProps}>
+        {sort.order.map((id) => {
+          const app = mountById(id);
+          if (!app) return null;
+          return (
+            <li key={id} data-id={id} ref={sort.rowRef(id)} style={sort.rowStyle(id)} className={`app-row${sort.draggingId === id ? ' dragging' : ''}`}>
+              <button type="button" className="grip" aria-label={t('list.drag')} tabIndex={-1} {...sort.gripProps(id)}>
+                <Icon name="grip-vertical" />
+              </button>
+              <span className="app-row-icon">
+                <Icon name={app.icon} />
+              </span>
+              <label className="check-row">
+                <input type="checkbox" data-app={id} checked={!hidden.includes(id)} onChange={(e) => kiwi.setAppHidden(id, !e.target.checked).catch(fail)} />
+                <span>{app.name}</span>
+              </label>
+            </li>
+          );
+        })}
       </ul>
+      {kiwi.hasCustomOrder() ? (
+        <button type="button" className="link-btn" data-act="apps-reset" onClick={() => kiwi.setAppOrder([]).catch(fail)}>
+          {t('settings.appsReset')}
+        </button>
+      ) : null}
     </Card>
   );
 }
@@ -419,7 +434,9 @@ function RelaysCard() {
             <textarea name="relays" rows={5} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />
           </label>
           <div className="form-actions">
-            <button type="submit" className="btn btn-sm" dangerouslySetInnerHTML={{ __html: t('account.saveReconnect') }} />
+            <button type="submit" className="btn btn-sm">
+              {t('account.saveReconnect')}
+            </button>
             <button
               type="button"
               className="btn btn-sm btn-ghost"
@@ -660,7 +677,7 @@ function DeviceWipeCard() {
 function HowCard() {
   const t = useT();
   return (
-    <details className="card how">
+    <details className="card how" id="how">
       <summary>
         <h2>
           <Icon name="shield" />
@@ -676,13 +693,64 @@ function HowCard() {
   );
 }
 
+/** Four tabs, so the page stays short; every card keeps its id, and a link to a card opens its tab. */
+const TABS = {
+  account: ['account', 'people', 'circles', 'blocked'],
+  general: ['device', 'apps', 'pow'],
+  network: ['relays'],
+  data: ['backup', 'thisDevice', 'how'],
+} as const;
+type Tab = keyof typeof TABS;
+const tabFor = (hash: string): Tab => {
+  const id = hash.replace(/^#/, '');
+  if (id in TABS) return id as Tab;
+  return (Object.keys(TABS) as Tab[]).find((tab) => (TABS[tab] as readonly string[]).includes(id)) ?? 'account';
+};
+
 export function Settings() {
   const t = useT();
   usePeopleNotices();
-  // The page draws after the runtime is up, so the browser's jump to #relays or #people needs a nudge.
+  const [tab, setTab] = useState<Tab>(() => tabFor(location.hash));
+  // A link to a tab or a card (#people, #relays, #backup …) opens its tab; a card is scrolled to once drawn.
   useEffect(() => {
-    if (location.hash.length > 1) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+    const follow = () => {
+      setTab(tabFor(location.hash));
+      const id = location.hash.slice(1);
+      if (id && !(id in TABS)) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
+    };
+    follow();
+    addEventListener('hashchange', follow);
+    return () => removeEventListener('hashchange', follow);
   }, []);
+  const choose = (next: Tab) => {
+    history.replaceState(null, '', `#${next}`);
+    setTab(next);
+  };
+  const cards: Record<Tab, React.ReactNode> = {
+    account: (
+      <>
+        <AccountCard />
+        <PeopleCard />
+        <CirclesCard />
+        <BlockedCard />
+      </>
+    ),
+    general: (
+      <>
+        <DeviceCard />
+        <AppsCard />
+        <PowCard />
+      </>
+    ),
+    network: <RelaysCard />,
+    data: (
+      <>
+        <BackupCard />
+        <DeviceWipeCard />
+        <HowCard />
+      </>
+    ),
+  };
   return (
     <>
       <TopBar
@@ -699,17 +767,16 @@ export function Settings() {
       />
       <main className="settings">
         <h1>{t('settings.title')}</h1>
-        <AccountCard />
-        <DeviceCard />
-        <PowCard />
-        <AppsCard />
-        <PeopleCard />
-        <CirclesCard />
-        <RelaysCard />
-        <BackupCard />
-        <BlockedCard />
-        <DeviceWipeCard />
-        <HowCard />
+        <div className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
+          {(Object.keys(TABS) as Tab[]).map((id) => (
+            <button key={id} type="button" role="tab" data-tab={id} aria-selected={tab === id} onClick={() => choose(id)}>
+              {t(`settings.tab.${id}`)}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel" data-panel={tab}>
+          {cards[tab]}
+        </div>
       </main>
       <footer className="foot">
         <p dangerouslySetInnerHTML={{ __html: t('hub.footer') }} />

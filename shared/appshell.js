@@ -44,7 +44,7 @@ export async function initAppShell({ app = null, current = app, brand = {}, righ
     const el = headerEl();
     if (!el) return;
     const extra = account ? accountLink({ ...account, identity: loadIdentity(), sprite }) : '';
-    mountTopbar(el, { base, current, brand: brandOpts, right: (typeof right === 'function' ? right() : right) + extra, hidden: () => suite.get('hiddenApps', []) || [], sprite });
+    mountTopbar(el, { base, current, brand: brandOpts, right: (typeof right === 'function' ? right() : right) + extra, hidden: () => suite.get('hiddenApps', []) || [], order: () => suite.get('appOrder', []) || [], sprite });
     // A connection pill in the bar (statusPill()) is kept live here, so apps need not remount it after a redraw.
     offStatus?.();
     const pill = net ? el.querySelector('.wjs-status') : null;

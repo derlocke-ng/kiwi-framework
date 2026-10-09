@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { MOUNTS } from '../../shared/apps.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { currentLanguage, LANGUAGES, shouldAskLanguage } from '../../shared/i18n.js';
 import { AccountLink, Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
@@ -41,18 +40,19 @@ const Tags = ({ tags }: { tags: string[] }) => (
   </ul>
 );
 
-/** The cards are the distribution's mounts: apps on spaces, with their names, icons, tags and flags. */
+/** The cards are the distribution's mounts (apps on spaces) in the person's order; the first one shown is the large card. */
 function Apps() {
   const kiwi = useKiwi();
   const t = useT();
   useKiwiTick();
   const hidden = kiwi.hiddenApps();
-  const feature = MOUNTS.find((a) => a.featured);
-  const tools = MOUNTS.filter((a) => a !== feature);
+  const ordered = kiwi.orderedApps();
+  const feature = ordered.find((a) => !hidden.includes(a.id));
+  const tools = ordered.filter((a) => a !== feature);
   return (
     <div id="apps" className="apps">
       {feature ? (
-        <a className="feature" href={`${feature.id}/`} data-app={feature.id} hidden={hidden.includes(feature.id)}>
+        <a className="feature" href={`${feature.id}/`} data-app={feature.id}>
           <div className="feature-icon">
             <Icon name={feature.icon} />
           </div>

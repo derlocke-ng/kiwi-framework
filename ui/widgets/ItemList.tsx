@@ -11,6 +11,7 @@ import { Icon } from '../components';
 import { useT } from '../hooks';
 import { toast } from '../toast';
 import { MarkdownInline } from './Markdown';
+import { useSortable } from './useSortable';
 import '../../shared/widgets.css';
 
 export interface ListItem {
@@ -54,26 +55,10 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [doneOpen, setDoneOpen] = useState(showDone);
-  const [drag, setDrag] = useState<{ id: string; order: string[]; offset: number } | null>(null);
-  const [orderOverride, setOrderOverride] = useState<string[] | null>(null);
-  const dragRef = useRef<{
-    id: string;
-    pointerId: number;
-    startY: number;
-    clientY: number;
-    fromY: number;
-    order: string[];
-    origin: string[];
-    frame: number;
-  } | null>(null);
   const rows = useRef(new Map<string, HTMLLIElement>());
-  const activeUl = useRef<HTMLUListElement | null>(null);
   const scrollTo = useRef<string | null>(null);
   const byId = new Map(items.map((i) => [i.id, i]));
 
-  // A drop shows its order until the new orders arrive.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `items` is the trigger
-  useEffect(() => setOrderOverride(null), [items]);
   useEffect(() => {
     const id = scrollTo.current;
     if (id && rows.current.get(id)) {
@@ -83,8 +68,9 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
   });
 
   const sorted = mode === 'check' ? sortItems(items) : { active: [...items].sort((a, b) => a.o - b.o || a.c - b.c), done: [] as ListItem[] };
-  const order = drag?.order ?? orderOverride;
-  const active = order ? (order.map((id) => byId.get(id)).filter((i) => i && !i.d) as ListItem[]) : sorted.active;
+  // Reordering: the hook keeps the dragged and dropped order; the new position is saved between the neighbours.
+  const sort = useSortable({ ids: sorted.active.map((i) => i.id), onMove: (id, order) => commitOrder(id, order), enabled: canEdit });
+  const active = sort.order.map((id) => byId.get(id)).filter((i): i is ListItem => Boolean(i) && !i?.d);
   const done = sorted.done;
   const s = stats(items);
   const zero = items.filter((i) => !isHeader(i.t) && !i.q).length;
@@ -137,121 +123,19 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
   const commitOrder = async (id: string, list: string[]) => {
     const i = list.indexOf(id);
     const o = between(byId.get(list[i - 1])?.o ?? null, byId.get(list[i + 1])?.o ?? null);
-    setOrderOverride(list);
     try {
       if (o != null) await onUpdate?.(id, { o });
       else await Promise.all(list.map((x, n) => onUpdate?.(x, { o: n }))); // orders ran out of precision: renumber
     } catch (err) {
-      setOrderOverride(null);
       fail(err);
+      throw err;
     }
-  };
-  const gap = () => Number.parseFloat(activeUl.current ? getComputedStyle(activeUl.current).rowGap : '0') || 0;
-  // Dragging: the list, which never moves, holds the pointer (rows are
-  // reordered under it, and a moved element would lose the capture);
-  // distances are in page coordinates, so autoscroll near the screen edges
-  // keeps the row under the finger, and it keeps scrolling while the finger
-  // rests at the edge.
-  const place = () => {
-    const d = dragRef.current;
-    if (!d) return;
-    const y = d.clientY + window.scrollY;
-    const g = gap();
-    for (;;) {
-      const i = d.order.indexOf(d.id);
-      const dy = y - d.startY;
-      const next = rows.current.get(d.order[i + 1]);
-      const prev = rows.current.get(d.order[i - 1]);
-      if (next && dy > (next.offsetHeight + g) / 2) {
-        d.order = [...d.order];
-        [d.order[i], d.order[i + 1]] = [d.order[i + 1], d.order[i]];
-        d.startY += next.offsetHeight + g;
-      } else if (prev && dy < -(prev.offsetHeight + g) / 2) {
-        d.order = [...d.order];
-        [d.order[i], d.order[i - 1]] = [d.order[i - 1], d.order[i]];
-        d.startY -= prev.offsetHeight + g;
-      } else break;
-    }
-    setDrag({ id: d.id, order: d.order, offset: y - d.startY });
-  };
-  const tick = () => {
-    const d = dragRef.current;
-    if (!d) return;
-    // only towards the edge the finger is moving to: a press near an edge scrolls nothing by itself
-    const edge = 70;
-    const y = d.clientY;
-    const up = y < edge && y < d.fromY - 8;
-    const down = y > window.innerHeight - edge && y > d.fromY + 8;
-    const speed = up ? -Math.ceil((edge - y) / 6) : down ? Math.ceil((y - (window.innerHeight - edge)) / 6) : 0;
-    if (speed) {
-      window.scrollBy(0, speed);
-      place();
-    }
-    d.frame = requestAnimationFrame(tick);
-  };
-  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>, id: string) => {
-    if (e.button > 0 || dragRef.current || !activeUl.current) return;
-    e.preventDefault();
-    try {
-      activeUl.current.setPointerCapture(e.pointerId);
-    } catch {}
-    const ids = active.map((i) => i.id);
-    dragRef.current = {
-      id,
-      pointerId: e.pointerId,
-      startY: e.clientY + window.scrollY,
-      clientY: e.clientY,
-      fromY: e.clientY,
-      order: ids,
-      origin: ids,
-      frame: 0,
-    };
-    document.documentElement.classList.add('wjs-dragging');
-    setDrag({ id, order: ids, offset: 0 });
-    dragRef.current.frame = requestAnimationFrame(tick);
-  };
-  const onDragMove = (e: React.PointerEvent<HTMLUListElement>) => {
-    const d = dragRef.current;
-    if (!d || e.pointerId !== d.pointerId) return;
-    d.clientY = e.clientY;
-    place();
-  };
-  const onDragEnd = (e: React.PointerEvent<HTMLUListElement>) => {
-    const d = dragRef.current;
-    if (!d || e.pointerId !== d.pointerId) return;
-    dragRef.current = null;
-    cancelAnimationFrame(d.frame);
-    document.documentElement.classList.remove('wjs-dragging');
-    try {
-      activeUl.current?.releasePointerCapture(d.pointerId);
-    } catch {}
-    setDrag(null);
-    if (d.order.join() !== d.origin.join()) void commitOrder(d.id, d.order);
-  };
-  // Leaving the page mid-drag leaves nothing behind.
-  useEffect(
-    () => () => {
-      if (dragRef.current) cancelAnimationFrame(dragRef.current.frame);
-      document.documentElement.classList.remove('wjs-dragging');
-    },
-    [],
-  );
-  const onListKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
-    if (!canEdit || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
-    const id = (e.target as HTMLElement).closest<HTMLElement>('li.item')?.dataset.id;
-    const ids = active.map((i) => i.id);
-    const i = id ? ids.indexOf(id) : -1;
-    const j = e.key === 'ArrowUp' ? i - 1 : i + 1;
-    if (!id || i < 0 || j < 0 || j >= ids.length) return;
-    e.preventDefault();
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    void commitOrder(id, ids);
   };
 
   // ---- one row ----
   const row = (item: ListItem) => {
     const header = isHeader(item.t);
-    const dragging = drag?.id === item.id;
+    const dragging = sort.draggingId === item.id;
     const cls = ['item', header && 'is-header', item.d && 'is-done', mode === 'count' && !header && !item.q && 'is-zero', dragging && 'dragging']
       .filter(Boolean)
       .join(' ');
@@ -290,11 +174,12 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
         ref={(el) => {
           if (el) rows.current.set(item.id, el);
           else rows.current.delete(item.id);
+          sort.rowRef(item.id)(el);
         }}
-        style={dragging ? { transform: `translateY(${drag?.offset ?? 0}px)` } : undefined}
+        style={sort.rowStyle(item.id)}
       >
         {canEdit && !item.d ? (
-          <button type="button" className="grip" aria-label={t('list.drag')} tabIndex={-1} onPointerDown={(e) => onGripDown(e, item.id)}>
+          <button type="button" className="grip" aria-label={t('list.drag')} tabIndex={-1} {...sort.gripProps(item.id)}>
             <Icon name="grip-vertical" />
           </button>
         ) : null}
@@ -400,17 +285,7 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
         </form>
       ) : null}
       <p className="list-meta">{progress}</p>
-      <ul
-        className="items"
-        data-part="active"
-        aria-label={t('list.items')}
-        ref={activeUl}
-        onKeyDown={onListKey}
-        onPointerMove={onDragMove}
-        onPointerUp={onDragEnd}
-        onPointerCancel={onDragEnd}
-        onLostPointerCapture={onDragEnd}
-      >
+      <ul className="items" data-part="active" aria-label={t('list.items')} {...sort.listProps}>
         {active.map(row)}
       </ul>
       <p className="empty-list" hidden={items.length > 0}>

@@ -17,10 +17,10 @@
   "hub.settings": "Paramètres",
   "settings.title": "Paramètres",
   "settings.back": "Retour à l’accueil",
-  "settings.deviceSettings": "Langue &amp; apparence",
+  "settings.deviceSettings": "Langue & apparence",
   "settings.deviceText": "Choisis ici, utilisés par tous les outils. Avec un compte, ils vous suivent sur vos autres appareils.",
   "settings.apps": "Applications",
-  "settings.appsText": "Masquez les outils que vous n’utilisez pas ; ils disparaissent de la page d’accueil sur chaque appareil connecté à votre compte.",
+  "settings.appsText": "Faites glisser pour choisir l’ordre de la page d’accueil et du sélecteur d’apps, et décochez ce que vous n’utilisez pas. Les deux vous suivent sur chaque appareil connecté à votre compte.",
   "settings.backupText": "Un fichier avec votre clé et tout ce que vos appareils savent : tableaux, paramètres, votre compte. Chiffré par une phrase secrète, il restaure tout même si tous les relais vous ont oublié.",
   "settings.deviceCardText": "L’effacement supprime votre clé et toutes les données en cache de ce navigateur. Sans compte, clé exportée ou sauvegarde, ce que seul cet appareil avait est perdu.",
   "settings.wipe": "Effacer cet appareil",
@@ -61,5 +61,10 @@
   "settings.circleEmpty": "Ajoutez d’abord des amis ; cochez ensuite qui fait partie de ce cercle.",
   "settings.requestSent": "Demande envoyée.",
   "settings.nowFriends": "Vous êtes amis maintenant.",
-  "settings.selfKey": "C’est votre propre clé."
+  "settings.selfKey": "C’est votre propre clé.",
+  "settings.tab.account": "Compte",
+  "settings.tab.general": "Général",
+  "settings.tab.network": "Réseau",
+  "settings.tab.data": "Données",
+  "settings.appsReset": "Revenir à l’ordre du hub"
 }

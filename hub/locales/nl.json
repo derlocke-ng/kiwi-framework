@@ -17,10 +17,10 @@
   "hub.settings": "Instellingen",
   "settings.title": "Instellingen",
   "settings.back": "Terug naar start",
-  "settings.deviceSettings": "Taal &amp; weergave",
+  "settings.deviceSettings": "Taal & weergave",
   "settings.deviceText": "Hier gekozen, door elke tool gebruikt. Met een account gaan ze mee naar je andere apparaten.",
   "settings.apps": "Apps",
-  "settings.appsText": "Verberg tools die je niet gebruikt; ze verdwijnen van de startpagina op elk apparaat waarop je bent ingelogd.",
+  "settings.appsText": "Sleep om de volgorde van de startpagina en de app-wisselaar te kiezen, en vink uit wat je niet gebruikt. Beide gelden op elk apparaat waarop je bent aangemeld.",
   "settings.backupText": "Eén bestand met je sleutel en alles wat je apparaten weten: borden, instellingen, je account. Versleuteld met een wachtwoordzin zet het alles terug, ook als elke relay je vergeten is.",
   "settings.deviceCardText": "Wissen verwijdert je sleutel en alle gecachte gegevens uit deze browser. Zonder account, geëxporteerde sleutel of back-up is weg wat alleen dit apparaat had.",
   "settings.wipe": "Dit apparaat wissen",
@@ -60,5 +60,10 @@
   "settings.circleEmpty": "Voeg eerst vrienden toe; vink dan aan wie bij deze kring hoort.",
   "settings.requestSent": "Verzoek verstuurd.",
   "settings.nowFriends": "Jullie zijn nu vrienden.",
-  "settings.selfKey": "Dat is je eigen sleutel."
+  "settings.selfKey": "Dat is je eigen sleutel.",
+  "settings.tab.account": "Account",
+  "settings.tab.general": "Algemeen",
+  "settings.tab.network": "Netwerk",
+  "settings.tab.data": "Gegevens",
+  "settings.appsReset": "Volgorde van de hub gebruiken"
 }

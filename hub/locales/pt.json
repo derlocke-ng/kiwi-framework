@@ -17,10 +17,10 @@
   "hub.settings": "Definições",
   "settings.title": "Definições",
   "settings.back": "Voltar ao início",
-  "settings.deviceSettings": "Idioma &amp; aspeto",
+  "settings.deviceSettings": "Idioma & aspeto",
   "settings.deviceText": "Escolhidos aqui, usados por todas as ferramentas. Com uma conta, seguem-te para os teus outros dispositivos.",
   "settings.apps": "Apps",
-  "settings.appsText": "Esconde as ferramentas que não usas; desaparecem da página inicial em todos os dispositivos com a tua conta.",
+  "settings.appsText": "Arrasta para escolher a ordem da página inicial e do seletor de apps, e desmarca o que não usas. Ambas as escolhas valem em todos os dispositivos com a tua conta.",
   "settings.backupText": "Um ficheiro com a tua chave e tudo o que os teus dispositivos sabem: quadros, definições, a tua conta. Cifrado com uma frase secreta, repõe tudo mesmo que todos os relays te tenham esquecido.",
   "settings.deviceCardText": "Apagar remove a tua chave e todos os dados em cache deste navegador. Sem conta, chave exportada ou backup, o que só este dispositivo tinha perde-se.",
   "settings.wipe": "Apagar este dispositivo",
@@ -61,5 +61,10 @@
   "settings.circleEmpty": "Adicione amigos primeiro; depois assinale quem pertence a este círculo.",
   "settings.requestSent": "Pedido enviado.",
   "settings.nowFriends": "Agora são amigos.",
-  "settings.selfKey": "Essa é a sua própria chave."
+  "settings.selfKey": "Essa é a sua própria chave.",
+  "settings.tab.account": "Conta",
+  "settings.tab.general": "Geral",
+  "settings.tab.network": "Rede",
+  "settings.tab.data": "Dados",
+  "settings.appsReset": "Usar a ordem do hub"
 }

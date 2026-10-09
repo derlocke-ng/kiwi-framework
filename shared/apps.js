@@ -36,5 +36,22 @@ export const mountById = (id) => MOUNTS.find((m) => m.id === id) || null;
 /** The mounts of one app, e.g. every market this hub ships. */
 export const mountsOf = (appId) => MOUNTS.filter((m) => m.app === appId);
 
+/** The distribution's order: its featured mount first, then the rest as listed. */
+export const DEFAULT_ORDER = [...MOUNTS.filter((m) => m.featured), ...MOUNTS.filter((m) => !m.featured)].map((m) => m.id);
+
+/**
+ * The mounts in a person's order (suite settings `appOrder`, a list of mount
+ * ids): the ones they placed first, in their order, then any they have not
+ * placed yet (new in this hub) in the distribution's order. The start page,
+ * the settings and both switchers draw from this, so they always agree.
+ * @param {string[] | null | undefined} order
+ */
+export function orderedMounts(order) {
+  const rank = new Map((Array.isArray(order) && order.length ? order : DEFAULT_ORDER).map((id, i) => [id, i]));
+  const fallback = new Map(DEFAULT_ORDER.map((id, i) => [id, i]));
+  const at = (m) => rank.get(m.id) ?? MOUNTS.length + (fallback.get(m.id) ?? 0);
+  return [...MOUNTS].sort((a, b) => at(a) - at(b));
+}
+
 /** The mark for a top bar: the icon on a rounded square, the same drawing as the hub card and the favicon. */
 export const appMark = (entry, sprite = 'icons.svg') => `<span class="wjs-app-mark" aria-hidden="true"><svg class="icon"><use href="${sprite}#${entry.icon}"></use></svg></span>`;

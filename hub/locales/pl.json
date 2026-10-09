@@ -17,10 +17,10 @@
   "hub.settings": "Ustawienia",
   "settings.title": "Ustawienia",
   "settings.back": "Wróć na start",
-  "settings.deviceSettings": "Język &amp; wygląd",
+  "settings.deviceSettings": "Język & wygląd",
   "settings.deviceText": "Wybrane tutaj, używane przez każde narzędzie. Z kontem podążają za Tobą na inne urządzenia.",
   "settings.apps": "Aplikacje",
-  "settings.appsText": "Ukryj narzędzia, których nie używasz; znikną ze strony startowej na każdym urządzeniu zalogowanym na Twoje konto.",
+  "settings.appsText": "Przeciągnij, aby ustawić kolejność na stronie startowej i w przełączniku aplikacji, i odznacz to, czego nie używasz. Oba ustawienia działają na każdym urządzeniu zalogowanym na Twoje konto.",
   "settings.backupText": "Jeden plik z Twoim kluczem i wszystkim, co wiedzą Twoje urządzenia: tablice, ustawienia, konto. Zaszyfrowany hasłem przywraca wszystko, nawet gdy każdy przekaźnik o Tobie zapomni.",
   "settings.deviceCardText": "Wymazanie usuwa Twój klucz i wszystkie dane z pamięci podręcznej tej przeglądarki. Bez konta, wyeksportowanego klucza lub kopii zapasowej to, co miało tylko to urządzenie, przepada.",
   "settings.wipe": "Wymaż to urządzenie",
@@ -62,5 +62,10 @@
   "settings.circleEmpty": "Najpierw dodaj znajomych; potem zaznacz, kto należy do tego kręgu.",
   "settings.requestSent": "Zaproszenie wysłane.",
   "settings.nowFriends": "Jesteście teraz znajomymi.",
-  "settings.selfKey": "To twój własny klucz."
+  "settings.selfKey": "To twój własny klucz.",
+  "settings.tab.account": "Konto",
+  "settings.tab.general": "Ogólne",
+  "settings.tab.network": "Sieć",
+  "settings.tab.data": "Dane",
+  "settings.appsReset": "Przywróć kolejność huba"
 }

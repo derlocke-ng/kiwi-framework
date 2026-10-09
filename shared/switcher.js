@@ -2,11 +2,11 @@
 // the start page and the settings. Feels like an app: large targets, slides
 // up from the bottom on phones, the hardware back button closes it.
 //
-//   mountSwitcher(button, { base: '../', current: 'loadout', hidden: () => [...] })
+//   mountSwitcher(button, { base: '../', current: 'loadout', hidden: () => [...], order: () => [...] })
 
 import { t } from './i18n.js';
 
-import { MOUNTS } from './apps.js';
+import { orderedMounts } from './apps.js';
 
 const h = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -21,10 +21,10 @@ function ensureStyles(base) {
 }
 
 function render() {
-  const { base, current, hidden, sprite } = opts;
+  const { base, current, hidden, order, sprite } = opts;
   const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="${sprite}#${name}"></use></svg>`;
   const skip = new Set(hidden?.() || []);
-  const apps = MOUNTS.filter((a) => !skip.has(a.id));
+  const apps = orderedMounts(order?.()).filter((a) => !skip.has(a.id));
   sheet.innerHTML = `
     <div class="switcher-backdrop" data-close></div>
     <nav class="switcher-sheet" role="dialog" aria-modal="true" aria-label="${h(t('switcher.title'))}">
@@ -56,7 +56,7 @@ export function closeSwitcher({ viaHistory = false } = {}) {
 
 /**
  * @param {HTMLElement} button the trigger
- * @param {{ base: string, current: string, hidden?: () => string[], sprite?: string }} options
+ * @param {{ base: string, current: string, hidden?: () => string[], order?: () => string[], sprite?: string }} options
  *   base: path to the site root from this page ('./' on the hub, '../' in an app); sprite: icon sprite URL
  */
 export function mountSwitcher(button, options) {

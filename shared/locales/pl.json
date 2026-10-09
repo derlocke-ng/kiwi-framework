@@ -92,7 +92,7 @@
   "account.relaysText": "Przekaźniki przekazują podpisane, zaszyfrowane zdarzenia między Twoimi urządzeniami. Widzą, kiedy i ile synchronizujesz, ale nigdy co. Wybierz takie, którym ufasz, blisko Ciebie i w jurysdykcji, która Ci odpowiada.",
   "account.editRelays": "Edytuj przekaźniki",
   "account.oneUrlPerLine": "Jeden adres URL na linię",
-  "account.saveReconnect": "Zapisz &amp; połącz ponownie",
+  "account.saveReconnect": "Zapisz & połącz ponownie",
   "account.resetRelays": "Przywróć domyślne",
   "account.invalidRelay": "Adresy przekaźników zaczynają się od wss:// (lub ws:// dla localhost).",
   "account.signOut": "Wyloguj się",

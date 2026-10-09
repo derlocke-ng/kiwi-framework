@@ -88,7 +88,7 @@
   "account.relaysText": "Relays pass signed, encrypted events between your devices. They can see when you sync and how much, never what. Pick ones you trust, near you, under laws you like.",
   "account.editRelays": "Edit relays",
   "account.oneUrlPerLine": "One URL per line",
-  "account.saveReconnect": "Save &amp; reconnect",
+  "account.saveReconnect": "Save & reconnect",
   "account.resetRelays": "Reset to defaults",
   "account.invalidRelay": "Relay URLs start with wss:// (or ws:// for localhost).",
   "account.signOut": "Sign out",

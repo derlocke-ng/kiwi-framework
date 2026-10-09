@@ -17,10 +17,10 @@
   "hub.settings": "Einstellungen",
   "settings.title": "Einstellungen",
   "settings.back": "Zurück zur Startseite",
-  "settings.deviceSettings": "Sprache &amp; Darstellung",
+  "settings.deviceSettings": "Sprache & Darstellung",
   "settings.deviceText": "Hier gewählt, von jedem Tool genutzt. Mit Account folgen sie dir auf deine anderen Geräte.",
   "settings.apps": "Apps",
-  "settings.appsText": "Blende Tools aus, die du nicht nutzt; sie verschwinden von der Startseite auf jedem Gerät, auf dem du angemeldet bist.",
+  "settings.appsText": "Ziehe die Apps in die Reihenfolge, die Startseite und App-Wechsler zeigen sollen, und nimm den Haken bei allem weg, was du nicht nutzt. Beides gilt auf jedem Gerät, auf dem du angemeldet bist.",
   "settings.backupText": "Eine Datei mit deinem Schlüssel und allem, was deine Geräte wissen: Boards, Einstellungen, dein Account. Mit einer Passphrase verschlüsselt stellt sie alles wieder her, selbst wenn jedes Relay dich vergessen hat.",
   "settings.deviceCardText": "Löschen entfernt deinen Schlüssel und alle zwischengespeicherten Daten aus diesem Browser. Ohne Account, exportierten Schlüssel oder Backup ist verloren, was nur dieses Gerät hatte.",
   "settings.wipe": "Dieses Gerät löschen",
@@ -60,5 +60,10 @@
   "settings.circleEmpty": "Füge zuerst Freunde hinzu; dann hake an, wer zu diesem Kreis gehört.",
   "settings.requestSent": "Anfrage gesendet.",
   "settings.nowFriends": "Ihr seid jetzt befreundet.",
-  "settings.selfKey": "Das ist dein eigener Schlüssel."
+  "settings.selfKey": "Das ist dein eigener Schlüssel.",
+  "settings.tab.account": "Konto",
+  "settings.tab.general": "Allgemein",
+  "settings.tab.network": "Netzwerk",
+  "settings.tab.data": "Daten",
+  "settings.appsReset": "Reihenfolge des Hubs verwenden"
 }
