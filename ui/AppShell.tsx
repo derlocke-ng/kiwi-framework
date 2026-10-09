@@ -62,11 +62,13 @@ export interface AppShellProps {
   home?: string;
   /** the brand's accessible name, e.g. "Loadout home" */
   homeLabel?: string;
-  /** the app's own settings */
-  settings?: string;
+  /** the app's own settings; null: the app has none (no account button) */
+  settings?: string | null;
+  /** the right of the top bar instead of the connection pill and the account button */
+  right?: ReactNode;
 }
 
-export function AppShell({ children, footer = '', home = '#/', homeLabel, settings = '#/settings' }: AppShellProps) {
+export function AppShell({ children, footer = '', home = '#/', homeLabel, settings = '#/settings', right }: AppShellProps) {
   const kiwi = useKiwi();
   const mount = useMount();
   useKiwiTick();
@@ -80,10 +82,12 @@ export function AppShell({ children, footer = '', home = '#/', homeLabel, settin
       <TopBar
         brand={{ href: home, name: mount.name, label: homeLabel || mount.name, mark }}
         right={
-          <>
-            <StatusPill href={`${kiwi.base}settings.html#relays`} />
-            <AccountLink href={settings} />
-          </>
+          right ?? (
+            <>
+              <StatusPill href={`${kiwi.base}settings.html#relays`} />
+              {settings ? <AccountLink href={settings} /> : null}
+            </>
+          )
         }
       />
       <LanguageBanner />

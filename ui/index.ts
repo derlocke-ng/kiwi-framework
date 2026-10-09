@@ -9,6 +9,8 @@ export { AccountLink, Icon, RelayList, SiteMark, StatusPill, Toasts, TopBar } fr
 export { KiwiContext, useBlocks, useIdentity, useKiwi, useKiwiTick, useNetTick, useOutboxWaiting, usePeople, useRelayInfos, useT, useUnsynced } from './hooks';
 export type { Identity, KiwiOptions, Net } from './kiwi';
 export { bootKiwi, Kiwi } from './kiwi';
+export type { MenuItem } from './menu';
+export { closeMenus, openMenu } from './menu';
 export { mountPage } from './mount';
 export { usePeopleNotices } from './notices';
 export { copyText, dismiss, download, toast } from './toast';

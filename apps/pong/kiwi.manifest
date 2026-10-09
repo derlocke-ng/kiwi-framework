@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=pong
+DESCRIPTION=Two-player Pong between browsers: link, QR code or the open-games lobby
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# the nostr event kinds it reads and writes
+KINDS=
+TAGS=gun webrtc canvas
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/pong
+LICENSE=GPL-3.0-or-later

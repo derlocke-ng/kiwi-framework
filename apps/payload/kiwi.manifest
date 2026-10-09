@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=payload
+DESCRIPTION=Send files straight to another browser, every 64 KB piece checked with SHA-256
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# the nostr event kinds it reads and writes
+KINDS=
+TAGS=gun webrtc sha-256
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/payload
+LICENSE=GPL-3.0-or-later

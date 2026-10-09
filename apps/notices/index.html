@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="A public noticeboard over nostr: post that you are hiring or available, signed with your key, gone when it expires.">
+  <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e0f0d" media="(prefers-color-scheme: dark)">
+  <title>{{name}}</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" vite-ignore>
+  <link rel="apple-touch-icon" href="icon-192.png" vite-ignore>
+  <link rel="manifest" href="manifest.webmanifest" vite-ignore>
+  <script type="module" src="./main.tsx"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <noscript><p class="noscript">This board needs JavaScript: notes are signed and verified in your browser.</p></noscript>
+</body>
+</html>

@@ -11,6 +11,7 @@ import { Relay, useWebSocketImplementation } from 'nostr-tools/relay';
 import { WebSocket } from 'ws';
 import { startBlossom } from '../../scripts/blossom-server.mjs';
 import { startRelay } from '../../scripts/nostr-relay.mjs';
+import { assemble } from '../../scripts/build-site.mjs';
 
 useWebSocketImplementation(WebSocket);
 
@@ -140,4 +141,30 @@ export async function run(name, body, options) {
     await env.close();
   }
   process.exit(failed ? 1 : 0);
+}
+
+/**
+ * A hub with nothing but some of the framework's own apps, each mounted at its own name
+ * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks' }]); resolves with the site's folder.
+ */
+export async function testHub(apps) {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-hub-'));
+  const config = {
+    id: 'test-hub',
+    name: 'Test hub',
+    shortName: 'Test',
+    brandHtml: 'Test hub',
+    description: 'Framework apps on their own, for the browser suites.',
+    homepage: './',
+    repo: './',
+    relays: [],
+    media: [],
+    how: null,
+    policy: { userMounts: false },
+    apps: apps.map((a) => ({ id: a.app, name: a.name, icon: a.icon, tags: [], framework: a.app })),
+    mounts: apps.map((a, i) => ({ id: a.app, app: a.app, featured: i === 0 })),
+  };
+  fs.writeFileSync(path.join(dist, 'distribution.js'), `export const DISTRIBUTION = ${JSON.stringify(config)};\n`);
+  const { out } = await assemble({ distribution: dist, out: fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-site-')), legacy: false });
+  return out;
 }

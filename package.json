@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check",
     "lint:fix": "biome check --write",
-    "test:e2e": "node test/e2e/widgets.mjs && node test/e2e/boards.mjs",
+    "test:e2e": "node test/e2e/widgets.mjs && node test/e2e/boards.mjs && node test/e2e/notices.mjs && node test/e2e/payload.mjs && node test/e2e/pong.mjs",
     "probe": "node scripts/blossom-probe.mjs"
   },
   "dependencies": {

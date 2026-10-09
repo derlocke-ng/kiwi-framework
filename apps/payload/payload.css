@@ -1,0 +1,391 @@
+/* Payload: tokens and components from the shared design library; this file
+   holds what is the app's own. */
+@import "../../shared/ui.css";
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view,
+.foot {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+}
+
+.relays {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.relays[data-state='on'] .dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 0.18);
+}
+
+.view {
+  flex: 1;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}
+
+.intro h1 {
+  font-size: clamp(1.7rem, 5vw, 2.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0.5rem 0 0.6rem;
+}
+
+.intro p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.drop {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  border: 2px dashed var(--border-strong);
+  border-radius: 18px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.drop:hover,
+.drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.drop span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.drop-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  margin-bottom: 0.3rem;
+}
+
+.open-link,
+.copy-field {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input {
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.copy-field input {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--surface-2);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.btn-danger {
+  justify-self: start;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.card p {
+  margin: 0;
+}
+
+#ready {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.muted,
+.note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.files,
+.receivers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.files li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+
+.file-name {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 550;
+}
+
+.file-size {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-state {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.receivers li {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rcv-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  font-size: 0.92rem;
+}
+
+.rcv-state {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--muted);
+  background: var(--surface-2);
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.bar.ok span {
+  background: var(--ok);
+}
+
+.fp {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.from {
+  font-size: 0.95rem;
+}
+
+.error {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.state {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding: 2rem 0.5rem;
+  color: var(--muted);
+}
+
+.spinner {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.qr-box {
+  display: grid;
+  place-items: center;
+}
+
+.qr {
+  width: min(240px, 70vw);
+  height: auto;
+  border-radius: 10px;
+}
+
+.qr-bg {
+  fill: #fff;
+}
+
+.qr-fg {
+  fill: #000;
+}
+
+.foot {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding-top: 1rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.foot a {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  .bar span {
+    transition: none;
+  }
+}
+
+.wjs-top {
+  padding-left: max(var(--gutter), calc((100% - 680px) / 2));
+  padding-right: max(var(--gutter), calc((100% - 680px) / 2));
+}

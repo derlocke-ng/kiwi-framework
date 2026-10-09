@@ -9,13 +9,11 @@
 //   await run('loadout', (env) => boardsSuite(env, { app: `${env.base}loadout/`, settings: `${env.base}settings.html`, name: 'Loadout' }), { webRoot: site });
 // Run directly, it builds a small test hub that mounts the app at boards/.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools/pure';
-import { run, device, until, sleep } from './env.mjs';
-import { assemble } from '../../scripts/build-site.mjs';
+import { run, device, until, sleep, testHub } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -579,32 +577,7 @@ export async function boardsSuite(env, { app, settings, name }) {
   assert.equal(await US.textContent('.home h1'), 'Your boards');
 }
 
-/** A hub with nothing but the boards app, mounted at boards/. */
-export async function testSite() {
-  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-boards-dist-'));
-  fs.writeFileSync(
-    path.join(dist, 'distribution.js'),
-    `export const DISTRIBUTION = ${JSON.stringify({
-      id: 'boards-test',
-      name: 'Test hub',
-      shortName: 'Test',
-      brandHtml: 'Test hub',
-      description: 'The boards app on its own, for the browser suite.',
-      homepage: './',
-      repo: './',
-      relays: [],
-      media: [],
-      how: null,
-      policy: { userMounts: false },
-      apps: [{ id: 'boards', name: 'Boards', icon: 'list-checks', tags: ['nostr'], framework: 'boards' }],
-      mounts: [{ id: 'boards', app: 'boards', featured: true }],
-    })};\n`,
-  );
-  const { out } = await assemble({ distribution: dist, out: fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-boards-site-')), legacy: false });
-  return out;
-}
-
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
-  const site = await testSite();
+  const site = await testHub([{ app: 'boards', name: 'Boards', icon: 'list-checks' }]);
   await run('boards', (env) => boardsSuite(env, { app: `${env.base}boards/`, settings: `${env.base}settings.html`, name: 'Boards' }), { webRoot: site });
 }

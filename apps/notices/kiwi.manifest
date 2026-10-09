@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=notices
+DESCRIPTION=A freelancer noticeboard: signed notes with proof of work, votes, reports and expiry
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# the nostr event kinds it reads and writes
+KINDS=30810 7 1984 5
+TAGS=nostr proof-of-work signed-notes
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/notices
+LICENSE=GPL-3.0-or-later

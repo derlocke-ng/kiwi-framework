@@ -13,7 +13,6 @@ import { sha256, getEventHash, nip13 } from './nostr.mjs';
 import { store } from './util.js';
 
 export const CORES_KEY = 'wjs.pow.cores';
-const WORKER_URL = new URL('./pow-worker.js', import.meta.url);
 
 export const powOf = (event) => nip13.getPow(event.id);
 
@@ -174,7 +173,8 @@ export function minePow(template, bits, { onProgress = null, workers = cores(), 
     for (let i = 0; i < Math.max(1, workers); i++) {
       let w;
       try {
-        w = new Worker(WORKER_URL, { type: 'module' });
+        // written out in full so bundlers (Vite) see the worker and bundle its imports with it
+        w = new Worker(new URL('./pow-worker.js', import.meta.url), { type: 'module' });
       } catch (err) {
         if (pool.length) break; // some workers are enough
         try {
