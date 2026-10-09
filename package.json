@@ -1,6 +1,6 @@
 {
   "name": "kiwi-framework",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "The engine and the parts of a federated community hub on nostr: identity and accounts, relays, store and sync, settings, people, moderation, the design kit, the app shell, build and scaffolding. A distribution adds its name, relays and apps.",
   "license": "GPL-3.0-or-later",
   "repository": "github:derlocke-ng/kiwi-framework",
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check",
     "lint:fix": "biome check --write",
-    "test:e2e": "node test/e2e/widgets.mjs && node test/e2e/boards.mjs && node test/e2e/notices.mjs && node test/e2e/payload.mjs && node test/e2e/pong.mjs",
+    "test:e2e": "node test/e2e/widgets.mjs && node test/e2e/boards.mjs && node test/e2e/notices.mjs && node test/e2e/payload.mjs && node test/e2e/pong.mjs && node test/e2e/scaffold.mjs",
     "probe": "node scripts/blossom-probe.mjs"
   },
   "dependencies": {

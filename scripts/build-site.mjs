@@ -4,13 +4,16 @@
 //
 //   node node_modules/kiwi-framework/scripts/build-site.mjs [out=_site] [--no-legacy]
 //
-// The hub pages (React, built with Vite), the library (shared/, served as
-// plain files for the apps that still import it) and the icon sprite come
-// from the framework; distribution.js, the strings in locales/, the apps and
-// anything in public/ come from the distribution. An app entry with
-// `framework: '<name>'` is one of the framework's own apps (apps/<name>),
-// built with Vite for the route the distribution gives it; files in the
-// distribution's apps/<id>/ are laid over it (icons, a manifest of its own). The site service worker's
+// The hub pages (React, built with Vite), the library (shared/, also served
+// as plain files) and the icon sprite come from the framework;
+// distribution.js, the strings in locales/, the apps and anything in public/
+// come from the distribution. The apps are React, built with Vite for the
+// route the distribution gives them: an app entry with `framework: '<name>'`
+// is one of the framework's own apps (apps/<name>), and the distribution's
+// files in apps/<id>/ are laid over it (icons, a manifest of its own); an
+// apps/<id>/ with a main.tsx is the distribution's own, built the same way
+// against the framework's React layer. An app with a build step of its own
+// (a package.json) is built with it, anything else copied. The site service worker's
 // precache list and version are computed from the result, so every deploy
 // busts the cache by itself. `import { assemble }` does the same for tests.
 import fs from 'node:fs';
@@ -19,7 +22,7 @@ import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { build } from 'vite';
-import { appConfig, framework, distributionFile, siteConfig } from './vite-site.mjs';
+import { appConfig, appSource, framework, distributionFile, siteConfig } from './vite-site.mjs';
 
 export { framework, distributionFile };
 const PRECACHE = /\.(m?js|css|html|svg|webmanifest|png)$/;
@@ -163,17 +166,24 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   fs.mkdirSync(path.join(out, 'locales'), { recursive: true });
   for (const [lang, cat] of Object.entries(mergedLocales(distribution))) fs.writeFileSync(path.join(out, 'locales', `${lang}.json`), `${JSON.stringify(cat, null, 2)}\n`);
 
-  // 5. the apps: the framework's built for their route, the distribution's copied as they are or built when they have a build step
+  // 5. the apps: React apps (the framework's and the distribution's own) built for their route, others built by their own tools or copied
+  const viteBuilt = new Set();
   for (const app of config.apps) {
     const src = path.join(distribution, 'apps', app.id);
-    if (app.framework) {
+    const root = appSource(distribution, app);
+    if (root) {
       const dir = path.join(out, app.id);
-      log(`building ${app.id} (the framework's ${app.framework})`);
-      await build(appConfig({ distribution, config, app: app.framework, out: dir }));
-      const strings = path.join(framework, 'apps', app.framework, 'locales');
-      if (fs.existsSync(strings)) fs.cpSync(strings, path.join(dir, 'locales'), { recursive: true });
+      log(app.framework ? `building ${app.id} (the framework's ${app.framework})` : `building ${app.id}`);
+      await build(appConfig({ distribution, config, root, out: dir }));
+      viteBuilt.add(app.id);
+      if (fs.existsSync(path.join(root, 'locales'))) fs.cpSync(path.join(root, 'locales'), path.join(dir, 'locales'), { recursive: true });
       fs.writeFileSync(path.join(dir, 'icon.svg'), appIconSvg(app.icon, fs.readFileSync(path.join(out, 'icons.svg'), 'utf8')));
-      if (fs.existsSync(src)) fs.cpSync(src, dir, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git)(\/|$)/.test(p) });
+      // the distribution's files for the app over the build: a framework app's whole folder, the icons and a manifest of its own app's
+      if (app.framework) {
+        if (fs.existsSync(src)) fs.cpSync(src, dir, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git)(\/|$)/.test(p) });
+      } else {
+        for (const f of fs.readdirSync(src)) if (/^(icon[\w.-]*\.(svg|png)|manifest\.webmanifest)$/.test(f)) fs.copyFileSync(path.join(src, f), path.join(dir, f));
+      }
       if (!fs.existsSync(path.join(dir, 'manifest.webmanifest'))) fs.writeFileSync(path.join(dir, 'manifest.webmanifest'), `${JSON.stringify(appManifest(app, dir), null, 2)}\n`);
       continue;
     }
@@ -204,9 +214,9 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
     if (config.apps.some((a) => a.id === m.id)) throw new Error(`the mount "${m.id}" has the id of an app; give it its own`);
     log(`mounting ${m.app} at ${m.id}/`);
     fs.cpSync(path.join(out, m.app), path.join(out, m.id), { recursive: true });
-    // a framework app installs under the mount's own name and icon
+    // a React app installs under the mount's own name and icon
     const app = config.apps.find((a) => a.id === m.app);
-    if (app?.framework) {
+    if (app && viteBuilt.has(app.id)) {
       const mounted = { ...app, name: m.name || app.name, icon: m.icon || app.icon };
       const dir = path.join(out, m.id);
       fs.writeFileSync(path.join(dir, 'icon.svg'), appIconSvg(mounted.icon, fs.readFileSync(path.join(out, 'icons.svg'), 'utf8')));

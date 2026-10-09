@@ -700,7 +700,7 @@ select:focus {
   background: #f59e0b;
 }
 
-/* ---------- the settings view every app has (shared/settingsview.js) ---------- */
+/* ---------- the settings page every app has (AppSettings) ---------- */
 
 .wjs-settings {
   display: grid;

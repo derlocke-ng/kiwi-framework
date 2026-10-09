@@ -1,7 +1,7 @@
 // Toasts as a store: any code (a page, a hook, a notice) calls toast(), the
 // <Toasts/> component renders them. Same classes as the design library's
 // vanilla toasts, so the styles and the browser suites see no difference.
-import { t } from '../shared/i18n.js';
+import { t, tErr } from '../shared/i18n.js';
 
 export interface ToastAction {
   label: string;
@@ -53,6 +53,11 @@ export function toast(message: string, kind = 'info', ms = 3200, action: ToastAc
   notify();
   setTimeout(() => dismiss(id), ms);
   return id;
+}
+
+/** An error as a toast, in words the person can read (the framework's errors are translated). */
+export function toastError(err: unknown): number {
+  return toast(tErr(err), 'error');
 }
 
 /** Put text on the clipboard and say so. */

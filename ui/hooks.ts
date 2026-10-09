@@ -3,9 +3,11 @@
 // and returns a version or a value, so components re-render exactly when
 // something they show has changed.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { t } from '../shared/i18n.js';
+import { t, tErr } from '../shared/i18n.js';
 import { savedRelays } from '../shared/relays.js';
+import { AccountSettings } from '../shared/settings.js';
 import type { Identity, Kiwi } from './kiwi';
+import { toast } from './toast';
 
 export const KiwiContext = createContext<Kiwi | null>(null);
 
@@ -143,4 +145,30 @@ export function useBlocks(): any {
 export function useLocal<T>(initial: () => T): [T, (v: T) => void] {
   const [v, setV] = useState<T>(initial);
   return [v, setV];
+}
+
+/**
+ * An app's own settings, encrypted in the account (kind 30791, d = namespace),
+ * so they follow it to every device; null until loaded. get(key, fallback),
+ * set({ key: value }) and re-renders on every change, from any device.
+ */
+export function useAppSettings(namespace: string): any | null {
+  const kiwi = useKiwi();
+  const identity = useIdentity();
+  const [settings, setSettings] = useState<any>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: they belong to the identity, by its key
+  useEffect(() => {
+    const s = new AccountSettings(identity, kiwi.net, namespace);
+    let live = true;
+    s.start()
+      .then(() => live && setSettings(s))
+      .catch((err: unknown) => toast(tErr(err), 'error'));
+    return () => {
+      live = false;
+      s.stop();
+      setSettings(null);
+    };
+  }, [identity.pk, kiwi, namespace]);
+  useTick(useCallback((fn: () => void) => (settings ? settings.onChange(fn) : () => {}), [settings]));
+  return settings;
 }

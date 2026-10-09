@@ -8,16 +8,17 @@
 // adds what the build would assemble: the library at /shared/ with the
 // distribution's config, the merged strings at /locales/, the merged icon
 // sprite, the manifest, the distribution's public/ files and its apps under
-// /<id>/ (as they are; apps with a build step are left out). The framework's
-// own apps (an app entry with `framework:`) are built into a temporary folder
-// and rebuilt on every save; reload the page to see a change. The service
+// /<id>/. React apps (the framework's, `framework:` in the app entry, and the
+// distribution's own with a main.tsx) are built into a temporary folder and
+// rebuilt on every save; reload the page to see a change. Other apps are
+// served as they are; apps with a build step of their own are left out. The service
 // worker is a no-op in development: it would cache what you are editing.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { build, createServer } from 'vite';
 import { appIconSvg, appManifest, appRoutes, loadDistribution, manifest, mergedLocales, spriteWith } from './build-site.mjs';
-import { appConfig, distributionFile, framework, siteConfig } from './vite-site.mjs';
+import { appConfig, appSource, distributionFile, framework, siteConfig } from './vite-site.mjs';
 
 const distribution = process.cwd();
 const port = Number(process.argv[2] || process.env.PORT || 5173);
@@ -58,28 +59,29 @@ const within = (dir, rel) => {
 
 // every route an app is served at (its id and its mounts' ids); apps with a build step are left out
 const built = (id) => fs.existsSync(path.join(distribution, 'apps', id, 'package.json'));
-const own = (id) => config.apps.find((a) => a.id === id);
+const sources = new Map(config.apps.map((a) => [a.id, appSource(distribution, a)]));
 const apps = new Map(
-  [...appRoutes(config)].filter(([, app]) => !built(app) && !own(app)?.framework).map(([route, app]) => [route, path.join(distribution, 'apps', app)]),
+  [...appRoutes(config)].filter(([, app]) => !built(app) && !sources.get(app)).map(([route, app]) => [route, path.join(distribution, 'apps', app)]),
 );
 
-// the framework's apps: built once, then again on every save (watch mode)
+// the React apps: built once, then again on every save (watch mode)
 const sprite = () => {
   const extra = path.join(distribution, 'icons.svg');
   const base = fs.readFileSync(path.join(framework, 'hub/icons.svg'), 'utf8');
   return fs.existsSync(extra) ? spriteWith(base, fs.readFileSync(extra, 'utf8')).sprite : base;
 };
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-dev-apps-'));
-const frameworkRoutes = new Map();
-for (const app of config.apps.filter((a) => a.framework)) {
+const reactRoutes = new Map();
+for (const app of config.apps.filter((a) => sources.get(a.id))) {
   const out = path.join(tmp, app.id);
-  const base = appConfig({ distribution, config, app: app.framework, out });
+  const root = sources.get(app.id);
+  const base = appConfig({ distribution, config, root, out });
   const watcher = await build({ ...base, mode: 'development', build: { ...base.build, emptyOutDir: false, minify: false, watch: {} } });
   await new Promise((resolve) => watcher.on('event', (e) => (e.code === 'END' || e.code === 'ERROR') && resolve()));
   for (const [route, id] of appRoutes(config)) {
     if (id !== app.id) continue;
     const mount = (config.mounts || []).find((m) => m.id === route) || {};
-    frameworkRoutes.set(route, { app: { ...app, name: mount.name || app.name, icon: mount.icon || app.icon }, out });
+    reactRoutes.set(route, { app: { ...app, name: mount.name || app.name, icon: mount.icon || app.icon }, root, out });
   }
 }
 
@@ -104,19 +106,20 @@ const assembled = {
         if (file && sendFile(res, file)) return;
       }
       const top = url.split('/')[1];
-      if (frameworkRoutes.has(top)) {
-        const { app, out } = frameworkRoutes.get(top);
+      if (reactRoutes.has(top)) {
+        const { app, root, out } = reactRoutes.get(top);
         if (url === `/${top}`) {
           res.writeHead(301, { location: `/${top}/` });
           return res.end();
         }
         const rel = url.slice(top.length + 1) || '/';
-        // as in a build: the distribution's own files for the app first (icons, a manifest), then what the framework makes
-        const overlay = within(path.join(distribution, 'apps', app.id), rel);
+        // as in a build: the distribution's own files for the app first (icons, a manifest; for its own app not the source), then what the build makes
+        const overlay =
+          (app.framework || /^\/(icon[\w.-]*\.(svg|png)|manifest\.webmanifest)$/.test(rel)) && within(path.join(distribution, 'apps', app.id), rel);
         if (overlay && rel !== '/' && fs.existsSync(overlay) && fs.statSync(overlay).isFile() && sendFile(res, overlay)) return;
         if (rel === '/icon.svg') return send(res, 200, appIconSvg(app.icon, sprite()), TYPES['.svg']);
         if (rel === '/manifest.webmanifest') return send(res, 200, JSON.stringify(appManifest(app, out), null, 2), TYPES['.webmanifest']);
-        const strings = rel.startsWith('/locales/') && within(path.join(framework, 'apps', app.framework, 'locales'), rel.slice('/locales'.length));
+        const strings = rel.startsWith('/locales/') && within(path.join(root, 'locales'), rel.slice('/locales'.length));
         if (strings && sendFile(res, strings)) return;
         const file = within(out, rel);
         if (file && sendFile(res, file)) return;
@@ -141,5 +144,5 @@ const server = await createServer({ ...base, plugins: [...base.plugins, assemble
 await server.listen();
 server.printUrls();
 console.log(
-  `\n${config.name}: the hub with hot reload; apps under /<id>/ (${[...apps.keys(), ...frameworkRoutes.keys()].join(', ') || 'none'}); the framework's apps rebuild on save.`,
+  `\n${config.name}: the hub with hot reload; apps under /<id>/ (${[...apps.keys(), ...reactRoutes.keys()].join(', ') || 'none'}); React apps rebuild on save.`,
 );

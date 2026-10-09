@@ -1,5 +1,5 @@
 // A dialog over the page: Escape, the close button and a tap outside close it.
-// For a plain yes/no question use confirmDialog() instead.
+// For a plain yes/no question use confirmDialog() (ui/dialogs.tsx) instead.
 import { type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '../components';
@@ -19,7 +19,14 @@ export function Modal({ open, title, onClose, children, wide = false, id }: Moda
   const ref = useRef<HTMLDialogElement | null>(null);
   useEffect(() => {
     const d = ref.current;
-    if (open && d && !d.open) d.showModal();
+    if (!open || !d || d.open) return;
+    d.showModal();
+    // The control marked data-autofocus, else the first text field, rather than the close button.
+    // (React's autoFocus cannot do it: the dialog is still closed when React focuses.)
+    (
+      d.querySelector<HTMLElement>('[data-autofocus]') ||
+      d.querySelector<HTMLElement>('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea, select')
+    )?.focus();
   }, [open]);
   if (!open) return null;
   return createPortal(

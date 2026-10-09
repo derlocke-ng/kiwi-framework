@@ -15,6 +15,11 @@ export function usePeopleNotices(): void {
   const people = usePeople();
   useEffect(() => {
     if (!people) return;
+    // A tick later: an app takes its own shares (people.onShare) in effects of the same render.
+    const timer = setTimeout(() => run(people));
+    return () => clearTimeout(timer);
+  });
+  function run(people: any) {
     const done = new Set<string>(store.get(NOTIFIED, []));
     const fresh: string[] = [];
     if (current !== 'settings') {
@@ -29,7 +34,7 @@ export function usePeopleNotices(): void {
       }
     }
     for (const s of people.shares()) {
-      if (s.app === current && people.handles(current)) continue;
+      if (people.handles(s.app)) continue; // this page's app takes it itself
       const key = `share:${s.id}`;
       if (done.has(key)) continue;
       fresh.push(key);
@@ -41,5 +46,5 @@ export function usePeopleNotices(): void {
       });
     }
     if (fresh.length) store.set(NOTIFIED, [...done, ...fresh].slice(-300));
-  });
+  }
 }

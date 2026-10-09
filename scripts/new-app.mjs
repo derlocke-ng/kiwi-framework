@@ -1,7 +1,8 @@
-// Scaffold an app that plugs into the suite: a folder with a page, a script
-// on the shared core and app shell, a settings view, strings in every
-// language, the registry entry, the hub card text, the favicon and the
-// service worker list. Then write the app.
+// Scaffold an app that plugs into the suite: a React app on the framework's
+// React layer (kiwi-framework/ui) with the app shell, a settings page and
+// strings in every language, its registry entry and mount, the hub card text
+// and the favicon. The build compiles it with Vite for every route it is
+// mounted at, like the framework's own apps. Then write the app.
 //   npm run new-app -- outpost "Outpost" sprout        (in the distribution's repository)
 //   (the icon is a lucide symbol id from the framework's sprite, or from the distribution's icons.svg)
 import fs from 'node:fs';
@@ -39,123 +40,133 @@ write(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="${name} — part of ${DISTRIBUTION.name}.">
+  <meta name="description" content="${name}: part of ${DISTRIBUTION.name}.">
   <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0e0f0d" media="(prefers-color-scheme: dark)">
   <title>${name}</title>
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="manifest" href="../manifest.webmanifest">
-  <link rel="stylesheet" href="${id}.css">
-  <script type="module" src="${id}.js"></script>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" vite-ignore>
+  <link rel="manifest" href="manifest.webmanifest" vite-ignore>
+  <script type="module" src="./main.tsx"></script>
 </head>
 <body>
-  <header id="top"></header>
-  <main id="main" class="main">
-    <noscript><p class="empty">${name} needs JavaScript: everything is signed and verified in your browser.</p></noscript>
-  </main>
-  <footer class="foot"><a href="../">${DISTRIBUTION.name}</a> · <span id="footNote"></span></footer>
-  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="root"></div>
+  <noscript><p class="noscript">${name} needs JavaScript: everything is signed and verified in your browser.</p></noscript>
 </body>
 </html>
 `,
 );
 
 write(
+  'main.tsx',
+  `// ${name}'s page. The mount it runs as is the folder it is served from, so one
+// build serves every route the hub mounts it at.
+import { mountApp } from 'kiwi-framework/ui';
+import { App } from './App';
+import './${id}.css';
+
+await mountApp(App, { id: '${id}' });
+`,
+);
+
+write(
+  'App.tsx',
+  `// ${name}. Routes: #/ the app, #/settings its settings.
+//
+// Everything comes from the framework's React layer, kiwi-framework/ui: the
+// shell (AppShell, AppSettings), the strings (useT, from locales/), the account
+// (useIdentity) and this app's settings in it (useAppSettings), friends and
+// circles (usePeople, pickPeople), the block list (useBlocks), nostr events
+// (useEvents), dialogs, toasts and the widgets (ItemList, MarkdownEditor,
+// Collection, Feed, ImageUpload, …).
+import { AppSettings, AppShell, Icon, toastError, useAppSettings, useHash, useMount, useT } from 'kiwi-framework/ui';
+
+/** "How it works": a line of its own, then the framework's topics it is built from (HOW in kiwi-framework/ui has a list per kind of app). */
+const HOW = ['${id}.how.1', 'encrypted', 'relays', 'offline'];
+
+function Settings({ settings }: { settings: any }) {
+  const t = useT();
+  const mount = useMount();
+  return (
+    <AppSettings title={t('app.settings.title', { app: mount.name })} backLabel={t('${id}.back')} how={HOW}>
+      <div className="card">
+        <h2>
+          <Icon name="settings" />
+          {t('${id}.settings.example')}
+        </h2>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            id="exampleToggle"
+            checked={Boolean(settings?.get('example'))}
+            disabled={!settings}
+            onChange={(e) => settings.set({ example: e.target.checked }).catch(toastError)}
+          />
+          <span>{t('${id}.settings.exampleToggle')}</span>
+        </label>
+      </div>
+    </AppSettings>
+  );
+}
+
+export function App() {
+  const t = useT();
+  // this app's settings, encrypted in the account (kind 30791, d = '${id}'): they follow it to every device
+  const settings = useAppSettings('${id}');
+  const page = useHash().startsWith('#/settings') ? 'settings' : 'home';
+  return (
+    <AppShell footer={t('${id}.footer')}>
+      {page === 'settings' ? (
+        <Settings settings={settings} />
+      ) : (
+        <section className="card">
+          <h1>{t('${id}.title')}</h1>
+          <p>{t('${id}.lead')}</p>
+        </section>
+      )}
+    </AppShell>
+  );
+}
+`,
+);
+
+write(
   `${id}.css`,
-  `/* ${name} — tokens and components from the shared design library; this file
-   holds what is ${name}'s own. */
-@import url('../shared/ui.css');
+  `/* ${name}: tokens and components come from the framework's design library;
+   this file holds what is ${name}'s own. */
+@import 'kiwi-framework/shared/ui.css';
 
 body {
   display: flex;
   flex-direction: column;
 }
 
-.main {
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
-  padding: 1rem var(--gutter) 3rem;
+  padding: 1.25rem var(--gutter) 3rem;
   flex: 1;
+  outline: none;
 }
 
-.wjs-top {
-  padding-left: max(var(--gutter), calc((100% - 760px) / 2));
-  padding-right: max(var(--gutter), calc((100% - 760px) / 2));
+.foot {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 1.5rem var(--gutter) max(1.5rem, env(safe-area-inset-bottom));
 }
 
 .foot a {
-  color: var(--muted);
+  color: inherit;
 }
-`,
-);
-
-write(
-  `${id}.js`,
-  `// ${name}: the shared core (relays, store, sync, account), the app shell (top
-// bar with switcher, account button and connection pill; theme; language) and
-// the settings view every app has. Strings live in locales/<lang>.json.
-import { LocalStore } from '../shared/store.js';
-import { RelayPool, savedRelays } from '../shared/relays.js';
-import { Sync } from '../shared/sync.js';
-import { loadIdentity } from '../shared/account.js';
-import { AccountSettings } from '../shared/settings.js';
-import { initAppShell } from '../shared/appshell.js';
-import { statusPill } from '../shared/status.js';
-import { settingsView } from '../shared/settingsview.js';
-import { howLines } from '../shared/how.js';
-import { t, tErr } from '../shared/i18n.js';
-import { $, h, icon, toast } from '../shared/ui.js';
-
-const net = { db: null, pool: null, sync: null };
-let identity;
-let prefs; // this app's settings, encrypted in the account (kind 30791, d = '${id}')
-let shell;
-
-function render() {
-  const main = $('#main');
-  if (location.hash.startsWith('#/settings')) {
-    main.innerHTML = settingsView({
-      identity,
-      title: t('app.settings.title', { app: '${name}' }),
-      backLabel: t('${id}.back'),
-      cards: [
-        \`<div class="card"><h2>\${icon('settings')}\${h(t('${id}.settings.example'))}</h2>
-          <label class="check-row"><input type="checkbox" id="exampleToggle" \${prefs.get('example') ? 'checked' : ''}><span>\${h(t('${id}.settings.exampleToggle'))}</span></label></div>\`,
-      ],
-      // the framework's topics (shared/how.js: HOW has a list per kind of app) and lines of its own
-      how: howLines(['${id}.how.1', 'encrypted', 'relays', 'offline']),
-    });
-    return;
-  }
-  main.innerHTML = \`<section class="card"><h2>\${h(t('${id}.title'))}</h2><p>\${h(t('${id}.lead'))}</p></section>\`;
-  $('#footNote').textContent = t('${id}.footer');
-}
-
-async function boot() {
-  net.db = await LocalStore.open('wjs');
-  net.pool = new RelayPool(savedRelays());
-  net.sync = new Sync(net.pool, net.db);
-  identity = loadIdentity();
-  shell = await initAppShell({ app: '${id}', net, brand: { href: '#/' }, right: () => statusPill({ href: '../settings.html#relays' }), account: { href: '#/settings' } });
-  // shell.people (friends, circles, sharing: shared/people.js, pickPeople in people-ui.js) and shell.blocks are ready to use.
-  shell.onLanguage(render);
-  prefs = await new AccountSettings(identity, net, '${id}').start();
-  prefs.onChange(render);
-  net.sync.watch([identity.pk]);
-  window.addEventListener('hashchange', render);
-  $('#main').addEventListener('change', (e) => {
-    if (e.target.id === 'exampleToggle') prefs.set({ example: e.target.checked }).catch((err) => toast(tErr(err), 'error'));
-  });
-  render();
-}
-
-boot().catch((err) => {
-  console.error(err);
-  toast(err.message, 'error');
-});
 `,
 );
 
@@ -224,9 +235,9 @@ console.log('locales/*.json: hub card text added');
 execFileSync(process.execPath, [path.join(framework, 'scripts/app-icons.mjs'), id], { stdio: 'inherit', cwd: root });
 
 console.log(`
-${name} is in: open apps/${id}/ on the dev server, it shows on the start page and in the switcher.
+${name} is in: npm run dev serves it at /${id}/ and rebuilds it on save; it shows on the start page and in the switcher.
 Still yours:
-  · write the app in apps/${id}/${id}.js (the board goes in render(), settings cards in settingsView)
+  · write the app in apps/${id}/App.tsx (React on kiwi-framework/ui; the page in App, settings cards in Settings)
   · translate apps/${id}/locales/*.json and hub.${id}.text in locales/*.json (English for now)
   · a browser test in test/e2e/${id}.mjs (copy an existing one), added to "test:e2e" in package.json
   · a row in README.md

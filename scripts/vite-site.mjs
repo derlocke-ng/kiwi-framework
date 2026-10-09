@@ -1,14 +1,31 @@
 // The Vite configuration for a hub: the framework's hub pages (React) built
-// for one distribution, and the framework's own apps (apps/<name>, React)
-// built for the routes a distribution mounts them at. Used by build-site.mjs
+// for one distribution, and the apps (React): the framework's own
+// (apps/<name>) and a distribution's (apps/<id> with a main.tsx), built for
+// the routes a distribution mounts them at. Used by build-site.mjs
 // (production) and dev.mjs (development). Plain JavaScript so a
 // distribution's build needs no TypeScript step to load it.
 
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 
 export const framework = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const packageDir = (name) => path.dirname(createRequire(path.join(framework, 'package.json')).resolve(`${name}/package.json`));
+
+/**
+ * One React for the framework and an app outside it, whether the framework is
+ * installed (its dependencies beside it) or linked from a checkout (its own
+ * node_modules); `kiwi-framework/…` is the framework doing the build.
+ */
+const appResolve = () => ({
+  alias: [
+    { find: /^kiwi-framework(?=\/|$)/, replacement: framework },
+    { find: /^react-dom(?=\/|$)/, replacement: packageDir('react-dom') },
+    { find: /^react(?=\/|$)/, replacement: packageDir('react') },
+  ],
+  dedupe: ['react', 'react-dom'],
+});
 const hub = path.join(framework, 'hub');
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -33,8 +50,8 @@ function kiwiDistribution(config, distribution, { dev = false } = {}) {
     name: 'kiwi-distribution',
     enforce: 'pre',
     resolveId(source, importer) {
-      if (!importer || !source.startsWith('.')) return null;
-      const abs = path.resolve(path.dirname(importer.split('?')[0]), source);
+      if (!importer) return null;
+      const abs = source.startsWith('.') ? path.resolve(path.dirname(importer.split('?')[0]), source) : source;
       return abs === own ? distFile : null;
     },
     transformIndexHtml(html) {
@@ -91,14 +108,27 @@ export const frameworkApps = () =>
     : [];
 
 /**
- * One of the framework's apps (apps/<app>) built for a distribution, into
- * `out` (the route it is mounted at). Assets are relative, so the same build
- * serves at every route the app is mounted at.
- * @param {{ distribution: string, config: object, app: string, out: string, dev?: boolean }} o
+ * Where an app entry's React source is, when Vite builds it: the framework's
+ * apps/<name> for `framework: '<name>'`, the distribution's apps/<id> when it
+ * has a main.tsx; null for an app copied as it is or built by its own tools.
  */
-export function appConfig({ distribution, config, app, out, dev = false }) {
-  const root = path.join(framework, 'apps', app);
-  if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`the framework has no app "${app}" (apps/${app}/index.html)`);
+export function appSource(distribution, app) {
+  if (app.framework) {
+    const root = path.join(framework, 'apps', app.framework);
+    if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`the framework has no app "${app.framework}" (apps/${app.framework}/index.html)`);
+    return root;
+  }
+  const own = path.join(distribution, 'apps', app.id);
+  return fs.existsSync(path.join(own, 'main.tsx')) && fs.existsSync(path.join(own, 'index.html')) ? own : null;
+}
+
+/**
+ * A React app (the folder `root`, from appSource()) built for a distribution
+ * into `out`, the route it is mounted at. Assets are relative, so the same
+ * build serves at every route the app is mounted at.
+ * @param {{ distribution: string, config: object, root: string, out: string, dev?: boolean }} o
+ */
+export function appConfig({ distribution, config, root, out, dev = false }) {
   return {
     configFile: false,
     envFile: false,
@@ -109,7 +139,7 @@ export function appConfig({ distribution, config, app, out, dev = false }) {
     cacheDir: path.join(distribution, 'node_modules', '.vite-kiwi'),
     logLevel: 'warn',
     plugins: [react(), kiwiDistribution(config, distribution, { dev })],
-    resolve: { dedupe: ['react', 'react-dom'] },
+    resolve: appResolve(),
     build: {
       outDir: out,
       emptyOutDir: true,

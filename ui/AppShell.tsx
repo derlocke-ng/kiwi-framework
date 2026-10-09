@@ -2,8 +2,8 @@
 // mark and name (from the mount it runs as), the switcher, the connection
 // pill and the account button; the language question for browsers in
 // another language; the footer back to the hub; and the settings page every
-// app has (identity, the app's own cards, "How it works"). Same markup and
-// classes as the plain versions in shared/ (appshell.js, settingsview.js).
+// app has (identity, the app's own cards, "How it works"); notices about
+// friend requests and shares come with the shell.
 //
 //   <AppShell footer={t('app.footer')}>…the page…</AppShell>
 //   <AppSettings title=… backLabel=… how={['myapp.how.1', 'relays']}>…cards…</AppSettings>
@@ -16,6 +16,7 @@ import { fingerprint } from '../shared/events.js';
 import { currentLanguage, LANGUAGES, shouldAskLanguage } from '../shared/i18n.js';
 import { AccountLink, Icon, StatusPill, Toasts, TopBar } from './components';
 import { useIdentity, useKiwi, useKiwiTick, useT } from './hooks';
+import { usePeopleNotices } from './notices';
 import { HowItWorks } from './widgets/HowItWorks';
 
 /** Asked once, in the browser's own language, when it is not English; nothing at all otherwise. */
@@ -72,6 +73,7 @@ export function AppShell({ children, footer = '', home = '#/', homeLabel, settin
   const kiwi = useKiwi();
   const mount = useMount();
   useKiwiTick();
+  usePeopleNotices();
   const mark = (
     <span className="wjs-app-mark" aria-hidden="true">
       <Icon name={mount.icon} />

@@ -3,9 +3,9 @@
 // copy of the app adds the board to their wallet.
 import { useState } from 'react';
 import { tErr } from '../../../shared/i18n.js';
-import { pickPeople } from '../../../shared/people-ui.js';
 import qrcode from '../../../shared/qrcode.mjs';
 import { Icon } from '../../../ui/components';
+import { pickPeople } from '../../../ui/dialogs';
 import { useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';

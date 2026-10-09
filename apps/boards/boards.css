@@ -3,16 +3,17 @@
 @import "../../shared/ui.css";
 @import "../../shared/widgets.css";
 
-
 #root {
   flex: 1;
   display: flex;
   flex-direction: column;
-}.boot,
+}
+
+.boot,
 .noscript {
   margin: auto;
   color: var(--muted);
-}/* ---------- top bar ---------- */
+}
 
 .view {
   width: 100%;
@@ -505,7 +506,9 @@ body[data-route='board'] .view {
 
 .qr-fg {
   fill: #000;
-}/* ---- language ---- */
+}
+
+/* ---- language ---- */
 .lang-banner {
   flex-wrap: wrap;
   align-items: center;
@@ -563,7 +566,9 @@ body[data-route='board'] .view {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-}.templates summary {
+}
+
+.templates summary {
   cursor: pointer;
   font-weight: 600;
 }
@@ -586,10 +591,4 @@ body[data-route='board'] .view {
 .relay-problem {
   flex-basis: 100%;
   color: #b45309;
-}
-
-/* the shared top bar lines up with the view */
-.wjs-top {
-  padding-left: max(var(--gutter), calc((100% - 760px) / 2));
-  padding-right: max(var(--gutter), calc((100% - 760px) / 2));
 }

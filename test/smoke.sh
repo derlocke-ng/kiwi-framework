@@ -1,5 +1,5 @@
 #!/bin/sh
-# A distribution from nothing: the framework's own config, one scaffolded app,
+# A distribution from nothing: the framework's own config, one scaffolded app (React, built by Vite),
 # a build. What a fork does on day one.
 set -eu
 FW=$(cd "$(dirname "$0")/.." && pwd)
@@ -34,7 +34,11 @@ grep -q "<title>kiwi-framework</title>" "$D/_site/index.html"
 ls "$D"/_site/assets/*.js > /dev/null
 grep -q "'assets/" "$D/_site/sw.js"
 grep -q "'demo/'" "$D/_site/sw.js"
-node --check "$D/apps/demo/demo.js"
+ls "$D"/_site/demo/assets/*.js > /dev/null
+test -f "$D/_site/demo/locales/en.json"
+test -f "$D/_site/demo/icon.svg"
+grep -q '"name": "Demo Two"' "$D/_site/demo-two/manifest.webmanifest"
+! test -e "$D/_site/demo/App.tsx"
 for r in lists shopping; do
   test -f "$D/_site/$r/index.html"
   ls "$D"/_site/$r/assets/*.js > /dev/null

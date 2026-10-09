@@ -9,7 +9,7 @@ import { tErr } from '../../shared/i18n.js';
 import { AccountSettings } from '../../shared/settings.js';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useIdentity, useKiwi, usePeople, useT } from '../../ui/hooks';
-import { closeMenus } from '../../ui/menu';
+import { useHash } from '../../ui/route';
 import { toast } from '../../ui/toast';
 import { carryOver } from './data/carry.js';
 import { unwatchAll, watchAll } from './data/heal.js';
@@ -20,27 +20,13 @@ import { BoardsSettings } from './pages/BoardsSettings';
 import { Home } from './pages/Home';
 import { BoardsContext, type BoardsState } from './state';
 
-function useRoute() {
-  const [hash, setHash] = useState(location.hash);
-  useEffect(() => {
-    const follow = () => {
-      closeMenus();
-      setHash(location.hash);
-      window.scrollTo(0, 0);
-    };
-    addEventListener('hashchange', follow);
-    return () => removeEventListener('hashchange', follow);
-  }, []);
-  return parseRoute(hash);
-}
-
 export function BoardsApp() {
   const t = useT();
   const kiwi = useKiwi();
   const identity = useIdentity();
   const people = usePeople();
   const [state, setState] = useState<BoardsState | null>(null);
-  const route = useRoute();
+  const route = parseRoute(useHash());
 
   // The wallet and the app's settings belong to the identity: a sign-in elsewhere in the suite starts them over.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the identity

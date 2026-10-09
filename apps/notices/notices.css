@@ -21,11 +21,6 @@ body {
   flex: 1;
 }
 
-.wjs-top {
-  padding-left: max(var(--gutter), calc((100% - 1040px) / 2));
-  padding-right: max(var(--gutter), calc((100% - 1040px) / 2));
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;

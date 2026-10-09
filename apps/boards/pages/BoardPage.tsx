@@ -5,11 +5,10 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { tErr } from '../../../shared/i18n.js';
 import { listToMarkdown } from '../../../shared/items.js';
-import { confirmDialog } from '../../../shared/ui.js';
 import { useMount } from '../../../ui/AppShell';
 import { Icon } from '../../../ui/components';
+import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useKiwi, useT, useTick } from '../../../ui/hooks';
-import { openMenu } from '../../../ui/menu';
 import { copyText, download, toast } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';
 import { Board, copyBoard } from '../data/boards.js';

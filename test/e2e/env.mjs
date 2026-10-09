@@ -144,6 +144,34 @@ export async function run(name, body, options) {
 }
 
 /**
+ * Where the top bar puts its parts on `url` at a desktop width: the switcher, the brand
+ * (mark, name, its type) and the right edge. Every page of a hub should give the same.
+ */
+export async function topBar(env, url) {
+  const page = await device(env, 'bar', null, null, { viewport: { width: 1600, height: 900 } });
+  try {
+    await page.goto(url);
+    await page.waitForSelector('.wjs-top .wjs-brand-name');
+    return await page.evaluate(() => {
+      const box = (sel) => {
+        const b = document.querySelector(sel).getBoundingClientRect();
+        return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)];
+      };
+      const name = document.querySelector('.wjs-brand-name');
+      return {
+        bar: box('.wjs-top')[3],
+        switcher: box('.wjs-switcher'),
+        mark: box('.wjs-brand > :first-child'),
+        name: [...box('.wjs-brand-name').slice(0, 2), box('.wjs-brand-name')[3], getComputedStyle(name).font],
+        right: Math.round(document.querySelector('.wjs-right').getBoundingClientRect().right),
+      };
+    });
+  } finally {
+    await page.ctx.close();
+  }
+}
+
+/**
  * A hub with nothing but some of the framework's own apps, each mounted at its own name
  * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks' }]); resolves with the site's folder.
  */

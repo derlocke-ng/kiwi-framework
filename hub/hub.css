@@ -4,7 +4,9 @@
 
 * {
   box-sizing: border-box;
-}body {
+}
+
+body {
   display: flex;
   flex-direction: column;
 }
@@ -251,12 +253,16 @@ main,
 
 .down .dot {
   background: #ef4444;
-}@media (max-width: 560px) {
+}
+
+@media (max-width: 560px) {
   .feature {
     flex-direction: column;
     gap: 0.75rem;
   }
-}/* ---- shell: account, forms, language ---- */
+}
+
+/* ---- shell: account, forms, language ---- */
 .spacer {
   flex: 1;
 }
@@ -407,12 +413,6 @@ select:focus-visible {
 
 .foot-links a {
   color: var(--muted);
-}
-
-/* the shared top bar lines up with the page content */
-.wjs-top {
-  padding-left: max(var(--gutter), calc((100% - 1040px) / 2));
-  padding-right: max(var(--gutter), calc((100% - 1040px) / 2));
 }
 
 .blocked-list {

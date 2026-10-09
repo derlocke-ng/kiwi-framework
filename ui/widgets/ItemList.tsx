@@ -6,8 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { tErr } from '../../shared/i18n.js';
 import { between, endOrders, formatQty, headerText, isHeader, parseItemText, sortItems, splitLines, stats } from '../../shared/items.js';
-import { confirmDialog } from '../../shared/ui.js';
 import { Icon } from '../components';
+import { confirmDialog } from '../dialogs';
 import { useT } from '../hooks';
 import { toast } from '../toast';
 import { MarkdownInline } from './Markdown';

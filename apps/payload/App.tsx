@@ -3,9 +3,9 @@
 // Texts are English for now, as Payload's always were.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createGun, DEFAULT_RELAYS, relaysUp } from '../../shared/p2p.js';
-import { pickPeople } from '../../shared/people-ui.js';
 import { qrSvg } from '../../shared/qr.js';
 import { AppShell, useMount } from '../../ui/AppShell';
+import { pickPeople } from '../../ui/dialogs';
 import { useKiwi, usePeople, useTick } from '../../ui/hooks';
 import { toast } from '../../ui/toast';
 import { Receiving } from './receiver.js';
@@ -56,13 +56,13 @@ function RelaysPill({ gun }: { gun: any }) {
   const up = relaysUp(gun);
   return (
     <span
-      className="relays"
+      className="wjs-status"
       id="relays"
       data-state={up ? 'on' : 'off'}
       title={up ? `Connected to ${up} of ${relayList.length} relays` : 'No relay reachable — you can’t find each other right now'}
     >
-      <span className="dot" />
-      <span id="relayText">{`${up}/${relayList.length}`}</span>
+      <span className="wjs-status-dot" />
+      <span className="wjs-status-text" id="relayText">{`${up}/${relayList.length}`}</span>
     </span>
   );
 }

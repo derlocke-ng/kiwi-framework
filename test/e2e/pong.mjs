@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { run, device, until, sleep, testHub } from './env.mjs';
+import { run, device, until, sleep, testHub, topBar } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 
@@ -117,6 +117,9 @@ export async function pongSuite(env, { app }) {
   await LG.click('#lobby button:has-text("LOBBYHOST")');
   await LG.waitForSelector('#game:not([hidden])', { timeout: 30000 });
   await until(async () => !(await LG.textContent('#lobby')).includes('LOBBYHOST'), 'game unlisted once it started', 15000);
+
+  step('the suite’s top bar, exactly as on the hub: place, size and type');
+  assert.deepEqual(await topBar(env, app), await topBar(env, env.base));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {

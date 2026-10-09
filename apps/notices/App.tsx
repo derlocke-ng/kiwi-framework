@@ -5,33 +5,19 @@ import { tErr } from '../../shared/i18n.js';
 import { AccountSettings } from '../../shared/settings.js';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useIdentity, useKiwi, useT, useTick } from '../../ui/hooks';
-import { closeMenus } from '../../ui/menu';
+import { useHash } from '../../ui/route';
 import { toast } from '../../ui/toast';
 import { NAMESPACE, Notices } from './data/notices.js';
 import { BoardView } from './pages/BoardView';
 import { NoticesSettings } from './pages/NoticesSettings';
 import { PrefsContext } from './state';
 
-function useRoute() {
-  const [hash, setHash] = useState(location.hash);
-  useEffect(() => {
-    const follow = () => {
-      closeMenus();
-      setHash(location.hash);
-      window.scrollTo(0, 0);
-    };
-    addEventListener('hashchange', follow);
-    return () => removeEventListener('hashchange', follow);
-  }, []);
-  return hash.startsWith('#/settings') ? 'settings' : 'board';
-}
-
 export function NoticesApp() {
   const t = useT();
   const kiwi = useKiwi();
   const identity = useIdentity();
   const mount = useMount();
-  const route = useRoute();
+  const route = useHash().startsWith('#/settings') ? 'settings' : 'board';
   const [state, setState] = useState<{ notices: Notices; prefs: any } | null>(null);
 
   // The board and the app's settings belong to the identity.

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { run, device, until, testHub } from './env.mjs';
+import { run, device, until, testHub, topBar } from './env.mjs';
 
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const step = (s) => console.log(`• ${s}`);
@@ -76,6 +76,9 @@ export async function payloadSuite(env, { app }) {
   const R = await device(env, 'early', relays, env.relayUrl);
   await R.goto(`${app}#AAAAAAAAAAAAAAAAAAAAAA`);
   await until(async () => (await R.textContent('#status')).includes('Waiting for the sender'), 'waiting message', 15000);
+
+  step('the suite’s top bar, exactly as on the hub: place, size and type');
+  assert.deepEqual(await topBar(env, app), await topBar(env, env.base));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {

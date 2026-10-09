@@ -5,11 +5,10 @@ import { type FormEvent, useRef, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
 import { REPORT_TYPES } from '../../../shared/moderation.js';
-import { confirmDialog } from '../../../shared/ui.js';
 import { randomId } from '../../../shared/util.js';
 import { Icon } from '../../../ui/components';
+import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useBlocks, useIdentity, usePeople, useT } from '../../../ui/hooks';
-import { openMenu } from '../../../ui/menu';
 import { toast } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';
 import { DURATIONS, LIMITS, type Notices } from '../data/notices.js';
@@ -81,8 +80,7 @@ function ComposeDialog({ notices, existing, onClose }: { notices: Notices; exist
         </div>
         <label className="field">
           {t('db.compose.titleLabel')}
-          {/* biome-ignore lint/a11y/noAutofocus: the dialog opens to write a note */}
-          <input name="title" required maxLength={LIMITS.title} defaultValue={d.title} placeholder={t('db.compose.titlePlaceholder')} autoFocus />
+          <input name="title" required maxLength={LIMITS.title} defaultValue={d.title} placeholder={t('db.compose.titlePlaceholder')} data-autofocus />
         </label>
         <label className="field">
           {t('db.compose.text')}

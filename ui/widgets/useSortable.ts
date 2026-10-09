@@ -1,6 +1,6 @@
 // Reordering by dragging a handle, or with Alt+↑/↓ on a focused row. Used by
 // the item list, the settings' app order and the boards' start page; any list
-// of rows can use it. Plain pages have shared/sortable.js with the same rules.
+// of rows can use it.
 //
 //   const sort = useSortable({ ids, onMove: (id, order) => save(order) });
 //   <ul {...sort.listProps}>{sort.order.map((id) => (

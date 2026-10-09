@@ -120,8 +120,7 @@ function NewBoardDialog({ start, onClose }: { start: { kind: Kind; title: string
         </div>
         <label className="field">
           {t('home.new.titleLabel')}
-          {/* biome-ignore lint/a11y/noAutofocus: the dialog opens to type a title */}
-          <input name="title" maxLength={TITLE} required defaultValue={start.title} placeholder={t('home.new.placeholder')} autoFocus />
+          <input name="title" maxLength={TITLE} required defaultValue={start.title} placeholder={t('home.new.placeholder')} data-autofocus />
         </label>
         <p className="hint">
           <Icon name="lock" /> {t('home.new.hint')}
@@ -153,8 +152,7 @@ function OpenLinkDialog({ onClose }: { onClose: () => void }) {
       <form className="form" id="openLink" onSubmit={submit}>
         <label className="field">
           {t('home.open.label')}
-          {/* biome-ignore lint/a11y/noAutofocus: the dialog opens to paste a link */}
-          <input name="link" required placeholder={t('home.open.placeholder')} autoComplete="off" spellCheck={false} autoFocus />
+          <input name="link" required placeholder={t('home.open.placeholder')} autoComplete="off" spellCheck={false} data-autofocus />
         </label>
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>
