@@ -4,7 +4,7 @@
 // forget, and what goes into backups.
 
 import { matchFilters } from './nostr.mjs';
-import { addressOf, supersedes, isEphemeralKind } from './events.js';
+import { addressOf, supersedes, isEphemeralKind, observe } from './events.js';
 
 const DB_VERSION = 1;
 
@@ -53,6 +53,7 @@ export class LocalStore {
    */
   async put(event) {
     if (isEphemeralKind(event.kind)) return 'ignored';
+    observe(event); // even when it is older than ours: our next write must beat every version anyone has
     const address = addressOf(event);
     const os = this.tx('events', 'readwrite');
     if (address) {
@@ -68,11 +69,15 @@ export class LocalStore {
   }
 
   async get(id) {
-    return (await req(this.tx('events').get(id)))?.event ?? null;
+    const event = (await req(this.tx('events').get(id)))?.event ?? null;
+    observe(event);
+    return event;
   }
 
   async getByAddress(kind, pubkey, d = '') {
-    return (await req(this.tx('events').index('address').get(`${kind}:${pubkey}:${d}`)))?.event ?? null;
+    const event = (await req(this.tx('events').index('address').get(`${kind}:${pubkey}:${d}`)))?.event ?? null;
+    observe(event);
+    return event;
   }
 
   /** Events matching nostr filters, newest first. */
@@ -81,10 +86,12 @@ export class LocalStore {
     const authors = list.every((f) => f.authors?.length) ? [...new Set(list.flatMap((f) => f.authors))] : null;
     const os = this.tx('events');
     const rows = authors ? (await Promise.all(authors.map((pk) => req(os.index('pubkey').getAll(pk))))).flat() : await req(os.getAll());
-    return rows
+    const events = rows
       .map((r) => r.event)
       .filter((e) => matchFilters(list, e))
       .sort((a, b) => b.created_at - a.created_at);
+    for (const e of events) observe(e); // what an app shows is what its next edit must supersede
+    return events;
   }
 
   async byAuthor(pubkey) {

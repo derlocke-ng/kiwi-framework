@@ -58,6 +58,16 @@
   touch-action: pan-y;
 }
 
+/* While a row is dragged: rows move above the visible part of the page, so
+   the browser must not shift the page to keep its anchor (scroll anchoring),
+   and a long press must not start selecting text. */
+html.wjs-dragging,
+html.wjs-dragging body {
+  overflow-anchor: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .item.dragging {
   position: relative;
   z-index: 10;

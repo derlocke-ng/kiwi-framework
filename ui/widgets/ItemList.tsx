@@ -56,7 +56,16 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
   const [doneOpen, setDoneOpen] = useState(showDone);
   const [drag, setDrag] = useState<{ id: string; order: string[]; offset: number } | null>(null);
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null);
-  const dragRef = useRef<{ id: string; startY: number; order: string[]; origin: string[] } | null>(null);
+  const dragRef = useRef<{
+    id: string;
+    pointerId: number;
+    startY: number;
+    clientY: number;
+    fromY: number;
+    order: string[];
+    origin: string[];
+    frame: number;
+  } | null>(null);
   const rows = useRef(new Map<string, HTMLLIElement>());
   const activeUl = useRef<HTMLUListElement | null>(null);
   const scrollTo = useRef<string | null>(null);
@@ -138,42 +147,95 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
     }
   };
   const gap = () => Number.parseFloat(activeUl.current ? getComputedStyle(activeUl.current).rowGap : '0') || 0;
-  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>, id: string) => {
-    if (e.button > 0) return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const ids = active.map((i) => i.id);
-    dragRef.current = { id, startY: e.clientY, order: ids, origin: ids };
-    setDrag({ id, order: ids, offset: 0 });
-  };
-  const onGripMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+  // Dragging: the list, which never moves, holds the pointer (rows are
+  // reordered under it, and a moved element would lose the capture);
+  // distances are in page coordinates, so autoscroll near the screen edges
+  // keeps the row under the finger, and it keeps scrolling while the finger
+  // rests at the edge.
+  const place = () => {
     const d = dragRef.current;
     if (!d) return;
-    const i = d.order.indexOf(d.id);
-    const dy = e.clientY - d.startY;
-    const next = rows.current.get(d.order[i + 1]);
-    const prev = rows.current.get(d.order[i - 1]);
+    const y = d.clientY + window.scrollY;
     const g = gap();
-    if (next && dy > (next.offsetHeight + g) / 2) {
-      d.order = [...d.order];
-      [d.order[i], d.order[i + 1]] = [d.order[i + 1], d.order[i]];
-      d.startY += next.offsetHeight + g;
-    } else if (prev && dy < -(prev.offsetHeight + g) / 2) {
-      d.order = [...d.order];
-      [d.order[i], d.order[i - 1]] = [d.order[i - 1], d.order[i]];
-      d.startY -= prev.offsetHeight + g;
+    for (;;) {
+      const i = d.order.indexOf(d.id);
+      const dy = y - d.startY;
+      const next = rows.current.get(d.order[i + 1]);
+      const prev = rows.current.get(d.order[i - 1]);
+      if (next && dy > (next.offsetHeight + g) / 2) {
+        d.order = [...d.order];
+        [d.order[i], d.order[i + 1]] = [d.order[i + 1], d.order[i]];
+        d.startY += next.offsetHeight + g;
+      } else if (prev && dy < -(prev.offsetHeight + g) / 2) {
+        d.order = [...d.order];
+        [d.order[i], d.order[i - 1]] = [d.order[i - 1], d.order[i]];
+        d.startY -= prev.offsetHeight + g;
+      } else break;
     }
-    setDrag({ id: d.id, order: d.order, offset: e.clientY - d.startY });
-    if (e.clientY < 70) window.scrollBy(0, -12);
-    else if (e.clientY > window.innerHeight - 70) window.scrollBy(0, 12);
+    setDrag({ id: d.id, order: d.order, offset: y - d.startY });
   };
-  const onGripUp = () => {
+  const tick = () => {
     const d = dragRef.current;
-    dragRef.current = null;
-    setDrag(null);
-    if (!d || d.order.join() === d.origin.join()) return;
-    void commitOrder(d.id, d.order);
+    if (!d) return;
+    // only towards the edge the finger is moving to: a press near an edge scrolls nothing by itself
+    const edge = 70;
+    const y = d.clientY;
+    const up = y < edge && y < d.fromY - 8;
+    const down = y > window.innerHeight - edge && y > d.fromY + 8;
+    const speed = up ? -Math.ceil((edge - y) / 6) : down ? Math.ceil((y - (window.innerHeight - edge)) / 6) : 0;
+    if (speed) {
+      window.scrollBy(0, speed);
+      place();
+    }
+    d.frame = requestAnimationFrame(tick);
   };
+  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>, id: string) => {
+    if (e.button > 0 || dragRef.current || !activeUl.current) return;
+    e.preventDefault();
+    try {
+      activeUl.current.setPointerCapture(e.pointerId);
+    } catch {}
+    const ids = active.map((i) => i.id);
+    dragRef.current = {
+      id,
+      pointerId: e.pointerId,
+      startY: e.clientY + window.scrollY,
+      clientY: e.clientY,
+      fromY: e.clientY,
+      order: ids,
+      origin: ids,
+      frame: 0,
+    };
+    document.documentElement.classList.add('wjs-dragging');
+    setDrag({ id, order: ids, offset: 0 });
+    dragRef.current.frame = requestAnimationFrame(tick);
+  };
+  const onDragMove = (e: React.PointerEvent<HTMLUListElement>) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    d.clientY = e.clientY;
+    place();
+  };
+  const onDragEnd = (e: React.PointerEvent<HTMLUListElement>) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    dragRef.current = null;
+    cancelAnimationFrame(d.frame);
+    document.documentElement.classList.remove('wjs-dragging');
+    try {
+      activeUl.current?.releasePointerCapture(d.pointerId);
+    } catch {}
+    setDrag(null);
+    if (d.order.join() !== d.origin.join()) void commitOrder(d.id, d.order);
+  };
+  // Leaving the page mid-drag leaves nothing behind.
+  useEffect(
+    () => () => {
+      if (dragRef.current) cancelAnimationFrame(dragRef.current.frame);
+      document.documentElement.classList.remove('wjs-dragging');
+    },
+    [],
+  );
   const onListKey = (e: React.KeyboardEvent<HTMLUListElement>) => {
     if (!canEdit || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
     const id = (e.target as HTMLElement).closest<HTMLElement>('li.item')?.dataset.id;
@@ -232,16 +294,7 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
         style={dragging ? { transform: `translateY(${drag?.offset ?? 0}px)` } : undefined}
       >
         {canEdit && !item.d ? (
-          <button
-            type="button"
-            className="grip"
-            aria-label={t('list.drag')}
-            tabIndex={-1}
-            onPointerDown={(e) => onGripDown(e, item.id)}
-            onPointerMove={onGripMove}
-            onPointerUp={onGripUp}
-            onPointerCancel={onGripUp}
-          >
+          <button type="button" className="grip" aria-label={t('list.drag')} tabIndex={-1} onPointerDown={(e) => onGripDown(e, item.id)}>
             <Icon name="grip-vertical" />
           </button>
         ) : null}
@@ -347,7 +400,17 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
         </form>
       ) : null}
       <p className="list-meta">{progress}</p>
-      <ul className="items" data-part="active" aria-label={t('list.items')} ref={activeUl} onKeyDown={onListKey}>
+      <ul
+        className="items"
+        data-part="active"
+        aria-label={t('list.items')}
+        ref={activeUl}
+        onKeyDown={onListKey}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
+        onLostPointerCapture={onDragEnd}
+      >
         {active.map(row)}
       </ul>
       <p className="empty-list" hidden={items.length > 0}>

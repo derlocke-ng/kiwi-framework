@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyEvent, getPublicKey, hexToBytes, bytesToHex, generateSecretKey } from '../../shared/nostr.mjs';
-import { KINDS, addressOf, supersedes, stamp, makeAddressable, seal, open, deriveKey, fingerprint, isHex64 } from '../../shared/events.js';
+import { KINDS, addressOf, supersedes, stamp, observe, makeAddressable, seal, open, deriveKey, fingerprint, isHex64 } from '../../shared/events.js';
 import { deriveLookup, buildAccountEvent, openAccountEvent, importKey, nsec, npub, exportEncrypted, normalizeUsername, selfKey } from '../../shared/account.js';
 
 const sk = bytesToHex(generateSecretKey());
@@ -17,6 +17,20 @@ test('addresses and ordering', () => {
   const newer = { created_at: 6, id: 'a' };
   assert.ok(supersedes(newer, older) && !supersedes(older, newer));
   assert.ok(supersedes({ created_at: 5, id: 'a' }, { created_at: 5, id: 'b' }), 'equal time → lower id wins');
+});
+
+test('a new version is newer than any version this device has seen, whatever its clock says', () => {
+  const sk = bytesToHex(generateSecretKey());
+  const pk = getPublicKey(hexToBytes(sk));
+  const ahead = Math.floor(Date.now() / 1000) + 30; // another device, its clock 30 s ahead
+  observe({ kind: 30702, pubkey: pk, created_at: ahead, tags: [['d', 'item1']] });
+  const mine = makeAddressable(30702, 'item1', 'x', sk);
+  assert.equal(mine.created_at, ahead + 1, 'our edit supersedes theirs');
+  assert.ok(supersedes(mine, { created_at: ahead, id: 'f'.repeat(64) }));
+  observe({ kind: 30702, pubkey: pk, created_at: ahead - 100, tags: [['d', 'item1']] });
+  assert.equal(makeAddressable(30702, 'item1', 'y', sk).created_at, ahead + 2, 'an older version does not lower the floor');
+  observe({ kind: 1, pubkey: pk, created_at: ahead + 1000, tags: [] });
+  assert.ok(makeAddressable(30702, 'item2', 'z', sk).created_at < ahead, 'regular events and other addresses are unaffected');
 });
 
 test('timestamps per address only move forward', () => {

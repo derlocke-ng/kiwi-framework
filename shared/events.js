@@ -52,11 +52,23 @@ export { isEphemeralKind };
 // created_at has one-second resolution. Two edits of the same item within a
 // second would otherwise tie, and the tie-break by id could pick the older
 // one, so each address gets a strictly increasing timestamp on this device.
+// And a new version must be newer than every version this device has seen:
+// another device's clock may run ahead of ours (or ours did, before a
+// reload, after quick edits), and relays and stores keep only the newest
+// version, so an edit stamped by our clock alone would be dropped everywhere
+// while the screen still showed it. The store reports every version it reads
+// or receives (observe), and stamp() starts after the newest of them.
 const lastStamp = new Map();
 export function stamp(address) {
   const t = Math.max(now(), (lastStamp.get(address) ?? 0) + 1);
   lastStamp.set(address, t);
   return t;
+}
+
+/** A version of a replaceable or addressable event this device has seen: its next write there must be newer. */
+export function observe(event) {
+  const address = event && addressOf(event);
+  if (address && event.created_at > (lastStamp.get(address) ?? 0)) lastStamp.set(address, event.created_at);
 }
 
 /** Sign an addressable event with a secret key (hex). */

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { Relay } from 'nostr-tools/relay';
 import { nip19 } from 'nostr-tools';
-import { run, device, until, root } from './env.mjs';
+import { run, device, until, sleep, root } from './env.mjs';
 import { assemble } from '../../scripts/build-site.mjs';
 
 const step = (s) => console.log(`• ${s}`);
@@ -131,6 +131,38 @@ await run(
     await W.mouse.move(g.x + g.width / 2, tb.y - 5);
     await W.mouse.up();
     await until(async () => (await order())[0] === last, `dragging puts "${last}" first`);
+
+    step('checklist: dragging down, and holding at the bottom edge of a small screen, where the page scrolls');
+    const listAt = (y) => W.$eval(`${C} [data-part=active]`, (el, at) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - at), y);
+    const mid = async (sel) => {
+      const b = await (await W.$(sel)).boundingBox();
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2, h: b.height };
+    };
+    await listAt(200);
+    const firstNow = (await order())[0];
+    let from = await mid(`${C} [data-part=active] li:nth-child(1) .grip`);
+    const second = await mid(`${C} [data-part=active] li:nth-child(2)`);
+    await W.mouse.move(from.x, from.y);
+    await W.mouse.down();
+    for (let y = from.y; y < second.y + 12; y += 6) await W.mouse.move(from.x, y);
+    await W.mouse.move(from.x, second.y + 12);
+    await W.mouse.up();
+    await until(async () => (await order())[1] === firstNow, 'dragging down moves the row down one place');
+    await W.setViewportSize({ width: 420, height: 320 });
+    await listAt(90);
+    const topNow = (await order())[0];
+    from = await mid(`${C} [data-part=active] li:nth-child(1) .grip`);
+    await W.mouse.move(from.x, from.y);
+    await W.mouse.down();
+    for (let y = from.y; y < 300; y += 10) await W.mouse.move(from.x, y);
+    for (let t = 0; t < 2500; t += 50) {
+      await W.mouse.move(from.x, 300 + (t % 100 ? 1 : 0));
+      await sleep(50);
+    }
+    await W.mouse.up();
+    await until(async () => (await order()).at(-1) === topNow, 'held at the bottom edge, the page scrolls and the row goes last');
+    assert.equal(await W.evaluate(() => document.documentElement.classList.contains('wjs-dragging')), false, 'nothing left over from the drag');
+    await W.setViewportSize({ width: 420, height: 900 });
 
     step('checklist: clearing done items asks first');
     await W.check(`${C} li:has-text("pears") .check input`, { force: true });

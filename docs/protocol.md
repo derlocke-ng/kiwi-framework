@@ -6,7 +6,7 @@ Everything here is a nostr event ([NIP-01](https://github.com/nostr-protocol/nip
 
 ## 1. Conventions
 
-- **Addressable events** (kinds 30000–39999) are identified by `kind:pubkey:d`; a relay keeps the newest per address. Newest means greater `created_at`, and on a tie the lower `id` wins (NIP-01). Because `created_at` has one-second resolution, a device never signs two events for the same address with the same timestamp: it uses `max(now, last + 1)` per address (`stamp()`). Clients apply the same rule when merging.
+- **Addressable events** (kinds 30000–39999) are identified by `kind:pubkey:d`; a relay keeps the newest per address. Newest means greater `created_at`, and on a tie the lower `id` wins (NIP-01). Because `created_at` has one-second resolution, a device never signs two events for the same address with the same timestamp: it uses `max(now, last + 1)` per address (`stamp()`), where `last` is the newest `created_at` it has signed **or seen** for that address. Seen counts every version the device has read from its store or received from a relay, so an edit always supersedes what the person was looking at, even when another device's clock runs ahead of this one's; stamping by the local clock alone would let relays and stores drop the edit as older. Clients apply the same rule when merging.
 - **Ephemeral events** (20000–29999) are passed on by relays and not stored.
 - **Deletion** is a new version of the addressable event whose content is `{ "del": 1, "u": <ms> }` (sealed where the kind is sealed). Tombstones are kept by clients so a deleted thing cannot come back from a relay that missed the deletion. NIP-09 deletion events (kind 5) are not relied on.
 - **Sealed content** means the content string is `seal(key, value)`: the JSON of `value` as UTF-8, gzip-compressed when longer than 1024 bytes and smaller compressed (then version 2, else version 1), encrypted with AES-256-GCM under a 32-byte key with a random 12-byte IV and the one-byte version as additional data; the result is base64url of `version (1 byte) | iv (12) | ciphertext+tag`. Nothing but the version byte is readable without the key.
@@ -167,3 +167,4 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 ## Changes
 
 - **v1** (October 2026): this document, written from the code of kiwi-framework 0.1.0 and Armory. No event format changed.
+- **v1, clarified**: `created_at` of a new version is after every version the device has seen, not only the ones it signed (fixes edits from a device with a slow clock being dropped). No format changed.
