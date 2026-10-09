@@ -145,8 +145,9 @@ export async function noticesSuite(env, { app, settings, name }) {
   await menu(B, 'Available: Rust backend', 'Block this person');
   await until(async () => (await B.$$('.note')).length === 0, 'the blocked person’s note is gone on B', 15000);
   await B.waitForSelector('.toast-success');
+  // the list is saved on the device at once and reaches the relay through the outbox
+  await until(async () => (await env.relayEvents([{ kinds: [10000] }])).length === 1, 'the block list is on the relay', 15000);
   const mute = await env.relayEvents([{ kinds: [10000] }]);
-  assert.equal(mute.length, 1, 'the block list is on the relay');
   assert.ok(!JSON.stringify(mute[0]).includes(note.pubkey), 'the relay cannot see who is blocked');
   assert.deepEqual(await titles(A), ['Available: Rust backend'], 'A still sees its own note');
 
