@@ -186,7 +186,11 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
         continue;
       }
       log(`building ${app.id}`);
-      execSync('npm ci --no-audit --no-fund && npm run build', { cwd: src, stdio: 'inherit' });
+      // Vite's own builds in this process set NODE_ENV=production, and npm then leaves out dev
+      // dependencies, where an app keeps its build tools: the app installs and builds as on its own.
+      const env = { ...process.env };
+      delete env.NODE_ENV;
+      execSync('npm ci --no-audit --no-fund && npm run build', { cwd: src, stdio: 'inherit', env });
       fs.cpSync(path.join(src, 'dist'), path.join(out, app.id), { recursive: true });
     } else {
       log(`copying ${app.id}`);

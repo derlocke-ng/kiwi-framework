@@ -14,6 +14,15 @@ grep -q "demo-two" "$D/distribution.js"
 # one of the framework's own apps (boards), mounted twice under names of the hub's choosing
 node -e "const fs=require('fs');const f=process.argv[1];let s=fs.readFileSync(f,'utf8');s=s.replace(/apps: \[/, 'apps: [\n    { id: \'lists\', name: \'Lists\', icon: \'list-checks\', tags: [], framework: \'boards\' },');s=s.replace(/mounts: \[/, 'mounts: [\n    { id: \'lists\', app: \'lists\' },\n    { id: \'shopping\', app: \'lists\', name: \'Shopping\' },');fs.writeFileSync(f,s)" "$D/distribution.js"
 grep -q "framework: 'boards'" "$D/distribution.js"
+# an app with a build step of its own, built after the framework's: it installs and builds as it would on its own
+# (Vite's builds set NODE_ENV=production in the process, and npm would leave out its build tools)
+mkdir -p "$D/apps/legacy"
+cat > "$D/apps/legacy/package.json" <<'JSON'
+{ "name": "legacy", "version": "0.0.0", "private": true, "scripts": { "build": "node -e \"if (process.env.NODE_ENV === 'production') { console.error('NODE_ENV leaked into the app build'); process.exit(1) }\" && mkdir -p dist && echo '<!doctype html><title>legacy</title>' > dist/index.html" } }
+JSON
+echo '{ "name": "legacy", "version": "0.0.0", "lockfileVersion": 3, "requires": true, "packages": { "": { "name": "legacy", "version": "0.0.0" } } }' > "$D/apps/legacy/package-lock.json"
+node -e "const fs=require('fs');const f=process.argv[1];let s=fs.readFileSync(f,'utf8');s=s.replace(/apps: \[([\s\S]*?)\n  \],/, (m, list) => 'apps: [' + list + '\n    { id: \'legacy\', name: \'Legacy\', icon: \'shield\', tags: [], legacy: true },\n  ],');fs.writeFileSync(f,s)" "$D/distribution.js"
+grep -q "id: 'legacy'" "$D/distribution.js"
 node "$FW/scripts/build-site.mjs" "$D/_site"
 test -f "$D/_site/demo-two/index.html"
 grep -q "'demo-two/'" "$D/_site/sw.js"
@@ -34,6 +43,7 @@ for r in lists shopping; do
   grep -q "'$r/'" "$D/_site/sw.js"
 done
 grep -q '"name": "Lists"' "$D/_site/lists/manifest.webmanifest"
+test -f "$D/_site/legacy/index.html"
 grep -q '"name": "Shopping"' "$D/_site/shopping/manifest.webmanifest"
 echo "smoke: a fresh distribution with one app of its own and the framework's boards builds"
 rm -rf "$D"

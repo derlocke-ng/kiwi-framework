@@ -1,6 +1,6 @@
 {
   "name": "kiwi-framework",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "The engine and the parts of a federated community hub on nostr: identity and accounts, relays, store and sync, settings, people, moderation, the design kit, the app shell, build and scaffolding. A distribution adds its name, relays and apps.",
   "license": "GPL-3.0-or-later",
   "repository": "github:derlocke-ng/kiwi-framework",
