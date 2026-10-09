@@ -10,7 +10,8 @@ The engine and the parts of a federated community hub on nostr. It ships nothing
 | `hub/` | the hub pages every distribution gets: start page, settings, service worker template, icon sprite, strings |
 | `scripts/` | `build-site.mjs` assembles a distribution's site; `new-app.mjs` scaffolds an app; `app-icons.mjs` draws favicons from the sprite; `vendor.mjs` rebuilds the third-party files; `nostr-relay.mjs` and `relay.cjs` are the local relays for development and tests |
 | `test/` | unit tests for the library, the browser test harness (`test/e2e/env.mjs`) distributions use for their suites, and the smoke test that builds a distribution from nothing |
-| `docs/architecture.md` | the decisions: nostr, accounts, event kinds, spaces and mounts, federation, people, moderation, the app kit |
+| `docs/protocol.md` | the wire protocol: every event kind, tag, content format, key derivation and file format, versioned; a new client could be written from it |
+| `docs/architecture.md` | the decisions: nostr, accounts, spaces and mounts, federation, people, moderation, the app kit, the long-run rules and the port to Vite, TypeScript and React |
 
 ## Using it in a distribution
 
