@@ -4,20 +4,22 @@
 //
 //   node node_modules/kiwi-framework/scripts/build-site.mjs [out=_site] [--no-legacy]
 //
-// The hub pages, the library (shared/) and the icon sprite come from the
-// framework; distribution.js, the strings in locales/, the apps and anything
-// in public/ come from the distribution. The site service worker's precache
-// list and version are computed from the result, so every deploy busts the
-// cache by itself. `import { assemble }` does the same for tests.
+// The hub pages (React, built with Vite), the library (shared/, served as
+// plain files for the apps that still import it) and the icon sprite come
+// from the framework; distribution.js, the strings in locales/, the apps and
+// anything in public/ come from the distribution. The site service worker's
+// precache list and version are computed from the result, so every deploy
+// busts the cache by itself. `import { assemble }` does the same for tests.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { build } from 'vite';
+import { framework, distributionFile, siteConfig } from './vite-site.mjs';
 
-export const framework = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+export { framework, distributionFile };
 const PRECACHE = /\.(m?js|css|html|svg|webmanifest|png)$/;
-const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 function walk(dir, filter) {
   if (!fs.existsSync(dir)) return [];
@@ -32,20 +34,13 @@ function walk(dir, filter) {
 }
 const rel = (base, f) => path.relative(base, f).split(path.sep).join('/');
 
-/** The distribution's config file: distribution.js in its repository, or the framework's own empty one when building the framework itself. */
-export function distributionFile(root) {
-  const file = path.join(root, 'distribution.js');
-  if (fs.existsSync(file)) return file;
-  if (path.resolve(root) === framework) return path.join(framework, 'shared', 'distribution.js');
-  throw new Error(`no distribution.js in ${root}: is this a distribution's repository?`);
-}
-
 /** The distribution's config, read fresh. */
 export async function loadDistribution(root) {
   return (await import(`${pathToFileURL(distributionFile(root)).href}?t=${Date.now()}`)).DISTRIBUTION;
 }
 
-const manifest = (c) => ({
+/** The web app manifest for a distribution's hub. */
+export const manifest = (c) => ({
   id: './',
   name: c.name,
   short_name: c.shortName || c.name,
@@ -63,14 +58,34 @@ const manifest = (c) => ({
   ],
 });
 
+/** The sprite `base` with the symbols of `extra` it lacks appended. */
+export function spriteWith(base, extra) {
+  const have = new Set([...base.matchAll(/<symbol id="([^"]+)"/g)].map((m) => m[1]));
+  const add = [...extra.matchAll(/<symbol id="([^"]+)"[\s\S]*?<\/symbol>/g)].filter((m) => !have.has(m[1])).map((m) => m[0]);
+  return { sprite: add.length ? base.replace('</svg>', `${add.join('\n')}\n</svg>`) : base, added: add.length };
+}
+
 /** Symbols of `extra` that `target` lacks are appended to it. */
 export function mergeSprite(target, extra) {
-  let sprite = fs.readFileSync(target, 'utf8');
-  const have = new Set([...sprite.matchAll(/<symbol id="([^"]+)"/g)].map((m) => m[1]));
-  const add = [...fs.readFileSync(extra, 'utf8').matchAll(/<symbol id="([^"]+)"[\s\S]*?<\/symbol>/g)].filter((m) => !have.has(m[1])).map((m) => m[0]);
-  if (add.length) sprite = sprite.replace('</svg>', `${add.join('\n')}\n</svg>`);
+  const { sprite, added } = spriteWith(fs.readFileSync(target, 'utf8'), fs.readFileSync(extra, 'utf8'));
   fs.writeFileSync(target, sprite);
-  return add.length;
+  return added;
+}
+
+/**
+ * One catalog per language for the hub: the framework's shared strings, its
+ * hub strings, then the distribution's own on top. Returns { lang: catalog }.
+ */
+export function mergedLocales(distribution) {
+  const dirs = [path.join(framework, 'shared/locales'), path.join(framework, 'hub/locales'), path.join(distribution, 'locales')].filter((d) => fs.existsSync(d));
+  const out = {};
+  for (const dir of dirs) {
+    for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+      const lang = file.slice(0, -5);
+      out[lang] = { ...(out[lang] || {}), ...JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')) };
+    }
+  }
+  return out;
 }
 
 /** The hub's files, every app that has no worker of its own and is not built elsewhere, and shared/. */
@@ -88,19 +103,16 @@ export function precacheList(out, config) {
 }
 
 export async function assemble({ distribution = process.cwd(), out = path.join(distribution, '_site'), legacy = true, log = () => {} } = {}) {
+  distribution = path.resolve(distribution);
   const config = await loadDistribution(distribution);
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
 
-  // 1. the hub, named after the distribution
-  fs.cpSync(path.join(framework, 'hub'), out, { recursive: true });
-  for (const page of ['index.html', 'settings.html']) {
-    const f = path.join(out, page);
-    fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replaceAll('{{name}}', esc(config.name)).replaceAll('{{description}}', esc(config.description)).replaceAll('{{repo}}', esc(config.repo || config.homepage || './')).replaceAll('{{homepage}}', esc(config.homepage || './')));
-  }
+  // 1. the hub's static files and the manifest, named after the distribution
+  for (const f of ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icons.svg']) fs.copyFileSync(path.join(framework, 'hub', f), path.join(out, f));
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), `${JSON.stringify(manifest(config), null, 2)}\n`);
 
-  // 2. the library, with the distribution's config in place of the framework's own
+  // 2. the library as plain files, with the distribution's config in place of the framework's (for the apps that import /shared/)
   fs.cpSync(path.join(framework, 'shared'), path.join(out, 'shared'), { recursive: true });
   fs.copyFileSync(distributionFile(distribution), path.join(out, 'shared', 'distribution.js'));
 
@@ -108,13 +120,9 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   const extra = path.join(distribution, 'icons.svg');
   if (fs.existsSync(extra)) mergeSprite(path.join(out, 'icons.svg'), extra);
 
-  // 4. strings: the framework's hub strings, the distribution's on top
-  for (const file of fs.readdirSync(path.join(framework, 'hub/locales'))) {
-    const base = JSON.parse(fs.readFileSync(path.join(framework, 'hub/locales', file), 'utf8'));
-    const own = path.join(distribution, 'locales', file);
-    const merged = fs.existsSync(own) ? { ...base, ...JSON.parse(fs.readFileSync(own, 'utf8')) } : base;
-    fs.writeFileSync(path.join(out, 'locales', file), `${JSON.stringify(merged, null, 2)}\n`);
-  }
+  // 4. strings: one file per language for the hub (shared + hub + the distribution's)
+  fs.mkdirSync(path.join(out, 'locales'), { recursive: true });
+  for (const [lang, cat] of Object.entries(mergedLocales(distribution))) fs.writeFileSync(path.join(out, 'locales', `${lang}.json`), `${JSON.stringify(cat, null, 2)}\n`);
 
   // 5. the apps: copied as they are, or built when they have a build step
   for (const app of config.apps) {
@@ -140,7 +148,11 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   const pub = path.join(distribution, 'public');
   if (fs.existsSync(pub)) fs.cpSync(pub, out, { recursive: true });
 
-  // 7. the site service worker: what to precache, versioned by its contents
+  // 7. the hub pages: React, built by Vite into index.html, settings.html and assets/
+  log('building the hub');
+  await build(siteConfig({ distribution, out, config }));
+
+  // 8. the site service worker: what to precache, versioned by its contents
   const shell = precacheList(out, config);
   const hash = crypto.createHash('sha256');
   for (const f of shell) if (!f.endsWith('/')) hash.update(fs.readFileSync(path.join(out, f)));

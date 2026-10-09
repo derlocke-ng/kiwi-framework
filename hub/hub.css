@@ -1,6 +1,6 @@
 /* kiwi-framework start and settings pages. Tokens and components come from the
    shared design library (../shared/ui.css, served at /shared/). */
-@import url('shared/ui.css');
+@import url('../shared/ui.css');
 
 * {
   box-sizing: border-box;

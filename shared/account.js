@@ -141,6 +141,11 @@ export const accountFilter = (lookupPk) => ({ kinds: [KINDS.ACCOUNT], authors: [
  * other devices can find it, so this waits for the first relay to accept it
  * (the outbox delivers it to the others).
  * @param {{ pool: import('./relays.js').RelayPool, sync: import('./sync.js').Sync }} net
+ * @param {string} username
+ * @param {string} password
+ * @param {string} skHex
+ * @param {(msg: string, params?: Record<string, unknown>) => void} [onProgress]
+ * @returns {Promise<{ event: { pubkey: string, [k: string]: any }, alias: string }>}
  */
 export async function createAccount({ pool, sync }, username, password, skHex, onProgress = () => {}) {
   checkPassword(password);
@@ -164,7 +169,13 @@ export async function createAccount({ pool, sync }, username, password, skHex, o
   return { event, alias: lookup.name };
 }
 
-/** @returns {Promise<{sk: string, pk: string, alias: string, event: object}>} */
+/**
+ * @param {import('./relays.js').RelayPool} pool
+ * @param {string} username
+ * @param {string} password
+ * @param {(msg: string, params?: Record<string, unknown>) => void} [onProgress]
+ * @returns {Promise<{sk: string, pk: string, alias: string, event: { pubkey: string, [k: string]: any }}>}
+ */
 export async function login(pool, username, password, onProgress = () => {}) {
   onProgress('account.progress.derive');
   const lookup = await deriveLookup(username, password, (p) => onProgress('account.progress.derivePct', { p: Math.floor(p * 100) }));

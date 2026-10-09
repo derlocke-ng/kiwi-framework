@@ -27,6 +27,11 @@ export const randomId = (bytes = 8) => bytesToB64url(crypto.getRandomValues(new 
 
 /** localStorage access that never throws (private mode, quota, disabled). */
 export const store = {
+  /**
+   * @param {string} key
+   * @param {any} [fallback]
+   * @returns {any}
+   */
   get(key, fallback = null) {
     try {
       const raw = localStorage.getItem(key);

@@ -67,6 +67,8 @@ async function loadCatalog(code) {
 /**
  * Load the catalogs. `dirs` are URL prefixes ending in '/', resolved against
  * `base`; later dirs win on duplicate keys. Resolves with the active language.
+ * @param {{ dirs?: string[], base?: string, lang?: string }} [options]
+ * @returns {Promise<string>}
  */
 export async function initI18n({ dirs, base = typeof document !== 'undefined' ? document.baseURI : undefined, lang: wanted = savedLanguage() || pickLanguage() } = {}) {
   config = { dirs, base };

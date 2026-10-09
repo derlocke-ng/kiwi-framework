@@ -31,7 +31,10 @@ export function applyTheme() {
   else document.documentElement.dataset.theme = t;
 }
 
-/** Follow changes made on another page of the site (another tab, the hub, an app). */
+/**
+ * Follow changes made on another page of the site (another tab, the hub, an app).
+ * @param {{ onTheme?: () => void, onLanguage?: (() => void) | null }} [handlers]
+ */
 export function watchDeviceSettings({ onTheme = applyTheme, onLanguage = null } = {}) {
   addEventListener('storage', (e) => {
     if (e.key === THEME_KEY) onTheme();

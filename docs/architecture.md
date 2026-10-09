@@ -64,7 +64,7 @@ The hub and the network are meant to exist for ten years and more, without money
 
 **Money, later.** None in the protocol. What stays possible without betraying the rest: hosting plans for kiwi-nodes, zaps (NIP-57) to creators and sellers, paid listing boosts on a market a hub operator runs, support contracts. No ads and no tracking, ever.
 
-**The port, in order.** 1. Vite, TypeScript and React in the framework; the hub, settings and account pages ported first with the hub browser suite as the guard; legacy apps still copied as plain files during the transition. 2. The widgets as components: markdown editor, lists and collections with pinning, feed, image upload. 3. `boards` on the widgets, moved into the framework. 4. `notices` and Payload; pong keeps its canvas and gets the React shell. 5. chat, feed, market and blog as React apps on the widgets. Relay lists (NIP-65) and signer abstraction are data layer work and run alongside.
+**The port, in order.** 1. ~~Vite, TypeScript and React in the framework; the hub, settings and account pages ported first with the hub browser suite as the guard; legacy apps still copied as plain files during the transition~~ (done: `ui/` is the React layer, `hub/` the pages, `scripts/dev.mjs` the dev server, all five browser suites green on the React hub). 2. The widgets as components: markdown editor, lists and collections with pinning, feed, image upload. 3. `boards` on the widgets, moved into the framework. 4. `notices` and Payload; pong keeps its canvas and gets the React shell. 5. chat, feed, market and blog as React apps on the widgets. Relay lists (NIP-65) and signer abstraction are data layer work and run alongside.
 
 ## Decision: nostr + Blossom, not gun
 

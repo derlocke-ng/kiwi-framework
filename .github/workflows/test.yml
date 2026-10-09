@@ -19,6 +19,10 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Types
+        run: npm run typecheck
+      - name: Lint and format
+        run: npm run lint
       - name: Unit tests
         run: npm test
       - name: A distribution from scratch builds

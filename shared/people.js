@@ -24,6 +24,7 @@ export class People {
   /**
    * @param {{ sk: string, pk: string, alias?: string|null }} identity
    * @param {{ pool: import('./relays.js').RelayPool, db: import('./store.js').LocalStore, sync: import('./sync.js').Sync }} net
+   * @param {{ isBlocked?: (pk: string) => boolean }} [options]
    */
   constructor(identity, net, { isBlocked = () => false } = {}) {
     this.sk = identity.sk;
