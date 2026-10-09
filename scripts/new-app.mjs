@@ -105,6 +105,7 @@ import { AccountSettings } from '../shared/settings.js';
 import { initAppShell } from '../shared/appshell.js';
 import { statusPill } from '../shared/status.js';
 import { settingsView } from '../shared/settingsview.js';
+import { howLines } from '../shared/how.js';
 import { t, tErr } from '../shared/i18n.js';
 import { $, h, icon, toast } from '../shared/ui.js';
 
@@ -124,7 +125,8 @@ function render() {
         \`<div class="card"><h2>\${icon('settings')}\${h(t('${id}.settings.example'))}</h2>
           <label class="check-row"><input type="checkbox" id="exampleToggle" \${prefs.get('example') ? 'checked' : ''}><span>\${h(t('${id}.settings.exampleToggle'))}</span></label></div>\`,
       ],
-      how: [1, 2].map((i) => t(\`${id}.how.\${i}\`)),
+      // the framework's topics (shared/how.js: HOW has a list per kind of app) and lines of its own
+      how: howLines(['${id}.how.1', 'encrypted', 'relays', 'offline']),
     });
     return;
   }
@@ -165,7 +167,6 @@ const strings = {
   [`${id}.settings.example`]: 'Example',
   [`${id}.settings.exampleToggle`]: 'An example setting, kept in your account',
   [`${id}.how.1`]: `${name} runs entirely in your browser; relays only pass signed events along.`,
-  [`${id}.how.2`]: 'Your account, relays, language, backup and blocked people are the site’s, in its settings.',
 };
 for (const lang of Object.keys(LANGUAGES)) write(`locales/${lang}.json`, JSON.stringify(strings, null, 2) + '\n');
 write('README.md', `# ${name}\n\nPart of [${DISTRIBUTION.name}](../../README.md). Say what it does here.\n`);

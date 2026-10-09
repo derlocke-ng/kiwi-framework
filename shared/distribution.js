@@ -13,6 +13,7 @@
 //   relays   the default relays until the user picks their own
 //   media    the default media (Blossom) servers for photos and files, first
 //            choice first, until the user picks their own; empty: no uploads
+//   how      the topics of the hub's "How it works" (shared/how.js); null: HOW.hub
 //   policy   userMounts: may a user follow a space this hub does not ship?
 export const DISTRIBUTION = {
   id: 'kiwi',
@@ -25,6 +26,8 @@ export const DISTRIBUTION = {
   relays: ['wss://nos.lol', 'wss://relay.damus.io', 'wss://nostr.mom', 'wss://relay.primal.net'],
   /** @type {string[]} */
   media: [],
+  /** @type {string[] | null} */
+  how: null,
   policy: { userMounts: false },
   apps: [],
   mounts: [],

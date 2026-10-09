@@ -4,6 +4,8 @@ export type { CollectionProps } from './Collection';
 export { Collection } from './Collection';
 export type { FeedProps } from './Feed';
 export { Feed } from './Feed';
+export type { HowItWorksProps } from './HowItWorks';
+export { HOW, HOW_TOPICS, HowItWorks, howKey } from './HowItWorks';
 export type { ImageUploadProps } from './ImageUpload';
 export { ImageUpload } from './ImageUpload';
 export type { ItemListProps, ListItem, NewItem } from './ItemList';

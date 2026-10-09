@@ -4,7 +4,9 @@
 // relays, language, appearance, backup and blocked people live in the site
 // settings, so an app only passes what is its own.
 //
-//   main.innerHTML = settingsView({ identity, title, cards: [cardMarkup], how: [line, line] });
+//   main.innerHTML = settingsView({ identity, title, cards: [cardMarkup], how: howLines(['myapp.how.1', 'relays']) });
+//
+// `how` takes translated lines; howLines() in how.js makes them from topics and the app's own keys.
 import { t } from './i18n.js';
 import { icon, h } from './ui.js';
 import { fingerprint } from './events.js';
@@ -25,6 +27,6 @@ export function settingsView({ identity, title, back = '#/', backLabel = null, s
         <a class="btn btn-primary" href="${h(site)}">${icon('settings')}<span>${h(t('app.settings.openSite'))}</span></a>
       </div>
       ${cards.join('\n')}
-      ${how.length ? `<details class="card how" id="how"><summary><h2>${icon('shield')}${h(t('account.how'))}</h2></summary><ul>${how.map((x) => `<li>${x}</li>`).join('')}</ul></details>` : ''}
+      ${how.length ? `<details class="card how" id="how"><summary><h2>${icon('shield')}${h(t('how.title'))}</h2></summary><ul>${how.map((x) => `<li>${x}</li>`).join('')}</ul></details>` : ''}
     </section>`;
 }

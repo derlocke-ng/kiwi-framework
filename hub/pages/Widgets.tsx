@@ -8,7 +8,7 @@ import { randomId } from '../../shared/util.js';
 import { StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useEvents } from '../../ui/useEvents';
 import type { ListItem, Media, NewItem } from '../../ui/widgets';
-import { Collection, draftStatus, Feed, ImageUpload, ItemList, Markdown, MarkdownEditor, MediaImage, Modal, useDraft } from '../../ui/widgets';
+import { Collection, draftStatus, Feed, HOW, HowItWorks, ImageUpload, ItemList, Markdown, MarkdownEditor, MediaImage, Modal, useDraft } from '../../ui/widgets';
 
 const NOTE = '## A note\n\nSome **bold** and a [link](https://example.org).\n\n- [ ] first task\n- [x] second task\n';
 const now = Date.now();
@@ -213,6 +213,25 @@ function MediaDemo() {
   );
 }
 
+function HowDemo() {
+  // The starting list for each kind of app (shared/how.js); an app adds its own lines.
+  const [kind, setKind] = useState<keyof typeof HOW>('hub');
+  return (
+    <Section id="howSection" title="How it works">
+      <div className="gallery-controls">
+        <select id="howKind" value={kind} onChange={(e) => setKind(e.target.value as keyof typeof HOW)}>
+          {Object.keys(HOW).map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </div>
+      <HowItWorks id="howDemo" items={HOW[kind]} />
+    </Section>
+  );
+}
+
 export function Widgets() {
   return (
     <>
@@ -225,6 +244,7 @@ export function Widgets() {
         <FeedDemo />
         <ModalDemo />
         <MediaDemo />
+        <HowDemo />
       </main>
       <Toasts />
     </>

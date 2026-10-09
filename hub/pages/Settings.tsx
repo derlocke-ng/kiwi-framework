@@ -16,6 +16,7 @@ import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components
 import { useBlocks, useIdentity, useKiwi, useKiwiTick, usePeople, useRelayInfos, useT } from '../../ui/hooks';
 import { usePeopleNotices } from '../../ui/notices';
 import { copyText, toast } from '../../ui/toast';
+import { HOW, HowItWorks } from '../../ui/widgets/HowItWorks';
 import { useSortable } from '../../ui/widgets/useSortable';
 import '../../shared/widgets.css';
 import { Account } from './Account';
@@ -781,23 +782,9 @@ function DeviceWipeCard() {
   );
 }
 
+/** What every app shares; each app explains its own parts in its own settings. */
 function HowCard() {
-  const t = useT();
-  return (
-    <details className="card how" id="how">
-      <summary>
-        <h2>
-          <Icon name="shield" />
-          <span>{t('account.how')}</span>
-        </h2>
-      </summary>
-      <ul id="howList">
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <li key={i} dangerouslySetInnerHTML={{ __html: t(`account.how.${i}`) }} />
-        ))}
-      </ul>
-    </details>
-  );
+  return <HowItWorks items={DISTRIBUTION.how || HOW.hub} />;
 }
 
 /** Four tabs, so the page stays short; every card keeps its id, and a link to a card opens its tab. */

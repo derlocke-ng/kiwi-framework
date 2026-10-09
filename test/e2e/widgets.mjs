@@ -318,6 +318,20 @@ await run(
     await until(async () => (await natural('#mediaUploads img.media-full')) === 2048, 'the plain photo is shown');
     await W.click('#openModal'); // the page still works after all this
     await W.keyboard.press('Escape');
+
+    step('how it works: every kind of app gets its topics, translated');
+    await W.goto(GALLERY);
+    await W.waitForSelector('#howDemo');
+    await W.click('#howDemo summary');
+    const kinds = await W.$$eval('#howKind option', (os) => os.map((o) => o.value));
+    assert.deepEqual(kinds, ['hub', 'boards', 'notices', 'feed', 'market', 'chat', 'blog', 'rooms']);
+    for (const kind of kinds) {
+      await W.selectOption('#howKind', kind);
+      const lines = await W.$$eval('#howDemo li', (els) => els.map((e) => [e.dataset.how, e.textContent.trim()]));
+      assert.ok(lines.length >= 2, `${kind}: ${lines.length} lines`);
+      for (const [topic, text] of lines) assert.ok(text.length > 40 && !text.startsWith('how.'), `${kind}/${topic} is translated: ${text}`);
+    }
+    assert.equal(await W.textContent('#howDemo summary h2'), 'How it works');
     relay.close();
   },
   { webRoot: site },
