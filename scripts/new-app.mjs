@@ -169,6 +169,23 @@ const strings = {
 };
 for (const lang of Object.keys(LANGUAGES)) write(`locales/${lang}.json`, JSON.stringify(strings, null, 2) + '\n');
 write('README.md', `# ${name}\n\nPart of [${DISTRIBUTION.name}](../../README.md). Say what it does here.\n`);
+write(
+  'kiwi.manifest',
+  `# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=${id}
+DESCRIPTION=${name}: say in one sentence what it does
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+ICON=icon.svg
+# the nostr event kinds it reads and writes, once it has them
+KINDS=
+TAGS=nostr
+HOMEPAGE=${DISTRIBUTION.homepage || ''}${id}/
+LICENSE=GPL-3.0-or-later
+`,
+);
 
 // the distribution: the app's code entry and a mount of it
 function insertInto(src, key, line) {

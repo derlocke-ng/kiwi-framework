@@ -28,6 +28,8 @@ node node_modules/kiwi-framework/scripts/app-icons.mjs         # favicons from t
 
 Armory's `package.json` wires these up as `npm run build`, `npm run new-app` and `npm run icons`; copy it.
 
+Framework apps have plain ids and names (`market`, `feed`, `chat`, `blog`); a distribution shows them under its own names through its mounts (Armory: Trading Post, Outpost, Uplink). Every repository and app folder carries a `kiwi.manifest`, the entry format of [kiwi-web-catalog](https://github.com/derlocke-ng/kiwi-web-catalog).
+
 ## Working on the framework
 
 ```sh

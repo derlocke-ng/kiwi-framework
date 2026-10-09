@@ -10,6 +10,7 @@ cd "$D"
 node "$FW/scripts/new-app.mjs" demo "Demo" shield
 node "$FW/scripts/build-site.mjs" "$D/_site"
 test -f "$D/_site/demo/index.html"
+grep -q "^NAME=demo$" "$D/apps/demo/kiwi.manifest"
 test -f "$D/_site/shared/distribution.js"
 grep -q "hub.demo.text" "$D/_site/locales/en.json"
 grep -q "'demo/'" "$D/_site/sw.js"
