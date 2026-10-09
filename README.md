@@ -17,8 +17,10 @@ The engine and the parts of a federated community hub on nostr. It ships nothing
 ## Using it in a distribution
 
 ```sh
-npm install github:derlocke-ng/kiwi-framework#v0.1.0
+npm install git+https://github.com/derlocke-ng/kiwi-framework.git#<tag or commit>
 ```
+
+Pin a release tag (or a commit between releases); `v0.1.0` is the last plain-JavaScript hub, the React hub comes after it. To run the browser harness (`test/e2e/env.mjs`) a distribution also needs `playwright-core` and `gun` as dev dependencies; Armory's `package.json` has both.
 
 A distribution is a repository with `distribution.js` (name, relays, the apps it ships and the mounts it shows), `locales/` (its own strings), `apps/<id>/` for each app, and optionally `public/` (files copied over the site root) and `icons.svg` (symbols added to the sprite). Then:
 
