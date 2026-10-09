@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'vite';
-import { loadDistribution, manifest, mergedLocales, spriteWith } from './build-site.mjs';
+import { appRoutes, loadDistribution, manifest, mergedLocales, spriteWith } from './build-site.mjs';
 import { distributionFile, framework, siteConfig } from './vite-site.mjs';
 
 const distribution = process.cwd();
@@ -53,9 +53,9 @@ const within = (dir, rel) => {
   return abs === dir || abs.startsWith(dir + path.sep) ? abs : null;
 };
 
-const apps = new Map(
-  config.apps.filter((a) => !fs.existsSync(path.join(distribution, 'apps', a.id, 'package.json'))).map((a) => [a.id, path.join(distribution, 'apps', a.id)]),
-);
+// every route an app is served at (its id and its mounts' ids); apps with a build step are left out
+const built = (id) => fs.existsSync(path.join(distribution, 'apps', id, 'package.json'));
+const apps = new Map([...appRoutes(config)].filter(([, app]) => !built(app)).map(([route, app]) => [route, path.join(distribution, 'apps', app)]));
 
 const assembled = {
   name: 'kiwi-dev-assembled',

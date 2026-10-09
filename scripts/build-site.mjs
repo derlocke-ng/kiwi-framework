@@ -88,9 +88,18 @@ export function mergedLocales(distribution) {
   return out;
 }
 
-/** The hub's files, every app that has no worker of its own and is not built elsewhere, and shared/. */
+/** Every folder an app is served from: its own id, and the id of every mount of it (route → app id). */
+export function appRoutes(config) {
+  const routes = new Map(config.apps.map((a) => [a.id, a.id]));
+  for (const m of config.mounts || []) routes.set(m.id, m.app);
+  return routes;
+}
+
+/** The hub's files, every app that has no worker of its own and is not built elsewhere (at each of its routes), and shared/. */
 export function precacheList(out, config) {
-  const skip = new Set(config.apps.filter((a) => a.legacy || fs.existsSync(path.join(out, a.id, 'sw.js'))).map((a) => a.id));
+  const own = new Set(config.apps.filter((a) => a.legacy || fs.existsSync(path.join(out, a.id, 'sw.js'))).map((a) => a.id));
+  const routes = appRoutes(config);
+  const skip = new Set([...routes].filter(([, app]) => own.has(app)).map(([route]) => route));
   const take = (f) => PRECACHE.test(f) || /(^|\/)locales\/en\.json$/.test(f);
   const list = ['./'];
   for (const f of walk(out, take)) {
@@ -98,7 +107,7 @@ export function precacheList(out, config) {
     if (r === 'sw.js' || skip.has(r.split('/')[0])) continue;
     list.push(r);
   }
-  for (const a of config.apps) if (!skip.has(a.id) && fs.existsSync(path.join(out, a.id))) list.push(`${a.id}/`);
+  for (const route of routes.keys()) if (!skip.has(route) && fs.existsSync(path.join(out, route))) list.push(`${route}/`);
   return [...new Set(list)].sort();
 }
 
@@ -142,6 +151,14 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
       log(`copying ${app.id}`);
       fs.cpSync(src, path.join(out, app.id), { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git)(\/|$)/.test(p) });
     }
+  }
+
+  // 5b. an app mounted more than once (two markets on one hub) is served at every mount's route
+  for (const m of config.mounts || []) {
+    if (m.id === m.app || !fs.existsSync(path.join(out, m.app))) continue;
+    if (config.apps.some((a) => a.id === m.id)) throw new Error(`the mount "${m.id}" has the id of an app; give it its own`);
+    log(`mounting ${m.app} at ${m.id}/`);
+    fs.cpSync(path.join(out, m.app), path.join(out, m.id), { recursive: true });
   }
 
   // 6. the distribution's own files over everything: favicon, CNAME, …

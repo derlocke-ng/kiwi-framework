@@ -21,8 +21,12 @@ import { setSprite } from './ui.js';
  *   base: path to the site root ('../' for an app); dirs: catalog dirs (shared + the app's own `locales/`)
  */
 export async function initAppShell({ app = null, current = app, brand = {}, right = '', account = null, base = '../', header = '#top', dirs = [`${base}shared/locales/`, 'locales/'], sprite = `${base}icons.svg`, net = null }) {
-  // `app` is a mount id (or an app id): its name and mark are the top bar's brand unless overridden.
-  const entry = app ? mountById(app) || appById(app) : null;
+  // `app` is the app's id. The mount it runs as comes from the page's folder, so one app mounted
+  // twice (two markets on one hub) shows each mount's name and mark and highlights it in the switcher.
+  const folder = typeof location !== 'undefined' ? location.pathname.replace(/[^/]*$/, '').split('/').filter(Boolean).pop() : null;
+  const mounted = app && folder && folder !== app && mountById(folder)?.app === app ? folder : null;
+  if (mounted && current === app) current = mounted;
+  const entry = mounted ? mountById(mounted) : app ? mountById(app) || appById(app) : null;
   const brandOpts = { href: './', name: entry?.name || current, ...(entry ? { mark: appMark(entry, sprite) } : {}), ...brand };
   // The header is looked up on every draw: apps that re-render their shell get a fresh element.
   const headerEl = () => (typeof header === 'string' ? document.querySelector(header) : header);
