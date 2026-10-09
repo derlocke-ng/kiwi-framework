@@ -1,0 +1,502 @@
+/* kiwi-framework start and settings pages. Tokens and components come from the
+   shared design library (../shared/ui.css, served at /shared/). */
+@import url('shared/ui.css');
+
+* {
+  box-sizing: border-box;
+}body {
+  display: flex;
+  flex-direction: column;
+}
+
+main,
+.foot {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+}
+
+.hero {
+  padding: clamp(1.5rem, 6vw, 4rem) 0 clamp(1.5rem, 4vw, 2.5rem);
+  max-width: 46rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5.5vw, 3.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  margin: 0 0 1rem;
+}
+
+.hero h1 a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.12em;
+}
+
+.hero p {
+  color: var(--muted);
+  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  margin: 0;
+}
+
+.feature,
+.tool {
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.feature:hover,
+.tool:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.feature {
+  position: relative;
+  display: flex;
+  gap: 1.25rem;
+  padding: clamp(1.2rem, 3vw, 1.8rem);
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface) 55%);
+}
+
+.feature-icon,
+.tool-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.feature-icon {
+  width: 3.4rem;
+  height: 3.4rem;
+}
+
+.feature-icon .icon {
+  width: 1.7rem;
+  height: 1.7rem;
+}
+
+.feature-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.feature h2 {
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.feature p {
+  margin: 0 0 0.9rem;
+  color: var(--muted);
+  max-width: 44rem;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.go {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  color: var(--muted);
+}
+
+.tools {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.2rem;
+}
+
+.tool-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tool h3 {
+  margin: 0.85rem 0 0.3rem;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.tool h3 .badge {
+  vertical-align: middle;
+  margin-left: 0.35rem;
+}
+
+.tool p {
+  margin: 0 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.93rem;
+  flex: 1;
+}
+
+.tags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tags li {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.relays {
+  margin: 2.5rem 0 1rem;
+  padding: 1.2rem 1.3rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.relays h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  margin: 0 0 0.3rem;
+}
+
+.relays p {
+  margin: 0 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.relay-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.4rem 1.5rem;
+}
+
+.relay-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.relay-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relay-state {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex: none;
+}
+
+.up .dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 0.18);
+}
+
+.down .dot {
+  background: #ef4444;
+}@media (max-width: 560px) {
+  .feature {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}/* ---- shell: account, forms, language ---- */
+.spacer {
+  flex: 1;
+}
+
+html:not(.i18n) [data-i18n],
+html:not(.i18n) [data-i18n-html] {
+  visibility: hidden;
+}
+
+.field input,
+.field textarea,
+select {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.lang-pick {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.lang-pick select {
+  width: auto;
+  min-width: 9rem;
+}
+
+.lang-foot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.lang-foot select {
+  width: auto;
+  padding: 0.35rem 0.6rem;
+}
+
+.legacy {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  vertical-align: middle;
+  margin-left: 0.3rem;
+}
+
+.relay-detail {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.device-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.device-settings .seg {
+  margin: 0;
+}
+
+/* ---- settings page ---- */
+.settings {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+}
+
+.settings h1 {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  letter-spacing: -0.02em;
+  margin: 1.5rem 0 0;
+}
+
+.app-toggles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.passphrase {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.export {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.relay-edit {
+  margin-top: 0.75rem;
+}
+
+.relay-edit summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.relay-edit .form {
+  margin-top: 0.75rem;
+}
+
+.relay-problem {
+  flex-basis: 100%;
+  color: #b45309;
+}
+
+.how summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.how summary h2 {
+  margin: 0;
+}
+
+.how ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.foot-links a {
+  color: var(--muted);
+}
+
+/* the shared top bar lines up with the page content */
+.wjs-top {
+  padding-left: max(var(--gutter), calc((100% - 1040px) / 2));
+  padding-right: max(var(--gutter), calc((100% - 1040px) / 2));
+}
+
+.blocked-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.blocked-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.blocked-list .btn {
+  margin-left: auto;
+}
+
+.banner {
+  margin: 0 0 1.25rem;
+}
+
+#langBanner .banner {
+  width: 100%;
+  max-width: 1040px;
+  margin: 1rem auto 0;
+}
+
+.foot {
+  text-align: left;
+}
+
+/* People: requests, friends and circles in the settings */
+.people-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.people-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.people-list .who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.people-list .actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.my-key code {
+  overflow-wrap: anywhere;
+}
+
+.circle-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.circle {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.circle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https: wss: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="{{description}}">
+  <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e0f0d" media="(prefers-color-scheme: dark)">
+  <title>{{name}}</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="hub.css">
+  <script type="module" src="hub.js"></script>
+</head>
+<body>
+  <header id="top"></header>
+
+  <div id="langBanner"></div>
+
+  <main>
+    <section class="hero">
+      <h1 data-i18n-html="hub.title">Peer-to-peer webtools, armed with <a href="https://nostr.com" rel="noopener">nostr</a>.</h1>
+      <p data-i18n="hub.lead">Every tool here runs entirely in your browser and syncs over relays you choose. No sign-up needed, no server of ours, no tracking — and encryption happens before anything leaves your device.</p>
+    </section>
+
+    <div class="banner" id="accountCta" hidden>
+      <svg class="icon"><use href="icons.svg#shield"/></svg>
+      <p data-i18n-html="hub.cta">Everything you make here lives under a key that exists <b>only in this browser</b>. <a href="settings.html#account">Create an account or sign in</a> to use your boards, files and chats on every device.</p>
+    </div>
+
+    <div id="apps" class="apps"></div>
+
+    <section class="relays" aria-labelledby="relaysTitle">
+      <h2 id="relaysTitle"><svg class="icon"><use href="icons.svg#radio-tower"/></svg><span data-i18n="hub.relays">Relays right now</span></h2>
+      <p data-i18n="hub.relaysText">Loadout syncs over these nostr relays; pick your own in its settings. Payload and pongjs still signal through public gun relays until they move to nostr too. Relays pass data along; they can’t read anything that was encrypted first.</p>
+      <ul id="relayList" class="relay-list"></ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p data-i18n-html="hub.footer">Free software under the GPL.</p>
+    <p class="foot-links"><a href="settings.html" data-i18n="hub.settings">Settings</a> · <a href="{{repo}}" rel="noopener" data-i18n="hub.source">Source</a></p>
+  </footer>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>

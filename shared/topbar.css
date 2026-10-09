@@ -1,0 +1,156 @@
+/* One top bar for every page. Colours come from the page's variables. */
+.wjs-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: calc(3.5rem + env(safe-area-inset-top));
+  padding: 0 var(--gutter, 16px);
+  padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--bg, #fff) 86%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border, #e2e2dc);
+}
+
+.wjs-top > * {
+  flex: none;
+}
+
+.wjs-spacer {
+  flex: 1 1 auto !important;
+}
+
+.wjs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text, #111) !important;
+  text-decoration: none;
+  font-weight: 750;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+
+.wjs-brand-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wjs-brand-ext {
+  color: var(--muted, #777);
+  font-weight: 600;
+}
+
+.wjs-mark,
+.wjs-brand .brand-mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.wjs-mark {
+  fill: none;
+  stroke: var(--text, #111);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+/* An app's mark: its registry icon on a rounded square (shared/apps.js appMark). */
+.wjs-app-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--text, #111);
+  color: var(--bg, #fff);
+  flex: none;
+}
+
+.wjs-app-mark .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.wjs-mark-dot {
+  fill: var(--accent, #4d7c0f);
+  stroke: none;
+}
+
+.wjs-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.wjs-icon-btn,
+.wjs-right .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text, #111);
+  cursor: pointer;
+  padding: 0;
+}
+
+.wjs-icon-btn:hover,
+.wjs-right .icon-btn:hover {
+  background: var(--surface-2, #eee);
+}
+
+.wjs-icon-btn .icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.wjs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2.25rem;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border-strong, #ccc);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The signed-in account: one circle with the first letter, the same in every app. */
+.wjs-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent, #4d7c0f);
+  color: var(--on-accent, #fff);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+@media (max-width: 560px) {
+  .wjs-pill span {
+    display: none;
+  }
+  .wjs-pill {
+    width: 2.25rem;
+    padding: 0;
+    justify-content: center;
+  }
+}

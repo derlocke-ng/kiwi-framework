@@ -1,0 +1,28 @@
+{
+  "name": "kiwi-framework",
+  "version": "0.1.0",
+  "description": "The engine and the parts of a federated community hub on nostr: identity and accounts, relays, store and sync, settings, people, moderation, the design kit, the app shell, build and scaffolding. A distribution adds its name, relays and apps.",
+  "license": "GPL-3.0-or-later",
+  "repository": "github:derlocke-ng/kiwi-framework",
+  "homepage": "https://kiwi-network.eu",
+  "type": "module",
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "build": "node scripts/build-site.mjs",
+    "serve": "node scripts/serve.mjs _site",
+    "relay:nostr": "node scripts/nostr-relay.mjs 7777 .nostr",
+    "test": "node --test \"test/unit/*.test.js\"",
+    "test:smoke": "sh test/smoke.sh"
+  },
+  "dependencies": {
+    "nostr-tools": "^2.25.2",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "gun": "0.2020.1241",
+    "lucide-static": "1.52.0",
+    "playwright-core": "1.63.0",
+    "qrcode-generator": "2.0.4"
+  }
+}

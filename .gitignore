@@ -1,0 +1,9 @@
+node_modules/
+dist/
+_site/
+radata*/
+test-results/
+*.log
+.DS_Store
+.radata/
+.nostr/

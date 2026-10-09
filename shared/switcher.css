@@ -1,0 +1,143 @@
+/* The app switcher sheet. Colours come from the page's own variables. */
+.switcher {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.switcher-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.switcher-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 560px;
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgb(0 0 0 / 0.25);
+  padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.switcher.open .switcher-backdrop {
+  opacity: 1;
+}
+
+.switcher.open .switcher-sheet {
+  transform: translateY(0);
+}
+
+.switcher-grip {
+  width: 2.5rem;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong, #ccc);
+  margin: 0.25rem auto 0.5rem;
+}
+
+.switcher-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.switcher-head h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.switcher-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-2, #eee);
+  color: inherit;
+  cursor: pointer;
+}
+
+.switcher-apps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+}
+
+.switcher-apps a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  background: var(--surface-2, #eee);
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+  min-height: 3.25rem;
+}
+
+.switcher-apps a:active {
+  transform: scale(0.98);
+}
+
+.switcher-apps a.current {
+  outline: 2px solid var(--accent, #4d7c0f);
+  outline-offset: -2px;
+}
+
+.switcher-apps a small {
+  font-weight: 500;
+  color: var(--muted, #777);
+  font-size: 0.75em;
+  margin-left: 0.2rem;
+}
+
+.switcher-apps .icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex: none;
+}
+
+@media (min-width: 700px) {
+  .switcher-sheet {
+    bottom: auto;
+    top: 4.5rem;
+    border-radius: 20px;
+    transform: translateY(-8px);
+    opacity: 0;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+  }
+  .switcher.open .switcher-sheet {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  .switcher-grip {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switcher-backdrop,
+  .switcher-sheet {
+    transition: none;
+  }
+}
