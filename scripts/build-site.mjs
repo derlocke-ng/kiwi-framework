@@ -32,11 +32,17 @@ function walk(dir, filter) {
 }
 const rel = (base, f) => path.relative(base, f).split(path.sep).join('/');
 
+/** The distribution's config file: distribution.js in its repository, or the framework's own empty one when building the framework itself. */
+export function distributionFile(root) {
+  const file = path.join(root, 'distribution.js');
+  if (fs.existsSync(file)) return file;
+  if (path.resolve(root) === framework) return path.join(framework, 'shared', 'distribution.js');
+  throw new Error(`no distribution.js in ${root}: is this a distribution's repository?`);
+}
+
 /** The distribution's config, read fresh. */
 export async function loadDistribution(root) {
-  const file = path.join(root, 'distribution.js');
-  if (!fs.existsSync(file)) throw new Error(`no distribution.js in ${root}: is this a distribution's repository?`);
-  return (await import(`${pathToFileURL(file).href}?t=${Date.now()}`)).DISTRIBUTION;
+  return (await import(`${pathToFileURL(distributionFile(root)).href}?t=${Date.now()}`)).DISTRIBUTION;
 }
 
 const manifest = (c) => ({
@@ -96,7 +102,7 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
 
   // 2. the library, with the distribution's config in place of the framework's own
   fs.cpSync(path.join(framework, 'shared'), path.join(out, 'shared'), { recursive: true });
-  fs.copyFileSync(path.join(distribution, 'distribution.js'), path.join(out, 'shared', 'distribution.js'));
+  fs.copyFileSync(distributionFile(distribution), path.join(out, 'shared', 'distribution.js'));
 
   // 3. icons the distribution adds to the sprite
   const extra = path.join(distribution, 'icons.svg');
