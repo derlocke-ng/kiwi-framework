@@ -252,5 +252,16 @@
   "collection.noMatch": "Nothing matches “{q}”.",
   "feed.loadMore": "Load more",
   "feed.end": "That’s everything.",
-  "feed.empty": "Nothing here yet."
+  "feed.empty": "Nothing here yet.",
+  "upload.choose": "Add a photo",
+  "upload.uploading": "Uploading…",
+  "upload.encrypted": "Encrypted before upload",
+  "upload.public": "Uploaded unencrypted",
+  "upload.plainOffer": "None of your media servers takes encrypted files. Upload this photo unencrypted? The server, and anyone with its link, can see it.",
+  "upload.plain": "Upload unencrypted",
+  "media.none": "No media servers are set, so photos cannot be uploaded.",
+  "media.chooseServers": "Choose servers",
+  "media.error.noServer": "No media server took the file.",
+  "media.error.notFound": "The file is on none of its servers.",
+  "media.error.notImage": "This file is not a photo this browser can read."
 }

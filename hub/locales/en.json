@@ -65,5 +65,20 @@
   "settings.tab.general": "General",
   "settings.tab.network": "Network",
   "settings.tab.data": "Data",
-  "settings.appsReset": "Use the hub’s order"
+  "settings.appsReset": "Use the hub’s order",
+  "settings.media": "Media servers",
+  "settings.mediaText": "Photos and files go to these Blossom servers, first choice first. They are encrypted on this device unless an app says they are public, so the servers hold only random bytes. Your list follows your account. A check uploads a tiny test file with your key and deletes it again.",
+  "settings.mediaCheck": "Check",
+  "settings.mediaCheckAll": "Check all",
+  "settings.mediaEdit": "Edit media servers",
+  "settings.mediaOnePerLine": "One address per line (https)",
+  "settings.mediaReset": "Use the hub’s servers",
+  "settings.mediaInvalid": "Every line needs an https address.",
+  "settings.mediaSaved": "Media servers saved",
+  "media.result.checking": "Checking…",
+  "media.result.encrypted": "Works, encrypted files too",
+  "media.result.imagesOnly": "Photos only, unencrypted",
+  "media.result.paid": "Wants payment",
+  "media.result.denied": "Refused: {reason}",
+  "media.result.unreachable": "Unreachable, or it blocks this site"
 }

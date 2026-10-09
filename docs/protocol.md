@@ -51,7 +51,7 @@ One event per namespace. Namespaces and their keys today:
 
 | `d` | keys |
 |---|---|
-| `suite` | `theme` (`"light"` \| `"dark"` \| unset), `lang` (a language code the hub ships), `hiddenApps` (mount ids) |
+| `suite` | `theme` (`"light"` \| `"dark"` \| unset), `lang` (a language code the hub ships), `hiddenApps` (mount ids), `appOrder` (mount ids in the person's order; empty or unset: the hub's), `mediaServers` (media server base URLs, first choice first; unset: the hub's, §9) |
 | `people` | see §5 |
 | `loadout` | the boards app's own preferences |
 | `devboard` | `saved` (addresses), `type` (`"hiring"` \| `"available"`), `contact` |
@@ -148,6 +148,19 @@ The key is PBKDF2-SHA-256 of the NFKC passphrase; the plaintext is the JSON payl
 
 **Key export**: an `ncryptsec` (NIP-49) in a text file.
 
+**Media** (photos and attachments) live on [Blossom](https://github.com/hzrd149/blossom) servers: `PUT <server>/upload` (BUD-02), `GET <server>/<sha256>` (BUD-01), `HEAD <server>/upload` before files over 256 KB (BUD-06), `DELETE <server>/<sha256>`. Every request that changes something carries `Authorization: Nostr <base64(event)>`, a kind **24242** event with `["t", "upload" | "delete"]`, `["expiration", <now + 300>]` and `["x", <sha256>]`. A client tries the person's servers in order and takes the first that stores the file.
+
+What an app keeps, inside its own event's content, is the **media object**:
+
+```
+{ "url": <where it was stored>, "sha256": <hex, of the stored bytes>, "size": <bytes>,
+  "mime": <type of the clear file>, "width"?, "height"?,
+  "key"?: <hex, 32 bytes>,
+  "thumb"?: { "url", "sha256", "width", "height" } }
+```
+
+With `key`, the stored bytes are `iv (12 bytes) || AES-256-GCM ciphertext and tag`, uploaded as `application/octet-stream`; the key is random per file and the thumbnail uses the same key with its own IV. A media object with a key only ever travels inside encrypted content. Without `key` the file is stored as it is, and a client uploads that way only when the app marks the file public or the person agreed to it after no server took the encrypted file. A reader fetches `url`, then `<server>/<sha256>` from its own servers, and must reject bytes whose SHA-256 differs. Photos are re-encoded before upload (long side at most 2048 px, a 480 px thumbnail; JPEG, or WebP for PNG and WebP input), which drops the metadata cameras write.
+
 **Hub manifest and catalog**: `kiwi.manifest` (ini: `NAME`, `DESCRIPTION`, `VERSION`, `CATEGORY` = Framework | Hub | App, `COMPONENTS=web`, `FRAMEWORK`, `KINDS`, `TAGS`, `HOMEPAGE`, `LICENSE`) in every repository and app folder; `apps.list` in a catalog, one repository per line with `path=`, `ref=`, `branch=` options. Not events, but part of what a hub reads.
 
 ## 10. Relays
@@ -161,6 +174,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 30023 | long-form articles (NIP-23): the blog app |
 | 34550 and related | community definitions (NIP-72): spaces; posts and listings then carry `["a", <space address>]` |
 | 10002, 10050 | relay lists (§10) |
+| 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
 | 21700–21702 | live rooms (§8) |
 | market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
 
@@ -168,3 +182,4 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 
 - **v1** (October 2026): this document, written from the code of kiwi-framework 0.1.0 and Armory. No event format changed.
 - **v1, clarified**: `created_at` of a new version is after every version the device has seen, not only the ones it signed (fixes edits from a device with a slow clock being dropped). No format changed.
+- **v1, extended**: the media object and Blossom authorization (§9); the suite keys `appOrder` and `mediaServers`. No existing format changed.

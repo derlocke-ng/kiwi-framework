@@ -65,5 +65,20 @@
   "settings.tab.general": "Allgemein",
   "settings.tab.network": "Netzwerk",
   "settings.tab.data": "Daten",
-  "settings.appsReset": "Reihenfolge des Hubs verwenden"
+  "settings.appsReset": "Reihenfolge des Hubs verwenden",
+  "settings.media": "Medienserver",
+  "settings.mediaText": "Fotos und Dateien landen auf diesen Blossom-Servern, die erste Wahl zuerst. Sie werden auf diesem Gerät verschlüsselt, außer eine App sagt, dass sie öffentlich sind; die Server halten also nur zufällige Bytes. Deine Liste folgt deinem Konto. Eine Prüfung lädt mit deinem Schlüssel eine winzige Testdatei hoch und löscht sie wieder.",
+  "settings.mediaCheck": "Prüfen",
+  "settings.mediaCheckAll": "Alle prüfen",
+  "settings.mediaEdit": "Medienserver bearbeiten",
+  "settings.mediaOnePerLine": "Eine Adresse pro Zeile (https)",
+  "settings.mediaReset": "Server des Hubs verwenden",
+  "settings.mediaInvalid": "Jede Zeile braucht eine https-Adresse.",
+  "settings.mediaSaved": "Medienserver gespeichert",
+  "media.result.checking": "Wird geprüft…",
+  "media.result.encrypted": "Funktioniert, auch verschlüsselt",
+  "media.result.imagesOnly": "Nur Fotos, unverschlüsselt",
+  "media.result.paid": "Will Bezahlung",
+  "media.result.denied": "Abgelehnt: {reason}",
+  "media.result.unreachable": "Nicht erreichbar, oder sperrt diese Seite"
 }

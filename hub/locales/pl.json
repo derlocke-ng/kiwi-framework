@@ -67,5 +67,20 @@
   "settings.tab.general": "Ogólne",
   "settings.tab.network": "Sieć",
   "settings.tab.data": "Dane",
-  "settings.appsReset": "Przywróć kolejność huba"
+  "settings.appsReset": "Przywróć kolejność huba",
+  "settings.media": "Serwery multimediów",
+  "settings.mediaText": "Zdjęcia i pliki trafiają na te serwery Blossom, w kolejności wyboru. Są szyfrowane na tym urządzeniu, chyba że aplikacja oznaczy je jako publiczne, więc serwery przechowują tylko losowe bajty. Twoja lista podąża za twoim kontem. Sprawdzenie wysyła twoim kluczem maleńki plik testowy i zaraz go usuwa.",
+  "settings.mediaCheck": "Sprawdź",
+  "settings.mediaCheckAll": "Sprawdź wszystkie",
+  "settings.mediaEdit": "Edytuj serwery multimediów",
+  "settings.mediaOnePerLine": "Jeden adres w wierszu (https)",
+  "settings.mediaReset": "Użyj serwerów huba",
+  "settings.mediaInvalid": "Każdy wiersz musi być adresem https.",
+  "settings.mediaSaved": "Zapisano serwery multimediów",
+  "media.result.checking": "Sprawdzanie…",
+  "media.result.encrypted": "Działa, także szyfrowane",
+  "media.result.imagesOnly": "Tylko zdjęcia, bez szyfrowania",
+  "media.result.paid": "Wymaga płatności",
+  "media.result.denied": "Odmowa: {reason}",
+  "media.result.unreachable": "Nieosiągalny albo blokuje tę stronę"
 }

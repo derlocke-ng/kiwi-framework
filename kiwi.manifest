@@ -3,7 +3,7 @@
 # desktop apps' manifests; CATEGORY says what the entry is.
 NAME=kiwi-framework
 DESCRIPTION=The engine and the parts of a federated community hub on nostr; a distribution adds its name, relays and apps
-VERSION=0.1.0
+VERSION=0.4.0
 CATEGORY=Framework
 COMPONENTS=web
 TAGS=nostr framework hub pwa

@@ -252,5 +252,16 @@
   "collection.noMatch": "Niets komt overeen met ‘{q}’.",
   "feed.loadMore": "Meer laden",
   "feed.end": "Dat is alles.",
-  "feed.empty": "Hier staat nog niets."
+  "feed.empty": "Hier staat nog niets.",
+  "upload.choose": "Foto toevoegen",
+  "upload.uploading": "Uploaden…",
+  "upload.encrypted": "Versleuteld vóór het uploaden",
+  "upload.public": "Onversleuteld geüpload",
+  "upload.plainOffer": "Geen van je mediaservers neemt versleutelde bestanden aan. Deze foto onversleuteld uploaden? De server, en iedereen met de link, kan hem zien.",
+  "upload.plain": "Onversleuteld uploaden",
+  "media.none": "Er zijn geen mediaservers ingesteld, dus foto’s kunnen niet worden geüpload.",
+  "media.chooseServers": "Servers kiezen",
+  "media.error.noServer": "Geen enkele mediaserver nam het bestand aan.",
+  "media.error.notFound": "Het bestand staat op geen van zijn servers.",
+  "media.error.notImage": "Dit bestand is geen foto die deze browser kan lezen."
 }

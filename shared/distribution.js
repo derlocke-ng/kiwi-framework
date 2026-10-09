@@ -11,6 +11,8 @@
 //            space, with a name and icon of its own if it wants. The id is the
 //            route on this hub (<id>/) and the i18n key of its card (hub.<id>.text).
 //   relays   the default relays until the user picks their own
+//   media    the default media (Blossom) servers for photos and files, first
+//            choice first, until the user picks their own; empty: no uploads
 //   policy   userMounts: may a user follow a space this hub does not ship?
 export const DISTRIBUTION = {
   id: 'kiwi',
@@ -21,6 +23,8 @@ export const DISTRIBUTION = {
   homepage: 'https://github.com/derlocke-ng/kiwi-framework',
   repo: 'https://github.com/derlocke-ng/kiwi-framework',
   relays: ['wss://nos.lol', 'wss://relay.damus.io', 'wss://nostr.mom', 'wss://relay.primal.net'],
+  /** @type {string[]} */
+  media: [],
   policy: { userMounts: false },
   apps: [],
   mounts: [],

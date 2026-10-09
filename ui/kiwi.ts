@@ -6,6 +6,8 @@
 
 import { ID_KEY, loadIdentity } from '../shared/account.js';
 import { MOUNT_IDS, orderedMounts } from '../shared/apps.js';
+import { normalizeServer } from '../shared/blossom.js';
+import { DISTRIBUTION } from '../shared/distribution.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
 import { People } from '../shared/people.js';
@@ -144,6 +146,22 @@ export class Kiwi {
 
   hasCustomOrder(): boolean {
     return ((this.suite?.get('appOrder', []) as string[] | undefined) || []).length > 0;
+  }
+
+  /** The media (Blossom) servers uploads go to, first choice first: the person's own list, or the hub's. */
+  mediaServers(): string[] {
+    const own = this.suite?.get('mediaServers') as string[] | undefined;
+    const list = Array.isArray(own) ? own : DISTRIBUTION.media || [];
+    return [...new Set(list.map((s) => normalizeServer(s)).filter((s): s is string => Boolean(s)))];
+  }
+
+  hasOwnMediaServers(): boolean {
+    return Array.isArray(this.suite?.get('mediaServers'));
+  }
+
+  /** Save the person's list (it follows the account); null goes back to the hub's. */
+  setMediaServers(list: string[] | null): Promise<void> {
+    return this.suite.set({ mediaServers: list === null ? undefined : list.map((s) => normalizeServer(s)).filter(Boolean) });
   }
 
   setAppHidden(app: string, hidden: boolean): Promise<void> {

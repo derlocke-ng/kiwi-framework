@@ -252,5 +252,16 @@
   "collection.noMatch": "Nichts passt zu „{q}“.",
   "feed.loadMore": "Mehr laden",
   "feed.end": "Das ist alles.",
-  "feed.empty": "Hier ist noch nichts."
+  "feed.empty": "Hier ist noch nichts.",
+  "upload.choose": "Foto hinzufügen",
+  "upload.uploading": "Wird hochgeladen…",
+  "upload.encrypted": "Vor dem Hochladen verschlüsselt",
+  "upload.public": "Unverschlüsselt hochgeladen",
+  "upload.plainOffer": "Keiner deiner Medienserver nimmt verschlüsselte Dateien an. Dieses Foto unverschlüsselt hochladen? Der Server und alle mit dem Link können es sehen.",
+  "upload.plain": "Unverschlüsselt hochladen",
+  "media.none": "Es sind keine Medienserver eingestellt, daher können keine Fotos hochgeladen werden.",
+  "media.chooseServers": "Server wählen",
+  "media.error.noServer": "Kein Medienserver hat die Datei angenommen.",
+  "media.error.notFound": "Die Datei liegt auf keinem ihrer Server.",
+  "media.error.notImage": "Diese Datei ist kein Foto, das dieser Browser lesen kann."
 }

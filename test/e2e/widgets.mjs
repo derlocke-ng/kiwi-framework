@@ -1,7 +1,8 @@
 // The framework's widgets in a real browser, on the gallery page (built only
 // for tests and development): the markdown editor with drafts and conflicts,
 // task lists, checklists and inventories, the collection, the feed against a
-// relay (paging, live, blocked people) and the modal.
+// relay (paging, live, blocked people), the modal, and photos on two local
+// Blossom servers (the media server settings, encrypted and plain uploads).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import { Relay } from 'nostr-tools/relay';
 import { nip19 } from 'nostr-tools';
 import { run, device, until, sleep, root } from './env.mjs';
 import { assemble } from '../../scripts/build-site.mjs';
+import { decryptBlob } from '../../shared/blossom.js';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -233,6 +235,89 @@ await run(
     await W.waitForSelector('#demoModal[open]');
     await W.keyboard.press('Escape');
     await until(async () => !(await W.$('#demoModal')), 'closed');
+
+    step('media servers: set in the settings and checked for real; one takes encrypted files, one only photos');
+    const open = env.blossom.url;
+    const strict = env.blossomStrict.url;
+    await W.goto(`${env.base}settings.html#media`);
+    await W.waitForSelector('#mediaNone');
+    await W.fill('#mediaForm textarea', `${strict}\n${open}/`);
+    await W.click('#mediaForm [type=submit]');
+    await W.waitForSelector(`#mediaList li[data-server="${open}"]`);
+    assert.deepEqual(await W.$$eval('#mediaList li', (els) => els.map((e) => e.dataset.server)), [strict, open], 'in the order given, trailing slash dropped');
+    await W.click('[data-act=media-check-all]');
+    const result = (url) => W.getAttribute(`#mediaList li[data-server="${url}"] .media-result`, 'data-result');
+    await until(async () => (await result(open)) === 'encrypted', 'the open server takes encrypted files');
+    await until(async () => (await result(strict)) === 'imagesOnly', 'the strict server takes photos only');
+    assert.equal(await W.textContent(`#mediaList li[data-server="${strict}"] .media-result`), 'Photos only, unencrypted');
+    assert.equal(await W.getAttribute(`#mediaList li[data-server="${strict}"] .media-result`, 'title'), 'only images here');
+    assert.equal(env.blossom.blobs.size + env.blossomStrict.blobs.size, 0, 'the checks leave nothing behind');
+
+    step('a photo is scaled down, loses its metadata and is encrypted; the photos-only server is passed over');
+    await W.goto(GALLERY);
+    await W.waitForSelector('#media [data-act=upload]');
+    // A 3000×2000 JPEG made by the browser, with an Exif block in front like a camera writes one.
+    const jpeg = Buffer.from(
+      await W.evaluate(() => {
+        const c = Object.assign(document.createElement('canvas'), { width: 3000, height: 2000 });
+        const g = c.getContext('2d');
+        g.fillStyle = '#4d7c0f';
+        g.fillRect(0, 0, 3000, 2000);
+        g.fillStyle = '#ffffff';
+        g.fillRect(600, 500, 1200, 700);
+        return c.toDataURL('image/jpeg', 0.9).split(',')[1];
+      }),
+      'base64',
+    );
+    const exifBody = Buffer.concat([Buffer.from('Exif\0\0MM\0*\0\0\0\x08\0\0\0\0\0\0', 'binary'), Buffer.from('GPS secret-location')]);
+    const app1 = Buffer.concat([Buffer.from([0xff, 0xe1, (exifBody.length + 2) >> 8, (exifBody.length + 2) & 0xff]), exifBody]);
+    const photo = { name: 'holiday.jpg', mimeType: 'image/jpeg', buffer: Buffer.concat([jpeg.subarray(0, 2), app1, jpeg.subarray(2)]) };
+    assert.ok(photo.buffer.includes('secret-location'));
+    await W.setInputFiles('#media input[type=file]', photo);
+    await W.waitForSelector('#mediaUploads li', { timeout: 20000 });
+    const media = JSON.parse(await W.textContent('#mediaUploads li .media-object'));
+    assert.deepEqual([media.width, media.height, media.mime], [2048, 1365, 'image/jpeg']);
+    assert.deepEqual([media.thumb.width, media.thumb.height], [480, 320]);
+    assert.ok(/^[0-9a-f]{64}$/.test(media.key), 'encrypted, with a key of its own');
+    assert.ok(media.url.startsWith(open), 'the photos-only server refused it, the next one took it');
+    assert.equal(env.blossomStrict.blobs.size, 0);
+    const stored = env.blossom.blobs.get(media.sha256);
+    assert.equal(stored.type, 'application/octet-stream');
+    assert.notEqual(stored.data.subarray(0, 3).toString('hex'), 'ffd8ff', 'the server holds no JPEG');
+    assert.ok(env.blossom.blobs.has(media.thumb.sha256), 'the thumbnail went to the same server');
+    const clear = Buffer.from(await decryptBlob(new Uint8Array(stored.data), media.key));
+    assert.equal(clear.subarray(0, 3).toString('hex'), 'ffd8ff', 'the key opens it to a JPEG');
+    assert.ok(!clear.includes('secret-location') && !clear.includes('Exif'), 'without the camera’s metadata');
+
+    step('the photo is shown: fetched, checked, decrypted, full size and thumbnail');
+    const natural = (sel) => W.$eval(sel, (img) => (img.complete ? img.naturalWidth : 0)).catch(() => 0);
+    await until(async () => (await natural('#mediaUploads img.media-full')) === 2048, 'the full photo');
+    await until(async () => (await natural('#mediaUploads img.media-thumb')) === 480, 'the thumbnail');
+    assert.ok((await W.getAttribute('#mediaUploads img.media-full', 'src')).startsWith('blob:'));
+
+    step('when no server takes encrypted files, the person is asked before a photo goes up unencrypted');
+    await W.goto(`${env.base}settings.html#media`);
+    await W.click('#media details summary');
+    await W.fill('#mediaForm textarea', strict);
+    await W.click('#mediaForm [type=submit]');
+    await until(async () => (await W.$$eval('#mediaList li', (els) => els.length)) === 1, 'one server left');
+    await W.goto(GALLERY);
+    await W.waitForSelector('#media [data-act=upload]');
+    await W.setInputFiles('#media input[type=file]', photo);
+    await W.waitForSelector('#media [data-act=upload-plain]', { timeout: 20000 });
+    assert.match(await W.textContent('#media .wjs-upload-error'), /No media server took the file\..*only images here.*Upload this photo unencrypted\?/s);
+    assert.equal(env.blossomStrict.blobs.size, 0, 'nothing went up before the person said so');
+    await W.click('#media [data-act=upload-plain]');
+    await W.waitForSelector('#mediaUploads li[data-encrypted=no]', { timeout: 20000 });
+    const plain = JSON.parse(await W.textContent('#mediaUploads li .media-object'));
+    assert.equal(plain.key, undefined);
+    const raw = env.blossomStrict.blobs.get(plain.sha256);
+    assert.equal(raw.type, 'image/jpeg');
+    assert.equal(raw.data.subarray(0, 3).toString('hex'), 'ffd8ff', 'a plain JPEG');
+    assert.ok(!raw.data.includes('secret-location') && !raw.data.includes('Exif'), 'still without the metadata');
+    await until(async () => (await natural('#mediaUploads img.media-full')) === 2048, 'the plain photo is shown');
+    await W.click('#openModal'); // the page still works after all this
+    await W.keyboard.press('Escape');
     relay.close();
   },
   { webRoot: site },

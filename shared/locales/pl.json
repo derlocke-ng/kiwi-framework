@@ -270,5 +270,16 @@
   "collection.noMatch": "Nic nie pasuje do „{q}”.",
   "feed.loadMore": "Wczytaj więcej",
   "feed.end": "To wszystko.",
-  "feed.empty": "Nic tu jeszcze nie ma."
+  "feed.empty": "Nic tu jeszcze nie ma.",
+  "upload.choose": "Dodaj zdjęcie",
+  "upload.uploading": "Wysyłanie…",
+  "upload.encrypted": "Szyfrowane przed wysłaniem",
+  "upload.public": "Wysłane bez szyfrowania",
+  "upload.plainOffer": "Żaden z twoich serwerów multimediów nie przyjmuje zaszyfrowanych plików. Wysłać to zdjęcie bez szyfrowania? Serwer i każdy, kto ma link, będzie mógł je zobaczyć.",
+  "upload.plain": "Wyślij bez szyfrowania",
+  "media.none": "Nie ustawiono serwerów multimediów, więc nie można wysyłać zdjęć.",
+  "media.chooseServers": "Wybierz serwery",
+  "media.error.noServer": "Żaden serwer multimediów nie przyjął pliku.",
+  "media.error.notFound": "Pliku nie ma na żadnym z jego serwerów.",
+  "media.error.notImage": "Ten plik nie jest zdjęciem, które ta przeglądarka potrafi odczytać."
 }

@@ -627,3 +627,84 @@ html.wjs-dragging body {
   font-size: 0.9rem;
   padding: 1rem 0;
 }
+
+/* ---- media: uploading photos, showing them ---- */
+.wjs-upload {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.wjs-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.wjs-upload-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.wjs-upload progress {
+  width: 100%;
+  height: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.wjs-upload-error {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+}
+
+.wjs-upload-error p {
+  margin: 0 0 0.4rem;
+}
+
+.wjs-upload-error ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+img.wjs-media {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+span.wjs-media {
+  display: grid;
+  place-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 6rem;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+span.wjs-media.loading {
+  animation: wjs-media-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes wjs-media-pulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  span.wjs-media.loading {
+    animation: none;
+  }
+}

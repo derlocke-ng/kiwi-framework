@@ -66,5 +66,20 @@
   "settings.tab.general": "Generale",
   "settings.tab.network": "Rete",
   "settings.tab.data": "Dati",
-  "settings.appsReset": "Usa l’ordine dell’hub"
+  "settings.appsReset": "Usa l’ordine dell’hub",
+  "settings.media": "Server multimediali",
+  "settings.mediaText": "Foto e file vanno su questi server Blossom, prima la prima scelta. Vengono cifrati su questo dispositivo a meno che un’app non li dichiari pubblici, quindi i server conservano solo byte casuali. La tua lista segue il tuo account. Una verifica carica con la tua chiave un minuscolo file di prova e poi lo elimina.",
+  "settings.mediaCheck": "Verifica",
+  "settings.mediaCheckAll": "Verifica tutti",
+  "settings.mediaEdit": "Modifica i server multimediali",
+  "settings.mediaOnePerLine": "Un indirizzo per riga (https)",
+  "settings.mediaReset": "Usa i server dell’hub",
+  "settings.mediaInvalid": "Ogni riga deve essere un indirizzo https.",
+  "settings.mediaSaved": "Server multimediali salvati",
+  "media.result.checking": "Verifica…",
+  "media.result.encrypted": "Funziona, anche cifrato",
+  "media.result.imagesOnly": "Solo foto, non cifrate",
+  "media.result.paid": "Chiede un pagamento",
+  "media.result.denied": "Rifiutato: {reason}",
+  "media.result.unreachable": "Irraggiungibile, o blocca questo sito"
 }

@@ -65,5 +65,20 @@
   "settings.tab.general": "Algemeen",
   "settings.tab.network": "Netwerk",
   "settings.tab.data": "Gegevens",
-  "settings.appsReset": "Volgorde van de hub gebruiken"
+  "settings.appsReset": "Volgorde van de hub gebruiken",
+  "settings.media": "Mediaservers",
+  "settings.mediaText": "Foto’s en bestanden gaan naar deze Blossom-servers, eerste keuze eerst. Ze worden op dit apparaat versleuteld, tenzij een app zegt dat ze openbaar zijn, dus de servers bewaren alleen willekeurige bytes. Je lijst volgt je account. Een controle uploadt met je sleutel een klein testbestand en verwijdert het weer.",
+  "settings.mediaCheck": "Controleren",
+  "settings.mediaCheckAll": "Alles controleren",
+  "settings.mediaEdit": "Mediaservers bewerken",
+  "settings.mediaOnePerLine": "Eén adres per regel (https)",
+  "settings.mediaReset": "De servers van de hub gebruiken",
+  "settings.mediaInvalid": "Elke regel moet een https-adres zijn.",
+  "settings.mediaSaved": "Mediaservers opgeslagen",
+  "media.result.checking": "Controleren…",
+  "media.result.encrypted": "Werkt, ook versleuteld",
+  "media.result.imagesOnly": "Alleen foto’s, onversleuteld",
+  "media.result.paid": "Vraagt betaling",
+  "media.result.denied": "Geweigerd: {reason}",
+  "media.result.unreachable": "Onbereikbaar, of blokkeert deze site"
 }

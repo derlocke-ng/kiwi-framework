@@ -7,8 +7,8 @@ import { relTime } from '../../shared/i18n.js';
 import { randomId } from '../../shared/util.js';
 import { StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useEvents } from '../../ui/useEvents';
-import type { ListItem, NewItem } from '../../ui/widgets';
-import { Collection, draftStatus, Feed, ItemList, Markdown, MarkdownEditor, Modal, useDraft } from '../../ui/widgets';
+import type { ListItem, Media, NewItem } from '../../ui/widgets';
+import { Collection, draftStatus, Feed, ImageUpload, ItemList, Markdown, MarkdownEditor, MediaImage, Modal, useDraft } from '../../ui/widgets';
 
 const NOTE = '## A note\n\nSome **bold** and a [link](https://example.org).\n\n- [ ] first task\n- [x] second task\n';
 const now = Date.now();
@@ -186,6 +186,33 @@ function ModalDemo() {
   );
 }
 
+function MediaDemo() {
+  // Uploads go to the media servers in the settings (#media); the objects below are what an app would keep.
+  const [encrypt, setEncrypt] = useState(true);
+  const [uploads, setUploads] = useState<Media[]>([]);
+  return (
+    <Section id="media" title="Media">
+      <div className="gallery-controls">
+        <label className="check-row">
+          <input type="checkbox" id="mediaEncrypt" checked={encrypt} onChange={(e) => setEncrypt(e.target.checked)} />
+          <span>Encrypt</span>
+        </label>
+        <a href="settings.html#media">Media servers</a>
+      </div>
+      <ImageUpload encrypt={encrypt} onUpload={(media) => setUploads((list) => [media, ...list])} />
+      <ul className="gallery-media" id="mediaUploads">
+        {uploads.map((media) => (
+          <li key={media.sha256} data-sha256={media.sha256} data-encrypted={media.key ? 'yes' : 'no'}>
+            <MediaImage media={media} small alt="thumbnail" className="media-thumb" />
+            <MediaImage media={media} alt="full size" className="media-full" />
+            <pre className="gallery-pre media-object">{JSON.stringify(media, null, 1)}</pre>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
 export function Widgets() {
   return (
     <>
@@ -197,6 +224,7 @@ export function Widgets() {
         <CollectionDemo />
         <FeedDemo />
         <ModalDemo />
+        <MediaDemo />
       </main>
       <Toasts />
     </>

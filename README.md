@@ -6,11 +6,11 @@ The engine and the parts of a federated community hub on nostr. It ships nothing
 
 | Folder | What |
 |---|---|
-| `shared/` | the library every page imports: identity and accounts (`account.js`), relays and sync (`relays.js`, `sync.js`, `store.js`), settings that follow the account (`settings.js`), people (friends, circles, sharing: `people.js`), moderation (`moderation.js`), proof of work (`pow.js`), i18n and theme, the design kit (`ui.css`, `ui.js`), the app shell (`appshell.js`, `topbar.js`, `switcher.js`, `status.js`), the settings view every app has (`settingsview.js`), the registries (`apps.js`) and the nostr bundle |
+| `shared/` | the library every page imports: identity and accounts (`account.js`), relays and sync (`relays.js`, `sync.js`, `store.js`), settings that follow the account (`settings.js`), people (friends, circles, sharing: `people.js`), moderation (`moderation.js`), proof of work (`pow.js`), i18n and theme, the design kit (`ui.css`, `ui.js`), the app shell (`appshell.js`, `topbar.js`, `switcher.js`, `status.js`), the settings view every app has (`settingsview.js`), the registries (`apps.js`), media on Blossom servers (`blossom.js`) and the nostr bundle |
 | `ui/` | the React layer: the runtime (`bootKiwi`), hooks over the data layer (`useIdentity`, `useT`, `usePeople`, `useBlocks`, `useUnsynced`, …) and the shared components (`TopBar`, `StatusPill`, `AccountLink`, `Toasts`, `RelayList`). Apps use this, never `shared/` below it |
-| `ui/widgets/` | the widgets apps build screens from: `Markdown` and `MarkdownEditor` (with `useDraft` for saving and conflicts between devices), `ItemList` (checklists and inventories), `Collection` (cards with pinning and search), `Feed` (with `useEvents`, which reads events from the device and the relays), `Modal`. Styles in `shared/widgets.css`; every widget is on the gallery page `widgets.html` in `npm run dev` |
+| `ui/widgets/` | the widgets apps build screens from: `Markdown` and `MarkdownEditor` (with `useDraft` for saving and conflicts between devices), `ItemList` (checklists and inventories), `Collection` (cards with pinning and search), `Feed` (with `useEvents`, which reads events from the device and the relays), `Modal`, `ImageUpload` and `MediaImage` (photos on the person's Blossom servers: scaled down, stripped of camera metadata, encrypted unless the app says public, checked against their hash when shown). Styles in `shared/widgets.css`; every widget is on the gallery page `widgets.html` in `npm run dev` |
 | `hub/` | the hub pages every distribution gets, in React and TypeScript: start page, settings, account; the service worker template, icon sprite, strings |
-| `scripts/` | `build-site.mjs` assembles a distribution's site; `new-app.mjs` scaffolds an app; `app-icons.mjs` draws favicons from the sprite; `vendor.mjs` rebuilds the third-party files; `nostr-relay.mjs` and `relay.cjs` are the local relays for development and tests |
+| `scripts/` | `build-site.mjs` assembles a distribution's site; `new-app.mjs` scaffolds an app; `app-icons.mjs` draws favicons from the sprite; `vendor.mjs` rebuilds the third-party files; `nostr-relay.mjs` and `relay.cjs` are the local relays for development and tests, `blossom-server.mjs` the local media server; `blossom-probe.mjs` checks public media servers from a terminal |
 | `test/` | unit tests for the library, the browser test harness (`test/e2e/env.mjs`) distributions use for their suites, and the smoke test that builds a distribution from nothing |
 | `docs/protocol.md` | the wire protocol: every event kind, tag, content format, key derivation and file format, versioned; a new client could be written from it |
 | `docs/architecture.md` | the decisions: nostr, accounts, spaces and mounts, federation, people, moderation, the app kit, the long-run rules and the port to Vite, TypeScript and React |
@@ -45,7 +45,8 @@ npm test                 # unit tests
 npm run typecheck        # TypeScript over ui/ and hub/
 npm run lint             # Biome: lint and format (lint:fix writes the fixes)
 npm run test:smoke       # a distribution from scratch, with one scaffolded app, builds
-npm run test:e2e         # every widget on the gallery page in Chromium, against a local relay
+npm run test:e2e         # every widget on the gallery page in Chromium, against a local relay and two local media servers
+npm run probe -- nostr.download   # what public media servers do with an upload (needs open network access)
 npm run vendor           # after bumping nostr-tools, gun, qrcode-generator or lucide-static
 npm run build && npm run serve   # the production build at http://localhost:8080
 ```

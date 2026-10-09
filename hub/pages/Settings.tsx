@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { adoptIdentity, decodeKey, forgetIdentity, npub, pubkeyOf } from '../../shared/account.js';
 import { mountById } from '../../shared/apps.js';
 import { decryptBackup, encryptBackup } from '../../shared/backup.js';
+import { normalizeServer, probe } from '../../shared/blossom.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { fingerprint, isHex64 } from '../../shared/events.js';
 import { currentLanguage, fmtDateTime, LANGUAGES, tErr } from '../../shared/i18n.js';
@@ -455,6 +456,112 @@ function RelaysCard() {
   );
 }
 
+type Check = 'checking' | { result: string; reason?: string };
+const hostOf = (server: string) => server.replace(/^https?:\/\//, '');
+
+/** Where photos and files go. A check uploads a tiny file with the person's key and deletes it again. */
+function MediaCard() {
+  const kiwi = useKiwi();
+  const t = useT();
+  useKiwiTick();
+  const servers = kiwi.mediaServers();
+  const [checks, setChecks] = useState<Record<string, Check>>({});
+  const [text, setText] = useState<string | null>(null);
+  const check = async (server: string) => {
+    setChecks((c) => ({ ...c, [server]: 'checking' }));
+    const r = await probe(server, { sk: kiwi.identity().sk });
+    setChecks((c) => ({ ...c, [server]: r }));
+  };
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    const lines = (text ?? servers.join('\n'))
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.some((l) => !normalizeServer(l))) return toast(t('settings.mediaInvalid'), 'error');
+    kiwi.setMediaServers(lines).then(() => {
+      setText(null);
+      toast(t('settings.mediaSaved'), 'success');
+    }, fail);
+  };
+  const label = (c: Check) => (c === 'checking' ? t('media.result.checking') : t(`media.result.${c.result}`, { reason: c.reason || '' }));
+  return (
+    <Card id="media" icon="image" title={t('settings.media')}>
+      <p className="muted">{t('settings.mediaText')}</p>
+      {servers.length ? (
+        <ul className="media-servers" id="mediaList">
+          {servers.map((server) => {
+            const c = checks[server];
+            return (
+              <li key={server} data-server={server}>
+                <Icon name="server" />
+                <span className="media-host">{hostOf(server)}</span>
+                <span
+                  className="media-result"
+                  data-result={c ? (c === 'checking' ? 'checking' : c.result) : ''}
+                  title={c && c !== 'checking' ? c.reason : undefined}
+                >
+                  {c ? label(c) : ''}
+                </span>
+                <button type="button" className="btn btn-sm btn-ghost" data-act="media-check" disabled={c === 'checking'} onClick={() => check(server)}>
+                  {t('settings.mediaCheck')}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="muted small" id="mediaNone">
+          {t('media.none')}
+        </p>
+      )}
+      <div className="form-actions">
+        {servers.length > 1 && (
+          <button type="button" className="btn btn-sm" data-act="media-check-all" onClick={() => servers.forEach(check)}>
+            {t('settings.mediaCheckAll')}
+          </button>
+        )}
+      </div>
+      <details className="relay-edit" open={servers.length === 0 || undefined}>
+        <summary>{t('settings.mediaEdit')}</summary>
+        <form className="form" id="mediaForm" onSubmit={save}>
+          <label className="field">
+            <span>{t('settings.mediaOnePerLine')}</span>
+            <textarea
+              name="media"
+              rows={5}
+              spellCheck={false}
+              placeholder="https://blossom.example"
+              value={text ?? servers.join('\n')}
+              onChange={(e) => setText(e.target.value)}
+            />
+          </label>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-sm">
+              {t('common.save')}
+            </button>
+            {kiwi.hasOwnMediaServers() && (
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                data-act="media-reset"
+                onClick={() =>
+                  kiwi.setMediaServers(null).then(() => {
+                    setText(null);
+                    toast(t('settings.mediaSaved'), 'success');
+                  }, fail)
+                }
+              >
+                {t('settings.mediaReset')}
+              </button>
+            )}
+          </div>
+        </form>
+      </details>
+    </Card>
+  );
+}
+
 function BackupCard() {
   const kiwi = useKiwi();
   const t = useT();
@@ -697,7 +804,7 @@ function HowCard() {
 const TABS = {
   account: ['account', 'people', 'circles', 'blocked'],
   general: ['device', 'apps', 'pow'],
-  network: ['relays'],
+  network: ['relays', 'media'],
   data: ['backup', 'thisDevice', 'how'],
 } as const;
 type Tab = keyof typeof TABS;
@@ -742,7 +849,12 @@ export function Settings() {
         <PowCard />
       </>
     ),
-    network: <RelaysCard />,
+    network: (
+      <>
+        <RelaysCard />
+        <MediaCard />
+      </>
+    ),
     data: (
       <>
         <BackupCard />

@@ -27,6 +27,7 @@ export const ICONS = [
   'qr-code', 'grip-vertical', 'chevron-left', 'cloud', 'cloud-off', 'download', 'upload', 'key-round', 'eye', 'pencil', 'link', 'sun', 'moon', 'log-out',
   'shield', 'refresh-cw', 'external-link', 'pin', 'pin-off', 'search', 'file-text', 'languages', 'layout-grid', 'send', 'gamepad-2', 'message-square-lock',
   'sticky-note', 'radio-tower', 'git-branch', 'arrow-up-right', 'users', 'user-plus', 'user-check', 'users-round',
+  'image', 'image-plus', 'server',
 ];
 export function sprite(file, icons) {
   const symbols = icons.map((name) => {

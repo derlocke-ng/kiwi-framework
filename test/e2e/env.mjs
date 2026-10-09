@@ -1,6 +1,7 @@
 // Shared setup for the end-to-end tests: a local nostr relay (in-process), a
-// local gun relay (Payload and pong, until they move to nostr), a static
-// server for apps/, and Chromium.
+// local gun relay (Payload and pong, until they move to nostr), two local
+// Blossom servers (one takes any file, one only images, like some public
+// ones), a static server for apps/, and Chromium.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -8,6 +9,7 @@ import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { Relay, useWebSocketImplementation } from 'nostr-tools/relay';
 import { WebSocket } from 'ws';
+import { startBlossom } from '../../scripts/blossom-server.mjs';
 import { startRelay } from '../../scripts/nostr-relay.mjs';
 
 useWebSocketImplementation(WebSocket);
@@ -42,6 +44,8 @@ export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
   let nostrRuns = 0;
   const startNostr = () => startRelay({ port: nostrPort, dir: path.join(tmp, `nostr-${nostrRuns++}`), name: 'e2e relay' });
   let nostr = await startNostr();
+  const blossom = await startBlossom();
+  const blossomStrict = await startBlossom({ accept: (type) => type.startsWith('image/') || 'only images here' });
   const web = spawn(process.execPath, [path.join(root, 'scripts/serve.mjs'), webRoot, String(webPort)], { stdio: 'ignore' });
   const executablePath = process.env.CHROMIUM_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
   // mDNS-obfuscated ICE candidates don't resolve in containers; real browsers are fine.
@@ -51,6 +55,9 @@ export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
     tmp,
     relayUrl: `http://localhost:${gunPort}/gun`,
     nostrUrl: nostr.url,
+    /** media servers: blobs are in .blobs (sha256 → { data, type, owner }) */
+    blossom,
+    blossomStrict,
     base: `http://localhost:${webPort}/`,
     browser,
     errors: [],
@@ -91,6 +98,8 @@ export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
       gun.kill();
       web.kill();
       await nostr.close().catch(() => {});
+      await blossom.close();
+      await blossomStrict.close();
       fs.rmSync(tmp, { recursive: true, force: true });
     },
   };

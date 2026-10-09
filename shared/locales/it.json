@@ -261,5 +261,16 @@
   "collection.noMatch": "Nessun risultato per «{q}».",
   "feed.loadMore": "Carica altri",
   "feed.end": "È tutto.",
-  "feed.empty": "Qui non c’è ancora niente."
+  "feed.empty": "Qui non c’è ancora niente.",
+  "upload.choose": "Aggiungi una foto",
+  "upload.uploading": "Caricamento…",
+  "upload.encrypted": "Cifrata prima del caricamento",
+  "upload.public": "Caricata senza cifratura",
+  "upload.plainOffer": "Nessuno dei tuoi server multimediali accetta file cifrati. Caricare questa foto senza cifratura? Il server, e chiunque abbia il link, potrà vederla.",
+  "upload.plain": "Carica senza cifratura",
+  "media.none": "Nessun server multimediale impostato: non si possono caricare foto.",
+  "media.chooseServers": "Scegli i server",
+  "media.error.noServer": "Nessun server multimediale ha accettato il file.",
+  "media.error.notFound": "Il file non si trova su nessuno dei suoi server.",
+  "media.error.notImage": "Questo file non è una foto che questo browser sa leggere."
 }

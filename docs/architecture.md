@@ -227,7 +227,7 @@ Publishing is local-first and never blocks the UI: an event is stored, marked pe
 
 ## Relays and servers
 
-The default relay list is a handful of large public relays. The settings screen shows each relay's latency and its NIP-11 name and country, lets users add their own (including a `ws://localhost` dev relay), and is the seed of the **server picker**: choose relays by speed and jurisdiction, same for Blossom and TURN once those are in.
+The default relay list is a handful of large public relays. The settings screen shows each relay's latency and its NIP-11 name and country, lets users add their own (including a `ws://localhost` dev relay), and is the seed of the **server picker**: choose relays by speed and jurisdiction, same for TURN once it is in. Media (Blossom) servers have their own card next to it: the person's list follows the account (`mediaServers` in the suite settings, the distribution's `media` until then), and a check uploads a tiny file with their key and deletes it, telling apart servers that take any file (so encrypted ones), photos only, payment, refusal and unreachable or blocking this site (CORS).
 
 A kiwi-node `relay` module (strfry relay + blossom-server + coturn, `module.yaml` + `docker-compose.yml.j2`) will let any kiwi-master or kiwi-node host the whole stack; the apps then list those servers first. Nothing in the apps depends on a server of ours existing.
 
@@ -263,4 +263,4 @@ Next, in this order: ~~the rename of the distribution; the repository split with
 6. **kiwi-node `relay` module**; replace the first default relays with kiwi ones.
 7. ~~DevBoard on nostr~~ (done — see *DevBoard* above; `test/e2e/devboard.mjs` covers notes, votes, reports, blocking and the cap on two devices). Still to come for it: a relay policy that enforces the same proof of work and caps server-side, and trust-weighted report counts once People and Circles exist.
 
-Open: contact path for marketplace listings (in-app Uplink vs. external), which public Blossom servers accept encrypted blobs.
+Open: contact path for marketplace listings (in-app Uplink vs. external). Which public Blossom servers take encrypted files is answered per server by the check in the settings (Network, Media servers) and by `scripts/blossom-probe.mjs`; uploads fall back to an unencrypted photo only when the person agrees.
