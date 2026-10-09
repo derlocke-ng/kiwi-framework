@@ -1,7 +1,8 @@
 // The Vite configuration for a hub: the framework's hub pages (React) built
-// for one distribution. Used by build-site.mjs (production) and dev.mjs
-// (dev server with hot reload). Plain JavaScript so a distribution's build
-// needs no TypeScript step to load it.
+// for one distribution, and the framework's own apps (apps/<name>, React)
+// built for the routes a distribution mounts them at. Used by build-site.mjs
+// (production) and dev.mjs (development). Plain JavaScript so a
+// distribution's build needs no TypeScript step to load it.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -79,6 +80,45 @@ export function siteConfig({ distribution, out = path.join(distribution, '_site'
           ...(gallery ? { widgets: path.join(hub, 'widgets.html') } : {}),
         },
       },
+    },
+  };
+}
+
+/** The framework's own apps: folders under apps/ with an index.html. */
+export const frameworkApps = () =>
+  fs.existsSync(path.join(framework, 'apps'))
+    ? fs.readdirSync(path.join(framework, 'apps')).filter((d) => fs.existsSync(path.join(framework, 'apps', d, 'index.html')))
+    : [];
+
+/**
+ * One of the framework's apps (apps/<app>) built for a distribution, into
+ * `out` (the route it is mounted at). Assets are relative, so the same build
+ * serves at every route the app is mounted at.
+ * @param {{ distribution: string, config: object, app: string, out: string, dev?: boolean }} o
+ */
+export function appConfig({ distribution, config, app, out, dev = false }) {
+  const root = path.join(framework, 'apps', app);
+  if (!fs.existsSync(path.join(root, 'index.html'))) throw new Error(`the framework has no app "${app}" (apps/${app}/index.html)`);
+  return {
+    configFile: false,
+    envFile: false,
+    root,
+    base: './',
+    mode: dev ? 'development' : 'production',
+    publicDir: path.join(root, 'public'),
+    cacheDir: path.join(distribution, 'node_modules', '.vite-kiwi'),
+    logLevel: 'warn',
+    plugins: [react(), kiwiDistribution(config, distribution, { dev })],
+    resolve: { dedupe: ['react', 'react-dom'] },
+    build: {
+      outDir: out,
+      emptyOutDir: true,
+      target: 'es2022',
+      modulePreload: { polyfill: false },
+      sourcemap: false,
+      // one bundle for an app that is cached for offline use: React, the nostr tools, markdown
+      chunkSizeWarningLimit: 800,
+      rollupOptions: { input: { index: path.join(root, 'index.html') } },
     },
   };
 }

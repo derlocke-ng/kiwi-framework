@@ -1,36 +1,8 @@
-import { useState } from 'react';
 import { DISTRIBUTION } from '../../shared/distribution.js';
-import { currentLanguage, LANGUAGES, shouldAskLanguage } from '../../shared/i18n.js';
+import { LanguageBanner } from '../../ui/AppShell';
 import { AccountLink, Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useIdentity, useKiwi, useKiwiTick, useT } from '../../ui/hooks';
 import { usePeopleNotices } from '../../ui/notices';
-
-function LanguageBanner() {
-  const kiwi = useKiwi();
-  const t = useT();
-  const [pick, setPick] = useState(currentLanguage());
-  if (!shouldAskLanguage()) return <div id="langBanner" />;
-  return (
-    <div id="langBanner">
-      <div className="banner lang-banner">
-        <Icon name="languages" />
-        <p>{t('lang.prompt')}</p>
-        <div className="lang-pick">
-          <select id="langPick" aria-label={t('lang.title')} value={pick} onChange={(e) => setPick(e.target.value)}>
-            {Object.entries(LANGUAGES).map(([code, name]) => (
-              <option key={code} value={code}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn btn-primary btn-sm" id="langOk" onClick={() => kiwi.chooseLanguage(pick)}>
-            {t('common.ok')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const Tags = ({ tags }: { tags: string[] }) => (
   <ul className="tags">

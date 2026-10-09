@@ -163,7 +163,7 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
   });
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1])}`).href) {
+if (process.argv[1] && import.meta.url === new URL(`file://${fs.realpathSync(path.resolve(process.argv[1]))}`).href) {
   const port = Number(process.argv[2] || process.env.PORT || 7777);
   const dir = process.argv[3] || process.env.RELAY_DIR || null;
   startRelay({ port, dir, name: process.env.RELAY_NAME || 'dev relay', country: process.env.RELAY_COUNTRY || 'DE' }).then((r) => {

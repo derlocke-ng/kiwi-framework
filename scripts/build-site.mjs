@@ -7,7 +7,10 @@
 // The hub pages (React, built with Vite), the library (shared/, served as
 // plain files for the apps that still import it) and the icon sprite come
 // from the framework; distribution.js, the strings in locales/, the apps and
-// anything in public/ come from the distribution. The site service worker's
+// anything in public/ come from the distribution. An app entry with
+// `framework: '<name>'` is one of the framework's own apps (apps/<name>),
+// built with Vite for the route the distribution gives it; files in the
+// distribution's apps/<id>/ are laid over it (icons, a manifest of its own). The site service worker's
 // precache list and version are computed from the result, so every deploy
 // busts the cache by itself. `import { assemble }` does the same for tests.
 import fs from 'node:fs';
@@ -16,7 +19,7 @@ import crypto from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { build } from 'vite';
-import { framework, distributionFile, siteConfig } from './vite-site.mjs';
+import { appConfig, framework, distributionFile, siteConfig } from './vite-site.mjs';
 
 export { framework, distributionFile };
 const PRECACHE = /\.(m?js|css|html|svg|webmanifest|png)$/;
@@ -55,6 +58,33 @@ export const manifest = (c) => ({
     { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
     { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
     { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+});
+
+/** An app's favicon: its symbol from the sprite on a dark rounded square (the same drawing scripts/app-icons.mjs writes). */
+export function appIconSvg(icon, sprite) {
+  const m = sprite.match(new RegExp(`<symbol id="${icon}"[^>]*>([\\s\\S]*?)</symbol>`));
+  if (!m) throw new Error(`no symbol "${icon}" in the sprite`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#151713"/>
+  <g transform="translate(12 12) scale(1.6667)" fill="none" stroke="#a3e635" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m[1].trim().replace(/\s+/g, ' ')}</g>
+</svg>
+`;
+}
+
+/** The web app manifest for an app at its route, with the icons it has. */
+export const appManifest = (app, dir) => ({
+  name: app.name,
+  short_name: app.name,
+  description: app.description || '',
+  start_url: './',
+  scope: './',
+  display: 'standalone',
+  background_color: '#0e0f0d',
+  theme_color: '#0e0f0d',
+  icons: [
+    { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
+    ...[192, 512].filter((n) => fs.existsSync(path.join(dir, `icon-${n}.png`))).map((n) => ({ src: `icon-${n}.png`, sizes: `${n}x${n}`, type: 'image/png' })),
   ],
 });
 
@@ -133,9 +163,20 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   fs.mkdirSync(path.join(out, 'locales'), { recursive: true });
   for (const [lang, cat] of Object.entries(mergedLocales(distribution))) fs.writeFileSync(path.join(out, 'locales', `${lang}.json`), `${JSON.stringify(cat, null, 2)}\n`);
 
-  // 5. the apps: copied as they are, or built when they have a build step
+  // 5. the apps: the framework's built for their route, the distribution's copied as they are or built when they have a build step
   for (const app of config.apps) {
     const src = path.join(distribution, 'apps', app.id);
+    if (app.framework) {
+      const dir = path.join(out, app.id);
+      log(`building ${app.id} (the framework's ${app.framework})`);
+      await build(appConfig({ distribution, config, app: app.framework, out: dir }));
+      const strings = path.join(framework, 'apps', app.framework, 'locales');
+      if (fs.existsSync(strings)) fs.cpSync(strings, path.join(dir, 'locales'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'icon.svg'), appIconSvg(app.icon, fs.readFileSync(path.join(out, 'icons.svg'), 'utf8')));
+      if (fs.existsSync(src)) fs.cpSync(src, dir, { recursive: true, filter: (p) => !/(^|\/)(node_modules|\.git)(\/|$)/.test(p) });
+      if (!fs.existsSync(path.join(dir, 'manifest.webmanifest'))) fs.writeFileSync(path.join(dir, 'manifest.webmanifest'), `${JSON.stringify(appManifest(app, dir), null, 2)}\n`);
+      continue;
+    }
     if (!fs.existsSync(src)) throw new Error(`distribution.js lists the app "${app.id}" but apps/${app.id} is missing`);
     const pkg = path.join(src, 'package.json');
     const builds = fs.existsSync(pkg) && JSON.parse(fs.readFileSync(pkg, 'utf8')).scripts?.build;
@@ -159,6 +200,14 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
     if (config.apps.some((a) => a.id === m.id)) throw new Error(`the mount "${m.id}" has the id of an app; give it its own`);
     log(`mounting ${m.app} at ${m.id}/`);
     fs.cpSync(path.join(out, m.app), path.join(out, m.id), { recursive: true });
+    // a framework app installs under the mount's own name and icon
+    const app = config.apps.find((a) => a.id === m.app);
+    if (app?.framework) {
+      const mounted = { ...app, name: m.name || app.name, icon: m.icon || app.icon };
+      const dir = path.join(out, m.id);
+      fs.writeFileSync(path.join(dir, 'icon.svg'), appIconSvg(mounted.icon, fs.readFileSync(path.join(out, 'icons.svg'), 'utf8')));
+      fs.writeFileSync(path.join(dir, 'manifest.webmanifest'), `${JSON.stringify(appManifest(mounted, dir), null, 2)}\n`);
+    }
   }
 
   // 6. the distribution's own files over everything: favicon, CNAME, …
@@ -182,7 +231,7 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   return { out, config, shell };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const args = process.argv.slice(2);
   const legacy = !args.includes('--no-legacy');
   const outArg = args.find((a) => !a.startsWith('--'));

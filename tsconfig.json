@@ -15,5 +15,5 @@
     "resolveJsonModule": true,
     "types": ["vite/client"]
   },
-  "include": ["ui/**/*.ts", "ui/**/*.tsx", "hub/**/*.ts", "hub/**/*.tsx"]
+  "include": ["ui/**/*.ts", "ui/**/*.tsx", "hub/**/*.ts", "hub/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx"]
 }

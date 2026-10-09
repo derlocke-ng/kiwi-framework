@@ -2,6 +2,8 @@
 // from the runtime comes through here, never from shared/ directly.
 
 export { confirmDialog } from '../shared/ui.js';
+export type { AppSettingsProps, AppShellProps } from './AppShell';
+export { AppSettings, AppShell, LanguageBanner, useMount } from './AppShell';
 export type { Brand } from './components';
 export { AccountLink, Icon, RelayList, SiteMark, StatusPill, Toasts, TopBar } from './components';
 export { KiwiContext, useBlocks, useIdentity, useKiwi, useKiwiTick, useNetTick, useOutboxWaiting, usePeople, useRelayInfos, useT, useUnsynced } from './hooks';

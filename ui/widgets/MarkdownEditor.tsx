@@ -23,6 +23,8 @@ export interface MarkdownEditorProps {
   maxLength?: number;
   placeholder?: string;
   autoFocus?: boolean;
+  /** The text area's id, for a page with one editor that links to it. */
+  inputId?: string;
 }
 
 type Cmd = 'bold' | 'italic' | 'h2' | 'h3' | 'link' | 'quote' | 'ul' | 'ol' | 'task' | 'code' | 'codeblock' | 'table';
@@ -37,6 +39,7 @@ export function MarkdownEditor({
   maxLength,
   placeholder,
   autoFocus = false,
+  inputId,
 }: MarkdownEditorProps) {
   const t = useT();
   const ta = useRef<HTMLTextAreaElement | null>(null);
@@ -160,6 +163,7 @@ export function MarkdownEditor({
       <div className="panes" data-show={pane}>
         <textarea
           ref={ta}
+          id={inputId}
           className="md-input"
           spellCheck
           placeholder={placeholder ?? t('note.placeholder')}

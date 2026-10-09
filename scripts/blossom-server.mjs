@@ -8,6 +8,7 @@
 //   const blossom = await startBlossom({ port: 0 });            // blossom.url, blossom.blobs, blossom.close()
 //   const strict = await startBlossom({ accept: (t) => t.startsWith('image/') || 'only images' });
 //   node scripts/blossom-server.mjs [port]
+import fs from 'node:fs';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -126,7 +127,7 @@ export function startBlossom({ port = 0, accept = () => true, maxSize = 20 * 102
   });
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const { url } = await startBlossom({ port: Number(process.argv[2] || 3300) });
   console.log(`Blossom server for development on ${url} (blobs in memory)`);
 }

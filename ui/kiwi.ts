@@ -177,6 +177,15 @@ export async function bootKiwi({ current = 'hub', base = './', sprite = 'icons.s
   setSprite(sprite); // the framework's plain-DOM dialogs (confirmDialog) draw their icons from the same sprite
   if (!import.meta.env.DEV && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register(`${base}sw.js`).catch(() => {});
+    // A worker of the app's own from before it was a React page (Loadout had one) would keep serving this
+    // folder; the site's worker covers it now, so any worker scoped below the site root for this page goes.
+    const root = new URL(base, location.href).href;
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((all) => {
+        for (const r of all) if (r.scope !== root && r.scope.startsWith(root) && location.href.startsWith(r.scope)) r.unregister();
+      })
+      .catch(() => {});
   }
   const strings = initI18n({ dirs });
   const db = await LocalStore.open('wjs');

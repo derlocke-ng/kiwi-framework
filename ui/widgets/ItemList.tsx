@@ -90,7 +90,11 @@ export function ItemList({ items, mode = 'check', canEdit = true, onAdd, onUpdat
       const ids = await onAdd(parsed.map((p, i) => ({ t: p.t, d: p.d, q: p.q, o: orders[i] })));
       if (parsed.length > 1) toast(t('list.added', { n: parsed.length }), 'success');
       const last = Array.isArray(ids) ? (ids.at(-1) as string | undefined) : null;
-      if (last) scrollTo.current = last;
+      // The last new row comes into view: now if it is drawn already (the save took longer than the
+      // redraw, as with relays), otherwise on the render that draws it. Never on some later render.
+      const row = last ? rows.current.get(last) : null;
+      if (row) row.scrollIntoView({ block: 'nearest' });
+      else if (last) scrollTo.current = last;
     } catch (err) {
       fail(err);
     }

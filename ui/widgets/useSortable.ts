@@ -1,5 +1,6 @@
 // Reordering by dragging a handle, or with Alt+↑/↓ on a focused row. Used by
-// the item list and the settings' app order; any list of rows can use it.
+// the item list, the settings' app order and the boards' start page; any list
+// of rows can use it. Plain pages have shared/sortable.js with the same rules.
 //
 //   const sort = useSortable({ ids, onMove: (id, order) => save(order) });
 //   <ul {...sort.listProps}>{sort.order.map((id) => (
@@ -13,7 +14,7 @@
 // while the finger rests at the edge, and only towards the edge the finger
 // moves to. While a row is held, html gets .wjs-dragging (no scroll
 // anchoring, no text selection; widgets.css).
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export interface Sortable {
   /** The ids in the order to show: the dragged order while dragging, the dropped one until `ids` changes. */
@@ -61,10 +62,21 @@ export function useSortable({ ids, onMove, enabled = true }: { ids: string[]; on
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the trigger
   useEffect(() => setDropped(null), [key]);
 
+  // A drop shows its order until the new order arrives; a move that fails, or resolves to false (nothing to save), puts the rows back.
   const commit = useCallback((id: string, order: string[]) => {
     setDropped(order);
-    Promise.resolve(move.current(id, order)).catch(() => setDropped(null));
+    Promise.resolve(move.current(id, order)).then(
+      (saved) => saved === false && setDropped(null),
+      () => setDropped(null),
+    );
   }, []);
+  // A row moved with the keyboard keeps the focus, although React moves its element.
+  const refocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const el = refocus.current;
+    if (el?.isConnected && document.activeElement !== el) el.focus();
+    refocus.current = null;
+  });
 
   const place = useCallback(() => {
     const d = drag.current;
@@ -158,6 +170,7 @@ export function useSortable({ ids, onMove, enabled = true }: { ids: string[]; on
         if (!id || i < 0 || j < 0 || j >= order.length) return;
         e.preventDefault();
         [order[i], order[j]] = [order[j], order[i]];
+        refocus.current = document.activeElement as HTMLElement | null;
         commit(id, order);
       },
       onPointerMove: (e) => {

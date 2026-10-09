@@ -39,5 +39,5 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Chromium for the browser tests
         run: npx playwright-core install --with-deps chromium
-      - name: The widgets in a browser
+      - name: The widgets and the boards app in a browser
         run: npm run test:e2e
