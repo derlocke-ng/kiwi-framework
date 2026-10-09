@@ -2,6 +2,8 @@
 // delete and list, BUD-06 upload preflight), blobs kept in memory, CORS
 // open like a public server. `accept(type)` is the server's policy: true,
 // or the reason it refuses (a public server that takes only images).
+// `silentRefusal` hangs up instead of answering a refused upload, which is
+// what a page sees when a server's refusals carry no CORS headers.
 //
 //   const blossom = await startBlossom({ port: 0 });            // blossom.url, blossom.blobs, blossom.close()
 //   const strict = await startBlossom({ accept: (t) => t.startsWith('image/') || 'only images' });
@@ -19,7 +21,7 @@ const CORS = {
 };
 const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
 
-export function startBlossom({ port = 0, accept = () => true, maxSize = 20 * 1024 * 1024, tamper = false } = {}) {
+export function startBlossom({ port = 0, accept = () => true, maxSize = 20 * 1024 * 1024, tamper = false, silentRefusal = false } = {}) {
   /** sha256 → { data, type, owner, uploaded } */
   const blobs = new Map();
   let base = '';
@@ -80,6 +82,7 @@ export function startBlossom({ port = 0, accept = () => true, maxSize = 20 * 102
         if (typeof auth === 'string') return refuse(res, 401, auth);
         const type = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0];
         const no = policy(type, size);
+        if (no && silentRefusal) return req.socket.destroy();
         if (no) return refuse(res, ...no);
         const blob = blobs.get(sha) || { data, type, owner: auth.pubkey, uploaded: Math.floor(Date.now() / 1000) };
         blobs.set(sha, blob);

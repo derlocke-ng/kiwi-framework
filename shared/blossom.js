@@ -255,18 +255,27 @@ export async function probe(server, { sk }) {
     if (res.ok) await removeBlob(base, sha256, sk).catch(() => false);
     return res;
   };
+  const failure = (err) => [err?.message || String(err), err?.cause?.code || err?.cause?.message].filter(Boolean).join(': ');
+  // A refusal without CORS headers reaches a page as a failed request, like a server that is down;
+  // so a failed first try still goes on to the photo, which tells the two apart.
+  let res = null;
+  let lost = null;
   try {
-    const opaque = (await encryptBlob(crypto.getRandomValues(new Uint8Array(64)))).data;
-    const res = await tryUpload(opaque, 'application/octet-stream');
-    // A page only gets an answer when the server allows it; elsewhere (node) the header tells.
-    const cors = typeof window === 'undefined' ? Boolean(res.headers.get('access-control-allow-origin')) : true;
-    if (res.ok) return { server: base, result: 'encrypted', reason: '', cors };
-    if (res.status === 402) return { server: base, result: 'paid', reason: reasonOf(res), cors };
-    const img = await tryUpload(sampleJpeg(), 'image/jpeg');
-    if (img.ok) return { server: base, result: 'imagesOnly', reason: reasonOf(res), cors };
-    return { server: base, result: img.status === 402 ? 'paid' : 'denied', reason: reasonOf(img), cors };
+    res = await tryUpload((await encryptBlob(crypto.getRandomValues(new Uint8Array(64)))).data, 'application/octet-stream');
   } catch (err) {
-    const cause = err?.cause?.code || err?.cause?.message;
-    return { server: base, result: 'unreachable', reason: [err?.message || String(err), cause].filter(Boolean).join(': '), cors: null };
+    lost = err;
   }
+  // A page only gets an answer when the server allows it; elsewhere (node) the header tells.
+  const corsOf = (r) => (typeof window === 'undefined' ? Boolean(r.headers.get('access-control-allow-origin')) : true);
+  if (res?.ok) return { server: base, result: 'encrypted', reason: '', cors: corsOf(res) };
+  if (res?.status === 402) return { server: base, result: 'paid', reason: reasonOf(res), cors: corsOf(res) };
+  let img;
+  try {
+    img = await tryUpload(sampleJpeg(), 'image/jpeg');
+  } catch (err) {
+    return { server: base, result: 'unreachable', reason: failure(lost || err), cors: null };
+  }
+  const why = res ? reasonOf(res) : 'other files refused without saying why';
+  if (img.ok) return { server: base, result: 'imagesOnly', reason: why, cors: corsOf(img) };
+  return { server: base, result: img.status === 402 ? 'paid' : 'denied', reason: reasonOf(img), cors: corsOf(img) };
 }

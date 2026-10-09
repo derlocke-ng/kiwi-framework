@@ -102,3 +102,14 @@ test('checking a server: takes encrypted files, images only, or unreachable; the
     await strict.close();
   }
 });
+
+test('a server whose refusals the page cannot read is still found to take photos, not called unreachable', async () => {
+  const quiet = await startBlossom({ accept: (type) => type.startsWith('image/') || 'only images here', silentRefusal: true });
+  try {
+    const r = await probe(quiet.url, { sk });
+    assert.equal(r.result, 'imagesOnly');
+    assert.equal(quiet.blobs.size, 0, 'the test photo is deleted again');
+  } finally {
+    await quiet.close();
+  }
+});
