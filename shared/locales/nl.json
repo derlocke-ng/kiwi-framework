@@ -76,6 +76,8 @@
   "share.sentInChat": "Verstuurd in {app} naar {n}.",
   "notify.message": "Nieuw bericht van {name}",
   "notify.unread": "{n} nieuw",
+  "notify.groupMessage": "{name} in {group}",
+  "notify.groupClosed": "De groep ‘{group}’ is door de gastheer gesloten.",
   "account.publicKey": "Publieke sleutel",
   "account.copyNpub": "npub kopiëren",
   "account.exportKey": "geheime sleutel exporteren",

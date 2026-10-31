@@ -76,6 +76,8 @@
   "share.sentInChat": "In {app} an {n} gesendet.",
   "notify.message": "Neue Nachricht von {name}",
   "notify.unread": "{n} neu",
+  "notify.groupMessage": "{name} in {group}",
+  "notify.groupClosed": "Die Gruppe „{group}“ wurde vom Gastgeber geschlossen.",
   "account.publicKey": "Öffentlicher Schlüssel",
   "account.copyNpub": "npub kopieren",
   "account.exportKey": "geheimen Schlüssel exportieren",

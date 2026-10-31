@@ -7,7 +7,7 @@ import { appById, mountsOf } from '../shared/apps.js';
 import { fingerprint } from '../shared/events.js';
 import { t } from '../shared/i18n.js';
 import { store } from '../shared/util.js';
-import { useKiwi, useMessages, usePeople } from './hooks';
+import { useGroups, useKiwi, useMessages, usePeople } from './hooks';
 import { chatMount, notifyBrowser } from './notify';
 import { toast } from './toast';
 
@@ -18,7 +18,28 @@ export function usePeopleNotices(): void {
   const { base, current } = kiwi;
   const people = usePeople();
   const messages = useMessages();
+  const groups = useGroups();
   const icon = `${base}icon-192.png`;
+  // a group's message while this page is open, unless that group is on screen; and a group that was closed
+  useEffect(() => {
+    const chat = chatMount();
+    if (!groups || !chat) return;
+    const offMessage = groups.onMessage((m: any) => {
+      if (current === chat.id && messages?.active === m.conv) return;
+      const g = groups.entry(m.conv);
+      const href = g ? `${base}${chat.id}/#/group/${g.secret}/${g.host}` : `${base}${chat.id}/#/groups`;
+      const title = t('notify.groupMessage', { name: m.name || fingerprint(m.from), group: m.groupName || g?.name || '' });
+      toast(title, 'info', 8000, { label: t('people.open'), href });
+      notifyBrowser({ title, body: m.text.slice(0, 120), url: href, tag: `group-${m.conv}`, icon });
+    });
+    const offGone = groups.onGone(({ name, why }: any) => {
+      if (why === 'closed') toast(t('notify.groupClosed', { group: name }), 'info', 8000);
+    });
+    return () => {
+      offMessage();
+      offGone();
+    };
+  }, [groups, messages, base, current, icon]);
   // a message while this page is open, unless it is the conversation on screen
   useEffect(() => {
     const chat = chatMount();

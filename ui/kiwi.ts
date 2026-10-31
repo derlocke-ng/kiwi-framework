@@ -9,6 +9,7 @@ import { MOUNT_IDS, orderedMounts } from '../shared/apps.js';
 import { normalizeServer } from '../shared/blossom.js';
 import { DirectMessages } from '../shared/chat.js';
 import { DISTRIBUTION } from '../shared/distribution.js';
+import { Groups } from '../shared/groups.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
 import { People } from '../shared/people.js';
@@ -55,6 +56,8 @@ export class Kiwi {
   people!: any;
   /** the private-message inbox (shared/chat.js) */
   messages!: any;
+  /** the groups the person is in (shared/groups.js) */
+  groups!: any;
   version = 0;
   private listeners = new Set<() => void>();
   private offSuite: (() => void) | null = null;
@@ -118,6 +121,7 @@ export class Kiwi {
     const name = String(alias).trim().slice(0, 40);
     saveIdentity({ ...id, alias: name, accountPk: accountPk || id.accountPk || null });
     if (this.people) this.people.alias = name;
+    if (this.groups) this.groups.alias = name;
   }
 
   /**
@@ -134,12 +138,17 @@ export class Kiwi {
     this.blocks?.stop();
     this.people?.stop();
     this.messages?.stop();
+    this.groups?.stop();
     this.offBlocks?.();
     const id = this.identity();
     this.blocks = await new BlockList(id, this.net).start();
     const isBlocked = (pk: string) => Boolean(this.blocks.isBlocked(pk));
     this.people = await new People(id, this.net, { isBlocked }).start();
-    this.messages = await new DirectMessages(id, this.net, { isBlocked }).start();
+    this.messages = new DirectMessages(id, this.net, { isBlocked });
+    this.groups = new Groups(id, this.net, { isBlocked, inbox: this.messages }); // registers for knocks and keys before the inbox replays
+    this.groups.friendCheck = (pk: string) => Boolean(this.people?.isFriend(pk));
+    await this.messages.start();
+    await this.groups.start();
     this.offBlocks = this.blocks.onChange(() => this.messages.purgeBlocked().catch(() => {}));
     this.emit();
   }

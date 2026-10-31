@@ -130,6 +130,12 @@ Rules a client enforces on what it shows, whatever a relay accepts: the id has a
 
 **Votes** are [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) reactions, kind **7**, with tags `["e", <note id>]`, `["p", <author>]`, `["a", <address>]`, `["k", "30810"]`, content `+` or `-`, and an empty content to take a vote back; the newest reaction per voter and note counts. **Reports** are §4 reports with the `a` and `k` tags. Votes and reports need **8** bits of proof of work. A client subscribes to `{ kinds: [30810], since }` and `{ kinds: [7, 1984], "#k": ["30810"], since }`.
 
+## 7b. Groups (chat)
+
+A group is a key pair. Its pubkey is where its events live and its secret (`w`) signs them, so relays see one anonymous author; the content of every event is `seal(k, <inner event>)` with the group's current read key `k`, and the inner event is signed by the member who wrote it (`verifyEvent` on open), so members see who. Kinds: **30720** `GROUP_INFO` (addressable, `d` = `info`; inner content `{ "name", "host", "closed", "open" }`, believed only when the inner signature is the host's, who is named in the invite link), **7820** `GROUP_MESSAGE` (inner content the text, ≤ 4000 characters, with an `["ms", <0–999>]` tag for order within a second), **7821** `GROUP_JOIN` (`{ "name" }`), **7822** `GROUP_LEAVE`, **7823** `GROUP_KICK` (`{ "pk" }`, host-signed). Membership is what was announced: joins minus leaves and kicks.
+
+Neither key is in the invite link: `#/group/<pub>/<host>/<invite token>/<name>`. Opening it **knocks**: a rumor of kind **7824** `GROUP_KNOCK` (`{ "pub", "invite", "name" }`) gift-wrapped to the host (§5). The host admits (or, when the group is `open` and the token is current, their device admits by itself) by sending a rumor of kind **7825** `GROUP_KEYS` (`{ "pub", "w", "k", "host", "name" }`) wrapped to the person; a member who invites friends sends them the same. A device accepts keys from the host, or from a friend; keys for a group it already holds count as a **re-key** when they come from the host. When someone leaves or is removed, the host makes a new `k`, sends it to everyone still in, and republishes the info under it; members keep every `k` they were given and open with the newest first. Closing is the info with `closed: true`: every member's device drops the group. The groups a person is in and the knocks they wait on are in their account's settings (kind 30791, `d` = `chat`).
+
 ## 8. Live rooms (Payload, pong, chat)
 
 **Chat rooms** are on nostr already: a room is named by its link's `#secret`; its public id is `sha256("wjs|room|chat|" + secret)` as hex, and its key is `HKDF(secret, "wjs/room/chat")` (`shared/events.js` `deriveKey`). A message is an **ephemeral** event of kind **21710** with `["h", <room id>]` and content `seal(key, { "nick": <≤ 24 chars>, "text": <≤ 2000 chars> })`; presence is kind **21700** with the same tag and `seal(key, { "nick" })`, sent on entering and every 30 s (someone silent for 75 s has left). Each visit signs with a key made for it, so relays learn no identity; relays pass ephemeral events to the room's subscribers and store nothing, so a room has no history. Anyone with the link is in the room; there is no account.
@@ -180,6 +186,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 10002, 10050 | relay lists (§10) |
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
 | 21701–21702 | live rooms for Payload and pong (§8); 21700 presence and 21710 chat-room messages are in use |
+| 30720, 7820–7825 | chat groups (§7b) |
 | market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
 
 ## Changes

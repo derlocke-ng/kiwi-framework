@@ -11,6 +11,7 @@ export {
   KiwiContext,
   useAppSettings,
   useBlocks,
+  useGroups,
   useIdentity,
   useKiwi,
   useKiwiTick,

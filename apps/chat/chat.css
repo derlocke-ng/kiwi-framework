@@ -253,3 +253,48 @@ body {
 .room-enter .card {
   max-width: 420px;
 }
+
+/* ---------- tabs, the door, who is at it ---------- */
+
+.tabs {
+  margin-bottom: 0.75rem;
+}
+
+.rooms-actions {
+  margin-bottom: 0.75rem;
+}
+
+.knocking .conv {
+  border-style: dashed;
+}
+
+.requests ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.requests li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.requests li > span {
+  flex: 1;
+}
+
+.member .remove {
+  margin-left: 0.1rem;
+  vertical-align: middle;
+  color: var(--muted);
+}
+
+.member .remove .icon {
+  width: 0.9em;
+  height: 0.9em;
+}

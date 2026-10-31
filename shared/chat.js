@@ -36,6 +36,7 @@ export class DirectMessages {
     this.seen = new Set(store.get(this.seenKey, []));
     this.listeners = new Set();
     this.messageListeners = new Set();
+    this.rumorHandlers = new Map(); // kind -> Set(fn): other modules' rumors (groups' knocks and keys)
     this.queue = Promise.resolve();
     this.ready = false; // true once what the device already held is unwrapped: later messages are news
     this.active = null; // the conversation open on this page, which is not announced
@@ -74,7 +75,11 @@ export class DirectMessages {
     } catch {
       return this.markSeen(ev.id);
     }
-    if (rumor.kind !== KINDS.CHAT_MESSAGE) return this.markSeen(ev.id); // another module's rumor (People's): nothing for the chat in it
+    if (rumor.kind !== KINDS.CHAT_MESSAGE) {
+      // another module's rumor: the groups' knocks and keys come through here; People's are its own
+      for (const fn of this.rumorHandlers.get(rumor.kind) || []) fn(rumor, ev);
+      return this.markSeen(ev.id);
+    }
     const from = rumor.pubkey;
     const to = rumor.tags.find((x) => x[0] === 'p')?.[1];
     const other = from === this.pk ? to : from;
@@ -161,6 +166,21 @@ export class DirectMessages {
   onChange(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  /** Another module's rumor kind, delivered as it is unwrapped (including the replay at start). */
+  onRumor(kind, fn) {
+    if (!this.rumorHandlers.has(kind)) this.rumorHandlers.set(kind, new Set());
+    this.rumorHandlers.get(kind).add(fn);
+    return () => this.rumorHandlers.get(kind)?.delete(fn);
+  }
+
+  /** A rumor of another kind to one person, wrapped for them and for my other devices. */
+  async sendRumor(toPk, kind, body) {
+    const rumor = { kind, created_at: now(), tags: [['p', toPk]], content: JSON.stringify(body) };
+    const { sync } = this.net;
+    await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk), { wait: 'one' });
+    await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk));
   }
 
   /** Called with every message from someone else that arrives while the page is open (not with what was already here). */

@@ -13,6 +13,7 @@ export const KINDS = {
   LOADOUT_DOC: 30703, // signed by the board key: the note body
   ACCOUNT: 30790, // username + password login, signed by a key derived from both
   SETTINGS: 30791, // per-account settings, encrypted to yourself
+  GROUP_INFO: 30720, // chat group: name, host, closed; signed by the group's key, sealed, host-signed inside
   // Ephemeral (20000–29999): relays pass them on and forget them.
   P2P_PRESENCE: 21700,
   P2P_SIGNAL: 21701,
@@ -23,10 +24,16 @@ export const KINDS = {
   REACTION: 7, // NIP-25: votes on DevBoard posts
   DELETION: 5, // NIP-09
   DEVBOARD_POST: 30810, // public noticeboard post, proof of work required
+  GROUP_MESSAGE: 7820, // chat group: a message; signed by the group's key, sealed, member-signed inside
+  GROUP_JOIN: 7821, // chat group: a member announcing themselves (with their name)
+  GROUP_LEAVE: 7822, // chat group: a member leaving
+  GROUP_KICK: 7823, // chat group: the host puts a member out (host-signed inside)
   GIFT_WRAP: 1059, // NIP-59: a sealed rumor for one recipient (friend requests, shares)
   SEAL: 13,
   // Rumor kinds inside a gift wrap; relays never see them as such.
   CHAT_MESSAGE: 14, // NIP-17: a private message, wrapped once for each reader and once for the writer's other devices
+  GROUP_KNOCK: 7824, // to a group's host: someone with the invite link asks in ({ pub, invite, name })
+  GROUP_KEYS: 7825, // to one person: a group's keys ({ pub, w, k, host, name }), from the host or a member who invited them
   FRIEND_REQUEST: 7801,
   FRIEND_ACCEPT: 7802,
   FRIEND_REMOVE: 7803,

@@ -1,12 +1,14 @@
-// Chat: private messages between accounts and live rooms that vanish, on
-// nostr. Armory mounts it as Uplink. Routes: #/ the list, #/dm/<pk> one
-// conversation, #/room/<secret> one room, #/settings.
+// Chat: private messages between accounts, groups that stay until their host
+// closes them, and live rooms that vanish, on nostr. Armory mounts it as
+// Uplink. Routes: #/ messages, #/groups, #/dm/<pk>, #/group/<pub>/<host>/<invite>/<name>,
+// #/room/<secret>, #/settings.
 import { useEffect } from 'react';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useMessages, useT } from '../../ui/hooks';
 import { useHash } from '../../ui/route';
 import { ChatSettings } from './pages/ChatSettings';
 import { Conversation } from './pages/Conversation';
+import { GroupView } from './pages/GroupView';
 import { Home } from './pages/Home';
 import { RoomView } from './pages/RoomView';
 import { DmContext, parseRoute } from './state';
@@ -27,10 +29,12 @@ export function ChatApp() {
       <p className="empty">{t('common.loading')}</p>
     ) : route.page === 'dm' ? (
       <Conversation key={route.pk} pk={route.pk} />
+    ) : route.page === 'group' ? (
+      <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} />
     ) : route.page === 'settings' ? (
       <ChatSettings />
     ) : (
-      <Home />
+      <Home tab={route.tab} />
     );
   return (
     <AppShell footer={t('chat.footer')} settings="#/settings">

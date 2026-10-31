@@ -29,9 +29,9 @@ export async function chatSuite(env, { app, settings, boards }) {
   const MOUNT = new URL(app).pathname.split('/').filter(Boolean).pop(); // the chat's mount id on this hub (chat, uplink, …)
   const pkOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
   const messages = (page, sel = '#messages') => texts(page, `${sel} .msg p`);
-  async function open(page) {
-    await page.goto(APP);
-    await page.waitForSelector('#rooms');
+  async function open(page, tab = '') {
+    await page.goto(`${APP}${tab}`);
+    await page.waitForSelector('#chatTabs');
     await until(async () => (await page.$eval('#sync', (el) => el.dataset.state)) === 'on', 'connected to the relay', 15000);
   }
   async function talk(page, pk) {
@@ -161,6 +161,87 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.ok(await B.$('#messages .msg a[href*="/room/"]'), 'with the room’s link');
   await A.click('#leaveRoom');
 
+  step('a group: A makes it and invites B directly; B is in without knocking, both talk under their names; A2 has it too');
+  const groupMessages = (page) => texts(page, '#groupMessages .msg p');
+  await open(A, '#/groups');
+  await A.click('#newGroup');
+  await A.fill('#groupForm [name=name]', 'Crew');
+  await A.fill('#groupForm [name=myName]', 'Ada');
+  await A.click('#groupForm [type=submit]');
+  await A.waitForSelector('#groupComposer textarea');
+  await until(async () => /Ada/.test(await A.textContent('#groupMembers')), 'A is in as Ada');
+  await A.click('[data-act=menu]');
+  await A.click('.menu button:has-text("Invite friends")');
+  await A.waitForSelector('#pickPeople input[name=pk]');
+  await A.check('#pickPeople input[name=pk]', { force: true });
+  await A.click('#pickPeople .btn-primary');
+  await A.waitForSelector('.toast-success');
+  await open(B, '#/groups');
+  await until(async () => (await texts(B, '#groupList .conv-name')).includes('Crew'), 'the group reaches B through the keys A sent', 40000);
+  await B.click('#groupList .conv');
+  await B.waitForSelector('#groupComposer textarea');
+  await say(B, 'hello crew', '#groupComposer');
+  await until(async () => (await groupMessages(A)).includes('hello crew'), 'B’s message on A', 30000);
+  await until(async () => (await A.textContent('#groupMembers')).split(':')[0].trim().startsWith('2'), 'two in, on A', 20000);
+  await say(A, 'welcome', '#groupComposer');
+  await until(async () => (await groupMessages(B)).join('|') === 'hello crew|welcome', 'A’s answer on B', 30000);
+  assert.ok((await texts(B, '#groupMessages .nick')).includes('Ada'), 'under A’s name');
+  await open(A2, '#/groups');
+  await until(async () => (await texts(A2, '#groupList .conv-name')).includes('Crew'), 'A’s other device has the group', 40000);
+  await A2.click('#groupList .conv');
+  await until(async () => (await groupMessages(A2)).join('|') === 'hello crew|welcome', 'and its messages', 30000);
+  const groupPub = await A.getAttribute('.group', 'data-group');
+  const onRelay = await env.relayEvents([{ kinds: [30720, 7820, 7821] }]);
+  assert.ok(onRelay.length >= 4, 'info, two joins, two messages on the relay');
+  assert.ok(onRelay.every((e) => e.pubkey.startsWith(groupPub)), 'all under the group’s anonymous key');
+  assert.ok(!JSON.stringify(onRelay).includes('hello crew') && !JSON.stringify(onRelay).includes(pkA) && !JSON.stringify(onRelay).includes(pkB), 'the relay sees neither text nor members');
+
+  step('a stranger with the link knocks; the host lets them in; then removes them, and what follows is sealed with a key they never had');
+  const link = await A.getAttribute('.group', 'data-invite');
+  assert.match(link, /#\/group\/[0-9a-f]{64}\/[0-9a-f]{64}\/[A-Za-z0-9_-]{8,}\//, 'the invite link names the group, the host and a token, never a key');
+  const S = await dev('S');
+  await S.goto(link);
+  await S.waitForSelector('#joinGroup');
+  const pkS = await pkOf(S);
+  await S.waitForSelector('#joinGroup');
+  await S.fill('#joinGroup [name=name]', 'Sam');
+  await S.click('#knockBtn');
+  await S.waitForSelector('#knockWaiting');
+  await until(async () => (await A.$$('#requests [data-admit]')).length === 1, 'the host sees Sam at the door', 40000);
+  assert.ok((await A.textContent('#requests')).includes('Sam'));
+  await A.click('#requests [data-admit]');
+  await S.waitForSelector('#groupComposer textarea', { timeout: 40000 });
+  await say(S, 'hi all', '#groupComposer');
+  await until(async () => (await groupMessages(A)).includes('hi all'), 'Sam’s message on A', 30000);
+  await until(async () => (await A.textContent('#groupMembers')).includes('Sam'), 'Sam is listed', 20000);
+  A.removeAllListeners('dialog');
+  A.on('dialog', (d) => d.dismiss());
+  await A.click(`#groupMembers [data-remove="${pkS}"]`);
+  await A.waitForSelector('dialog.modal [data-ok]');
+  await A.click('dialog.modal [data-ok]');
+  await until(async () => !(await A.textContent('#groupMembers')).includes('Sam'), 'Sam is out on A', 30000);
+  await until(async () => (await S.$('#groupComposer')) === null, 'Sam’s device dropped the group', 40000);
+  await until(async () => (await texts(S, '#groupList .conv-name')).length === 0 || (await S.$('#joinGroup')) !== null, 'nothing of it left on S', 20000);
+  await say(A, 'after the rekey', '#groupComposer');
+  await until(async () => (await groupMessages(B)).includes('after the rekey'), 'B reads with the new key', 40000);
+  await until(async () => (await groupMessages(A2)).includes('after the rekey'), 'so does A’s other device', 40000);
+
+  step('B leaves; the host closes; every device drops the group');
+  await B.click('[data-act=menu]');
+  await B.click('.menu button:has-text("Leave the group")');
+  await B.waitForSelector('dialog.modal [data-ok]');
+  await B.click('dialog.modal [data-ok]');
+  await B.waitForSelector('#groupList, #chatTabs');
+  await until(async () => (await A.textContent('#groupMembers')).split(':')[0].trim().startsWith('1'), 'only Ada left, on A', 30000);
+  await A.click('[data-act=menu]');
+  await A.click('.menu button:has-text("Close the group")');
+  await A.waitForSelector('dialog.modal [data-ok]');
+  await A.click('dialog.modal [data-ok]');
+  await A.waitForSelector('.toast-success');
+  await until(async () => (await texts(A2, '.toast')).some((x) => /closed/.test(x)) || (await A2.$('#groupComposer')) === null, 'A2 is told and drops it', 40000);
+  await open(A2, '#/groups');
+  assert.deepEqual(await texts(A2, '#groupList .conv-name'), [], 'no group left on A2');
+
   step('blocking: the conversation goes at once and new messages never show; unblocking does not bring them back');
   await talk(B, pkA);
   await B.click('[data-act=menu]');
@@ -203,11 +284,11 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.equal((await env.relayEvents([{ kinds: [21710, 21700] }])).length, 0, 'the relay stored none of it');
   assert.ok(await R1.$('#copyRoom'), 'the link can be copied');
   await R1.click('#leaveRoom');
-  await R1.waitForSelector('#rooms');
+  await R1.waitForSelector('#chatTabs');
 
   step('a German browser gets the chat in German');
   const G = await dev('G', { locale: 'de-DE' });
-  await G.goto(APP);
+  await G.goto(`${APP}#/groups`);
   await G.waitForSelector('#startRoom');
   assert.equal(await G.textContent('#startRoom'), 'Raum eröffnen');
   assert.equal(await G.getAttribute('html', 'lang'), 'de');

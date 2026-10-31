@@ -142,6 +142,16 @@ export function useMessages(): any {
   return messages;
 }
 
+/** The groups the person is in (shared/groups.js), re-rendering on every change. */
+export function useGroups(): any {
+  const kiwi = useKiwi();
+  useKiwiTick();
+  const groups = kiwi.groups;
+  const sub = useCallback((cb: () => void) => (groups ? groups.onChange(cb) : () => {}), [groups]);
+  useTick(sub);
+  return groups;
+}
+
 export function useBlocks(): any {
   const kiwi = useKiwi();
   useKiwiTick();
