@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=chat
+DESCRIPTION=Private messages between accounts (NIP-17) and live rooms that vanish, sealed on the device
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+ICON=icon.svg
+KINDS=14 1059 21700 21710
+TAGS=nostr nip-17 nip-59 e2ee ephemeral
+HOMEPAGE=https://derlocke-ng.github.io/armory/uplink/
+LICENSE=GPL-3.0-or-later

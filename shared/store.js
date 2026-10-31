@@ -6,7 +6,7 @@
 import { matchFilters } from './nostr.mjs';
 import { addressOf, supersedes, isEphemeralKind, observe } from './events.js';
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const req = (r) =>
   new Promise((resolve, reject) => {
@@ -26,14 +26,23 @@ export class LocalStore {
   static open(name = 'wjs') {
     return new Promise((resolve, reject) => {
       const r = indexedDB.open(name, DB_VERSION);
-      r.onupgradeneeded = () => {
+      r.onupgradeneeded = (e) => {
         const db = r.result;
-        const events = db.createObjectStore('events', { keyPath: 'id' });
-        events.createIndex('pubkey', 'pubkey');
-        events.createIndex('address', 'address');
-        events.createIndex('kind', 'kind');
-        db.createObjectStore('outbox', { keyPath: 'id' });
-        db.createObjectStore('meta', { keyPath: 'k' });
+        if (e.oldVersion < 1) {
+          const events = db.createObjectStore('events', { keyPath: 'id' });
+          events.createIndex('pubkey', 'pubkey');
+          events.createIndex('address', 'address');
+          events.createIndex('kind', 'kind');
+          db.createObjectStore('outbox', { keyPath: 'id' });
+          db.createObjectStore('meta', { keyPath: 'k' });
+        }
+        if (e.oldVersion < 2) {
+          // Private messages once unwrapped: the gift wraps stay in `events` (synced, backed up,
+          // healed); this is what the chat reads, by conversation, without unwrapping again.
+          const chat = db.createObjectStore('chat', { keyPath: 'id' });
+          chat.createIndex('conv', 'conv');
+          chat.createIndex('convAt', ['conv', 'at']);
+        }
       };
       r.onsuccess = () => resolve(new LocalStore(r.result));
       r.onerror = () => reject(r.error);
@@ -190,7 +199,63 @@ export class LocalStore {
 
   /** Forget everything (sign-out, wipe). */
   async clear() {
-    for (const name of ['events', 'outbox', 'meta']) await req(this.tx(name, 'readwrite').clear());
+    for (const name of ['events', 'outbox', 'meta', 'chat']) await req(this.tx(name, 'readwrite').clear());
+  }
+
+  // ---- chat: unwrapped private messages, by conversation ----
+
+  /** @param {{ id: string, conv: string, from: string, at: number, text: string, wrap: string, [k: string]: any }} message */
+  async putMessage(message) {
+    await req(this.tx('chat', 'readwrite').put(message));
+    for (const fn of this.chatListeners || []) fn(message);
+  }
+
+  async hasMessage(id) {
+    return Boolean(await req(this.tx('chat').get(id)));
+  }
+
+  /** The newest `limit` messages of a conversation before `before` (a time), oldest first; within one second, in the order this device took them. */
+  messages(conv, { before = Infinity, limit = 50 } = {}) {
+    return new Promise((resolve, reject) => {
+      const out = [];
+      const range = IDBKeyRange.bound([conv, 0], [conv, before], false, true);
+      const r = this.tx('chat').index('convAt').openCursor(range, 'prev');
+      r.onerror = () => reject(r.error);
+      r.onsuccess = () => {
+        const c = r.result;
+        if (!c || out.length >= limit) return resolve(out.sort((a, b) => a.at - b.at || (a.seq || 0) - (b.seq || 0) || (a.id < b.id ? -1 : 1)));
+        out.push(c.value);
+        c.continue();
+      };
+    });
+  }
+
+  /** Every conversation with its newest message, newest first. */
+  conversations() {
+    return new Promise((resolve, reject) => {
+      const seen = new Map();
+      const r = this.tx('chat').index('convAt').openCursor(null, 'prev');
+      r.onerror = () => reject(r.error);
+      r.onsuccess = () => {
+        const c = r.result;
+        if (!c) return resolve([...seen.values()].sort((a, b) => b.at - a.at));
+        if (!seen.has(c.value.conv)) seen.set(c.value.conv, c.value);
+        c.continue();
+      };
+    });
+  }
+
+  async removeConversation(conv) {
+    const os = this.tx('chat', 'readwrite');
+    const keys = await req(os.index('conv').getAllKeys(conv));
+    for (const k of keys) await req(os.delete(k));
+  }
+
+  /** Called with every message put, from this page or another. */
+  subscribeChat(fn) {
+    this.chatListeners ||= new Set();
+    this.chatListeners.add(fn);
+    return () => this.chatListeners.delete(fn);
   }
 
   close() {

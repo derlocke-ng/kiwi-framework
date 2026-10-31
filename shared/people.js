@@ -219,6 +219,8 @@ export class People {
     } catch {
       return this.markSeen(ev.id);
     }
+    const OURS = [KINDS.FRIEND_REQUEST, KINDS.FRIEND_ACCEPT, KINDS.FRIEND_REMOVE, KINDS.SHARE];
+    if (!OURS.includes(rumor.kind)) return; // another module's rumor (a chat message): neither handled nor marked here
     const from = rumor.pubkey;
     if (!isHex64(from) || from === this.pk || this.isBlocked(from)) return this.markSeen(ev.id);
     let body = {};

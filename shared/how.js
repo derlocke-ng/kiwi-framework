@@ -28,7 +28,7 @@ export const HOW_TOPICS = [
   'expiry', // posts that expire (NIP-40)
   'friends', // mutual friends, gift-wrapped requests and shares (people.js)
   'blocks', // private block list, public reports (moderation.js)
-  'privateMessages', // NIP-17 messages: written for the chat's design; check it when the chat lands
+  'privateMessages', // NIP-17 messages (the chat)
 ];
 
 /** Starting lists for each kind of app. */

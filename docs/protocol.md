@@ -76,6 +76,7 @@ Rumors carry `["p", <recipient>]` and JSON content:
 | **7802** friend accept | `{ "name": <alias> }` | friends now, both ways |
 | **7803** friend remove | `{}` | not friends any more |
 | **7804** share | `{ "app": <app id, ≤ 32 chars>, "payload": <object> }` | something for one of the recipient's apps; `payload.url` is what a notice opens |
+| **14** private message ([NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md)) | the text, plain (≤ 4000 characters) | the chat: wrapped once for the reader and once for the writer's own key, so the writer's other devices hold the conversation too; a device unwraps each wrap once and keeps the message in its store's `chat` table |
 
 Friendship is mutual and symmetric: a request answered by an accept makes both sides friends; two crossing requests are an acceptance; a request from someone already a friend is answered with an accept again; a remove drops the friend on both sides. Each wrap is processed once (`seen`, the last 500 ids). The recipient's state is the `people` settings namespace (§3):
 
@@ -129,7 +130,10 @@ Rules a client enforces on what it shows, whatever a relay accepts: the id has a
 
 **Votes** are [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) reactions, kind **7**, with tags `["e", <note id>]`, `["p", <author>]`, `["a", <address>]`, `["k", "30810"]`, content `+` or `-`, and an empty content to take a vote back; the newest reaction per voter and note counts. **Reports** are §4 reports with the `a` and `k` tags. Votes and reports need **8** bits of proof of work. A client subscribes to `{ kinds: [30810], since }` and `{ kinds: [7, 1984], "#k": ["30810"], since }`.
 
-## 8. Live rooms (Payload, pong)
+## 8. Live rooms (Payload, pong, chat)
+
+**Chat rooms** are on nostr already: a room is named by its link's `#secret`; its public id is `sha256("wjs|room|chat|" + secret)` as hex, and its key is `HKDF(secret, "wjs/room/chat")` (`shared/events.js` `deriveKey`). A message is an **ephemeral** event of kind **21710** with `["h", <room id>]` and content `seal(key, { "nick": <≤ 24 chars>, "text": <≤ 2000 chars> })`; presence is kind **21700** with the same tag and `seal(key, { "nick" })`, sent on entering and every 30 s (someone silent for 75 s has left). Each visit signs with a key made for it, so relays learn no identity; relays pass ephemeral events to the room's subscribers and store nothing, so a room has no history. Anyone with the link is in the room; there is no account.
+
 
 Payload and pong still signal through gun and WebRTC (a room is named by `sha256("wjs|room|" + secret)`, frames are AES-GCM sealed with a key derived from the secret). The nostr kinds **21700** (presence), **21701** (signal) and **21702** (data), ephemeral, are reserved for their move to nostr: presence and signaling encrypted to the room secret, data frames when WebRTC fails. Their content formats are defined when that lands.
 
@@ -175,7 +179,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 34550 and related | community definitions (NIP-72): spaces; posts and listings then carry `["a", <space address>]` |
 | 10002, 10050 | relay lists (§10) |
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
-| 21700–21702 | live rooms (§8) |
+| 21701–21702 | live rooms for Payload and pong (§8); 21700 presence and 21710 chat-room messages are in use |
 | market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
 
 ## Changes

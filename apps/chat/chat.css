@@ -1,0 +1,255 @@
+/* Chat: tokens and components from the shared design library; this file
+   holds what is the chat's own: conversations, bubbles, the composer. */
+@import '../../shared/ui.css';
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem var(--gutter) 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+
+.foot {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 1rem var(--gutter) max(1rem, env(safe-area-inset-bottom));
+}
+
+.foot a {
+  color: inherit;
+}
+
+/* ---------- start ---------- */
+
+.rooms-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.join {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 240px;
+}
+
+.join input {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.list-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.convs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.conv,
+.row-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.conv:hover,
+.row-btn:hover {
+  border-color: var(--border-strong);
+}
+
+.avatar {
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.conv-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.conv-name {
+  font-weight: 650;
+}
+
+.conv-preview {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.unread .conv-name {
+  color: var(--accent-strong);
+}
+
+.conv-meta .dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.row-btn small {
+  display: block;
+}
+
+/* ---------- a conversation, a room ---------- */
+
+.conversation,
+.room {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.page-head .who {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.page-head .who h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0 1rem;
+  overflow-y: auto;
+}
+
+.messages .older {
+  align-self: center;
+  margin-bottom: 0.5rem;
+}
+
+.msg {
+  max-width: min(78%, 36rem);
+  padding: 0.5rem 0.75rem;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  align-self: flex-start;
+}
+
+.msg.mine {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.msg p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg time,
+.msg .nick {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.msg .nick {
+  margin-bottom: 0.15rem;
+  font-weight: 650;
+}
+
+.msg time {
+  margin-top: 0.2rem;
+  text-align: right;
+}
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  padding: 0.5rem 0 max(0.5rem, env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 2.6rem;
+  max-height: 10rem;
+  field-sizing: content;
+}
+
+.composer .btn {
+  flex: none;
+}
+
+.room-enter .card {
+  max-width: 420px;
+}

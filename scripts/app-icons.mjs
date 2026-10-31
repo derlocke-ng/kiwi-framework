@@ -60,7 +60,7 @@ async function renderPngs(app, svg) {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const only = process.argv[2];
   const symbols = sprite();
   for (const app of appsWithIcons()) {

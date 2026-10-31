@@ -17,6 +17,7 @@ export const KINDS = {
   P2P_PRESENCE: 21700,
   P2P_SIGNAL: 21701,
   P2P_DATA: 21702,
+  ROOM_MESSAGE: 21710, // chat: a message in a live room, sealed to the room's key; gone when nobody is there
   MUTE_LIST: 10000, // NIP-51: who we block (private entries)
   REPORT: 1984, // NIP-56
   REACTION: 7, // NIP-25: votes on DevBoard posts
@@ -25,6 +26,7 @@ export const KINDS = {
   GIFT_WRAP: 1059, // NIP-59: a sealed rumor for one recipient (friend requests, shares)
   SEAL: 13,
   // Rumor kinds inside a gift wrap; relays never see them as such.
+  CHAT_MESSAGE: 14, // NIP-17: a private message, wrapped once for each reader and once for the writer's other devices
   FRIEND_REQUEST: 7801,
   FRIEND_ACCEPT: 7802,
   FRIEND_REMOVE: 7803,
