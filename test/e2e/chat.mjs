@@ -112,7 +112,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.click('#pickPeople .btn-primary');
   await A.waitForSelector('.toast-success');
   await until(async () => (await messages(B)).some((x) => x.includes('Picnic')), 'the board link on B', 30000);
-  assert.ok(await B.$('#messages .msg a[href*="boards/#"]'), 'the link is clickable');
+  assert.ok(await B.$(`#messages .msg a[href^="${boards}#"]`), 'the link is clickable, to the boards app wherever the hub mounts it');
   await B.goto(env.base);
   await B.waitForSelector('#apps');
   await talk(A, pkB);
