@@ -78,6 +78,8 @@
   "notify.unread": "{n} neu",
   "notify.groupMessage": "{name} in {group}",
   "notify.groupClosed": "Die Gruppe „{group}“ wurde vom Gastgeber geschlossen.",
+  "notify.groupInvite": "{name} lädt dich in die Gruppe „{group}“ ein",
+  "notify.roomInvite": "{name} lädt dich in einen Live-Raum ein",
   "account.publicKey": "Öffentlicher Schlüssel",
   "account.copyNpub": "npub kopieren",
   "account.exportKey": "geheimen Schlüssel exportieren",

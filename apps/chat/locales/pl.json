@@ -80,5 +80,12 @@
   "chat.group.closedDone": "„{name}” zamknięta.",
   "chat.group.remove": "Usuń z grupy",
   "chat.group.removeTitle": "Usunąć {name}?",
-  "chat.group.removeText": "Ich urządzenia porzucą grupę, a wszyscy pozostali dostaną nowy klucz: to, co powiedziane od teraz, zostanie między wami."
+  "chat.group.removeText": "Ich urządzenia porzucą grupę, a wszyscy pozostali dostaną nowy klucz: to, co powiedziane od teraz, zostanie między wami.",
+  "chat.invites.title": "Zaproszenia",
+  "chat.invites.group": "{name} zaprasza Cię do tej grupy",
+  "chat.invites.room": "{name} zaprasza Cię do pokoju na żywo",
+  "chat.invites.accept": "Dołącz",
+  "chat.invites.decline": "Nie, dziękuję",
+  "chat.room.ofNick": "Pokój {nick}",
+  "chat.groups.hint": "Zapraszaj znajomych z wnętrza grupy lub pokoju: dostają zaproszenie zapieczętowane, w czacie, i tu mówią tak lub nie. Link jest dla osób, które jeszcze nie są znajomymi; pozwala zapukać, nic więcej. Pokój na żywo niczego nie przechowuje i znika, gdy opustoszeje."
 }

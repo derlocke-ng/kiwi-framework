@@ -80,5 +80,12 @@
   "chat.group.closedDone": "«{name}» está cerrado.",
   "chat.group.remove": "Quitar del grupo",
   "chat.group.removeTitle": "¿Quitar a {name}?",
-  "chat.group.removeText": "Sus dispositivos dejan el grupo y los demás reciben una clave nueva: lo que se diga a partir de ahora queda entre vosotros."
+  "chat.group.removeText": "Sus dispositivos dejan el grupo y los demás reciben una clave nueva: lo que se diga a partir de ahora queda entre vosotros.",
+  "chat.invites.title": "Invitaciones",
+  "chat.invites.group": "{name} te invita a este grupo",
+  "chat.invites.room": "{name} te invita a una sala en directo",
+  "chat.invites.accept": "Unirse",
+  "chat.invites.decline": "No, gracias",
+  "chat.room.ofNick": "Sala de {nick}",
+  "chat.groups.hint": "Invita a amigos desde dentro de un grupo o una sala: lo reciben sellado, en el chat, y dicen sí o no aquí. Un enlace es para quien aún no es amigo; les permite llamar a la puerta, nada más. Una sala en directo no guarda nada y desaparece al vaciarse."
 }

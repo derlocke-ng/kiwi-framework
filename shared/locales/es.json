@@ -80,6 +80,8 @@
   "notify.unread": "{n} nuevo(s)",
   "notify.groupMessage": "{name} en {group}",
   "notify.groupClosed": "El grupo «{group}» fue cerrado por su anfitrión.",
+  "notify.groupInvite": "{name} te invita al grupo «{group}»",
+  "notify.roomInvite": "{name} te invita a una sala en directo",
   "account.publicKey": "Clave pública",
   "account.copyNpub": "copiar npub",
   "account.exportKey": "exportar clave secreta",

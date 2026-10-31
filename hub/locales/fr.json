@@ -58,6 +58,7 @@
   "settings.ignore": "Ignorer",
   "settings.cancelRequest": "Annuler",
   "settings.removeFriend": "Retirer",
+  "settings.message": "Message",
   "settings.noFriends": "Pas encore d’amis. Envoyez votre clé à quelqu’un, ou ajoutez la sienne.",
   "settings.circles": "Cercles",
   "settings.circlesText": "Des groupes d’amis, pour envoyer quelque chose à plusieurs personnes à la fois. Vous seul voyez vos cercles.",

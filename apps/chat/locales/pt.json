@@ -80,5 +80,12 @@
   "chat.group.closedDone": "“{name}” está fechado.",
   "chat.group.remove": "Remover do grupo",
   "chat.group.removeTitle": "Remover {name}?",
-  "chat.group.removeText": "Os dispositivos dessa pessoa largam o grupo e todos os outros recebem uma chave nova: o que se disser daqui em diante fica entre vocês."
+  "chat.group.removeText": "Os dispositivos dessa pessoa largam o grupo e todos os outros recebem uma chave nova: o que se disser daqui em diante fica entre vocês.",
+  "chat.invites.title": "Convites",
+  "chat.invites.group": "{name} convida-te para este grupo",
+  "chat.invites.room": "{name} convida-te para uma sala ao vivo",
+  "chat.invites.accept": "Entrar",
+  "chat.invites.decline": "Não, obrigado",
+  "chat.room.ofNick": "Sala de {nick}",
+  "chat.groups.hint": "Convida amigos a partir de um grupo ou de uma sala: recebem-no selado, no chat, e dizem sim ou não aqui. Uma ligação é para quem ainda não é amigo; permite bater à porta, nada mais. Uma sala ao vivo não guarda nada e desaparece quando fica vazia."
 }

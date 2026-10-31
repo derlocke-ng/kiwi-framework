@@ -34,6 +34,7 @@ export const KINDS = {
   CHAT_MESSAGE: 14, // NIP-17: a private message, wrapped once for each reader and once for the writer's other devices
   GROUP_KNOCK: 7824, // to a group's host: someone with the invite link asks in ({ pub, invite, name })
   GROUP_KEYS: 7825, // to one person: a group's keys ({ pub, w, k, host, name }), from the host or a member who invited them
+  ROOM_INVITE: 7826, // to one person: come to a live room ({ secret, name }); accepted in the chat, never a link
   FRIEND_REQUEST: 7801,
   FRIEND_ACCEPT: 7802,
   FRIEND_REMOVE: 7803,

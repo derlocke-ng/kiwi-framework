@@ -15,7 +15,7 @@ import { store } from '../../shared/util.js';
 import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useBlocks, useIdentity, useKiwi, useKiwiTick, usePeople, useRelayInfos, useT } from '../../ui/hooks';
 import { usePeopleNotices } from '../../ui/notices';
-import { notificationsSupported, notifyEnabled, setNotify } from '../../ui/notify';
+import { chatMount, notificationsSupported, notifyEnabled, setNotify } from '../../ui/notify';
 import { copyText, toast } from '../../ui/toast';
 import { HOW, HowItWorks } from '../../ui/widgets/HowItWorks';
 import { useSortable } from '../../ui/widgets/useSortable';
@@ -241,6 +241,7 @@ function OneField({
 
 function PeopleCard() {
   const t = useT();
+  const kiwi = useKiwi();
   const id = useIdentity();
   const people = usePeople();
   if (!people) return null;
@@ -311,6 +312,11 @@ function PeopleCard() {
             <li key={f.pk} data-pk={f.pk}>
               <Who name={f.name} pk={f.pk} />
               <span className="actions">
+                {chatMount() ? (
+                  <a className="btn btn-sm" data-message={f.pk} href={`${kiwi.base}${chatMount()?.id}/#/dm/${f.pk}`}>
+                    {t('settings.message')}
+                  </a>
+                ) : null}
                 <button type="button" className="btn btn-sm btn-ghost" data-remove={f.pk} onClick={() => act(people.remove(f.pk))}>
                   {t('settings.removeFriend')}
                 </button>

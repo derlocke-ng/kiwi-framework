@@ -159,6 +159,20 @@ function GroupsTab({ convs }: { convs: any[] }) {
   const [making, setMaking] = useState(false);
   const list: any[] = groups.list();
   const knocks: any[] = groups.knocks();
+  const invites: any[] = groups.invites();
+  const people = usePeople();
+  const whoInvited = (pk: string) => people?.nameOf?.(pk) || fingerprint(pk);
+  const accept = async (id: string) => {
+    try {
+      const r = await groups.acceptInvite(id);
+      if (r?.type === 'group') {
+        const g = groups.entry(r.pub);
+        go(`#/group/${r.pub}/${g.host}/${g.invite || '-'}/${encodeURIComponent(g.name || '')}`);
+      } else if (r?.type === 'room') go(`#/room/${encodeURIComponent(r.secret)}`);
+    } catch (err) {
+      toastError(err);
+    }
+  };
   const lastOf = (pub: string) => convs.find((c) => c.conv === pub);
   const unread = (pub: string) => {
     const c = lastOf(pub);
@@ -192,6 +206,31 @@ function GroupsTab({ convs }: { convs: any[] }) {
           </button>
         </form>
       </div>
+      {invites.length ? (
+        <ul className="convs invites" id="invites" aria-label={t('chat.invites.title')}>
+          {invites.map((i) => (
+            <li key={i.id} className="invite" data-invite={i.type}>
+              <div className="conv">
+                <span className="avatar" aria-hidden="true">
+                  <Icon name={i.type === 'room' ? 'radio' : 'users'} />
+                </span>
+                <span className="conv-main">
+                  <span className="conv-name">{i.name || t(i.type === 'room' ? 'chat.room.title' : 'chat.group.title')}</span>
+                  <span className="conv-preview">{t(i.type === 'room' ? 'chat.invites.room' : 'chat.invites.group', { name: whoInvited(i.from) })}</span>
+                </span>
+                <span className="invite-actions">
+                  <button type="button" className="btn btn-sm btn-primary" data-accept={i.id} onClick={() => accept(i.id)}>
+                    {t('chat.invites.accept')}
+                  </button>
+                  <button type="button" className="btn btn-sm" data-decline={i.id} onClick={() => groups.declineInvite(i.id).catch(toastError)}>
+                    {t('chat.invites.decline')}
+                  </button>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {sorted.length || knocks.length ? (
         <ul className="convs" id="groupList">
           {knocks.map((k) => (
@@ -235,7 +274,7 @@ function GroupsTab({ convs }: { convs: any[] }) {
       ) : (
         <p className="empty">{t('chat.groups.empty')}</p>
       )}
-      <p className="muted small">{t('chat.rooms.text')}</p>
+      <p className="muted small">{t('chat.groups.hint')}</p>
       {making ? <NewGroup onClose={() => setMaking(false)} /> : null}
     </>
   );

@@ -144,7 +144,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.match(await B.evaluate(() => window.__notes[0].body), /psst/);
   await B.evaluate(() => Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }));
 
-  step('an invitation sends the room’s link to a friend');
+  step('a room invitation reaches a friend sealed, not as a link; yes puts them at the room’s door, and the two talk');
   const invite = `${APP}#/room/invite${Date.now().toString(36)}xyz`;
   await A.goto(invite);
   await A.waitForSelector('#enterRoom');
@@ -156,10 +156,21 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.check('#pickPeople input[name=pk]', { force: true });
   await A.click('#pickPeople .btn-primary');
   await A.waitForSelector('.toast-success');
-  await talk(B, pkA);
-  await until(async () => (await messages(B)).some((x) => /Join my room/.test(x)), 'the invitation on B', 30000);
-  assert.ok(await B.$('#messages .msg a[href*="/room/"]'), 'with the room’s link');
+  await open(B, '#/groups');
+  await until(async () => (await B.$$('#invites [data-invite=room] [data-accept]')).length === 1, 'the room invitation on B', 40000);
+  assert.deepEqual(await messages(B).catch(() => []), [], 'no link travelled as a message');
+  await B.click('#invites [data-invite=room] [data-accept]');
+  await B.waitForSelector('#enterRoom');
+  await B.fill('#enterRoom [name=nick]', 'bea');
+  await B.click('#enterBtn');
+  await B.waitForSelector('#roomComposer textarea');
+  await say(B, 'got the invite', '#roomComposer');
+  await until(async () => (await messages(A, '#roomMessages')).includes('got the invite'), 'B in A’s room', 30000);
+  await B.click('#leaveRoom');
   await A.click('#leaveRoom');
+  await B.goto(SETTINGS);
+  await B.waitForSelector('#friendList [data-message]');
+  assert.ok((await B.getAttribute('#friendList [data-message]', 'href')).includes(`#/dm/${pkA}`), 'the friends list messages a friend in the chat');
 
   step('a group: A makes it and invites B directly; B is in without knocking, both talk under their names; A2 has it too');
   const groupMessages = (page) => texts(page, '#groupMessages .msg p');
@@ -177,8 +188,11 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.click('#pickPeople .btn-primary');
   await A.waitForSelector('.toast-success');
   await open(B, '#/groups');
-  await until(async () => (await texts(B, '#groupList .conv-name')).includes('Crew'), 'the group reaches B through the keys A sent', 40000);
-  await B.click('#groupList .conv');
+  await until(async () => (await B.$$('#invites [data-accept]')).length === 1, 'B is asked: an invitation, not a group that simply appears', 40000);
+  assert.match(await B.textContent('#invites'), /Crew/);
+  await B.click('#invites [data-accept]');
+  await B.waitForSelector('#groupComposer textarea');
+  assert.ok((await B.evaluate(() => location.hash)).startsWith('#/group/'), 'yes opens the group');
   await B.waitForSelector('#groupComposer textarea');
   await say(B, 'hello crew', '#groupComposer');
   await until(async () => (await groupMessages(A)).includes('hello crew'), 'B’s message on A', 30000);

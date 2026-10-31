@@ -57,6 +57,7 @@
   "settings.ignore": "Ignore",
   "settings.cancelRequest": "Cancel",
   "settings.removeFriend": "Remove",
+  "settings.message": "Message",
   "settings.noFriends": "No friends yet. Send someone your key, or add theirs.",
   "settings.circles": "Circles",
   "settings.circlesText": "Groups of friends, to send something to several people at once. Only you see your circles.",

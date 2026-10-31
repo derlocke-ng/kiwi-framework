@@ -80,5 +80,12 @@
   "chat.group.closedDone": "“{name}” is closed.",
   "chat.group.remove": "Remove from the group",
   "chat.group.removeTitle": "Remove {name}?",
-  "chat.group.removeText": "Their devices drop the group, and everyone else gets a new key: what is said from now on stays among you."
+  "chat.group.removeText": "Their devices drop the group, and everyone else gets a new key: what is said from now on stays among you.",
+  "chat.invites.title": "Invitations",
+  "chat.invites.group": "{name} invites you to this group",
+  "chat.invites.room": "{name} invites you to a live room",
+  "chat.invites.accept": "Join",
+  "chat.invites.decline": "No thanks",
+  "chat.room.ofNick": "{nick}’s room",
+  "chat.groups.hint": "Invite friends from inside a group or a room: they get it sealed, in the chat, and say yes or no here. A link is for people who are not friends yet; it lets them knock, nothing more. A live room keeps nothing and is gone when it empties."
 }

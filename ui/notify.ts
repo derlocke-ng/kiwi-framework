@@ -3,11 +3,11 @@
 // cards. And the browser notifications a device opts into: they show while a
 // tab of the site is open in the background; nothing reaches a closed
 // browser, since there is no server.
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { APPS, mountsOf } from '../shared/apps.js';
 import { DirectMessages } from '../shared/chat.js';
 import { store } from '../shared/util.js';
-import { useIdentity, useKiwi, useMessages, usePeople, useTick } from './hooks';
+import { useGroups, useIdentity, useKiwi, useMessages, usePeople, useTick } from './hooks';
 
 export const NOTIFY_KEY = 'wjs.notify';
 
@@ -52,6 +52,8 @@ export interface Unread {
   messages: number;
   requests: number;
   shares: number;
+  /** invitations to groups and rooms waiting for a yes or no */
+  invites: number;
   /** per mount id: what a card or switcher entry shows */
   byMount: Record<string, number>;
 }
@@ -62,7 +64,9 @@ export function useUnread(): Unread {
   const identity = useIdentity();
   const people = usePeople();
   const messages = useMessages();
-  const version = useTick((cb) => (messages ? messages.onChange(cb) : () => {}));
+  const groups = useGroups();
+  // a stable subscription: one made anew each render could miss an emit between unsubscribing and resubscribing
+  const version = useTick(useCallback((cb: () => void) => (messages ? messages.onChange(cb) : () => {}), [messages]));
   const [convs, setConvs] = useState<any[]>([]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is the inbox saying something changed
   useEffect(() => {
@@ -78,10 +82,11 @@ export function useUnread(): Unread {
   const shares: any[] = people?.shares() || [];
   const byMount: Record<string, number> = {};
   const chat = chatMount();
-  if (chat && unread) byMount[chat.id] = unread;
+  const invites = groups?.invites().length || 0;
+  if (chat && unread + invites) byMount[chat.id] = unread + invites;
   for (const s of shares) {
     const m = mountsOf(s.app)[0];
     if (m) byMount[m.id] = (byMount[m.id] || 0) + 1;
   }
-  return { messages: unread, requests, shares: shares.length, byMount };
+  return { messages: unread, requests, shares: shares.length, invites, byMount };
 }

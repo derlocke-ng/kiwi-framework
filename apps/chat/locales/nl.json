@@ -80,5 +80,12 @@
   "chat.group.closedDone": "‘{name}’ is gesloten.",
   "chat.group.remove": "Uit de groep verwijderen",
   "chat.group.removeTitle": "{name} verwijderen?",
-  "chat.group.removeText": "Hun apparaten laten de groep vallen en alle anderen krijgen een nieuwe sleutel: wat vanaf nu gezegd wordt blijft onder jullie."
+  "chat.group.removeText": "Hun apparaten laten de groep vallen en alle anderen krijgen een nieuwe sleutel: wat vanaf nu gezegd wordt blijft onder jullie.",
+  "chat.invites.title": "Uitnodigingen",
+  "chat.invites.group": "{name} nodigt je uit voor deze groep",
+  "chat.invites.room": "{name} nodigt je uit in een live-kamer",
+  "chat.invites.accept": "Meedoen",
+  "chat.invites.decline": "Nee bedankt",
+  "chat.room.ofNick": "Kamer van {nick}",
+  "chat.groups.hint": "Nodig vrienden uit vanuit een groep of kamer: ze krijgen het verzegeld, in de chat, en zeggen hier ja of nee. Een link is voor wie nog geen vriend is; ermee kunnen ze aankloppen, meer niet. Een live-kamer bewaart niets en is weg zodra hij leeg is."
 }

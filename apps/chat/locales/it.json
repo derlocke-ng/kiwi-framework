@@ -80,5 +80,12 @@
   "chat.group.closedDone": "“{name}” è chiuso.",
   "chat.group.remove": "Rimuovi dal gruppo",
   "chat.group.removeTitle": "Rimuovere {name}?",
-  "chat.group.removeText": "I loro dispositivi lasciano il gruppo e tutti gli altri ricevono una nuova chiave: ciò che si dice da ora resta tra voi."
+  "chat.group.removeText": "I loro dispositivi lasciano il gruppo e tutti gli altri ricevono una nuova chiave: ciò che si dice da ora resta tra voi.",
+  "chat.invites.title": "Inviti",
+  "chat.invites.group": "{name} ti invita in questo gruppo",
+  "chat.invites.room": "{name} ti invita in una stanza dal vivo",
+  "chat.invites.accept": "Entra",
+  "chat.invites.decline": "No grazie",
+  "chat.room.ofNick": "Stanza di {nick}",
+  "chat.groups.hint": "Invita amici da dentro un gruppo o una stanza: lo ricevono sigillato, nella chat, e dicono sì o no qui. Un link è per chi non è ancora amico; permette di bussare, nient’altro. Una stanza dal vivo non tiene nulla e sparisce quando si svuota."
 }

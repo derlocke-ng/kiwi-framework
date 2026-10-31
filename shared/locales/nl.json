@@ -78,6 +78,8 @@
   "notify.unread": "{n} nieuw",
   "notify.groupMessage": "{name} in {group}",
   "notify.groupClosed": "De groep ‘{group}’ is door de gastheer gesloten.",
+  "notify.groupInvite": "{name} nodigt je uit voor de groep ‘{group}’",
+  "notify.roomInvite": "{name} nodigt je uit in een live-kamer",
   "account.publicKey": "Publieke sleutel",
   "account.copyNpub": "npub kopiëren",
   "account.exportKey": "geheime sleutel exporteren",

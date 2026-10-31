@@ -35,11 +35,21 @@ export function usePeopleNotices(): void {
     const offGone = groups.onGone(({ name, why }: any) => {
       if (why === 'closed') toast(t('notify.groupClosed', { group: name }), 'info', 8000);
     });
+    const offInvite = groups.onInvite((i: any) => {
+      const href = `${base}${chat.id}/#/groups`;
+      const title = t(i.type === 'room' ? 'notify.roomInvite' : 'notify.groupInvite', {
+        name: people?.nameOf?.(i.from) || fingerprint(i.from),
+        group: i.name || '',
+      });
+      toast(title, 'info', 12000, { label: t('people.open'), href });
+      notifyBrowser({ title, url: href, tag: `invite-${i.id}`, icon });
+    });
     return () => {
       offMessage();
       offGone();
+      offInvite();
     };
-  }, [groups, messages, base, current, icon]);
+  }, [groups, messages, people, base, current, icon]);
   // a message while this page is open, unless it is the conversation on screen
   useEffect(() => {
     const chat = chatMount();

@@ -2,9 +2,9 @@
 // Nothing is stored anywhere; leaving is the end of it for you.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../ui/components';
-import { useIdentity, useKiwi, usePeople, useT, useTick } from '../../../ui/hooks';
-import { sendAsMessage } from '../../../ui/share';
-import { copyText, toastError } from '../../../ui/toast';
+import { pickPeople } from '../../../ui/dialogs';
+import { useGroups, useIdentity, useKiwi, usePeople, useT, useTick } from '../../../ui/hooks';
+import { copyText, toast, toastError } from '../../../ui/toast';
 import { NICK, Room } from '../data/rooms.js';
 import { savedNick, saveNick } from '../state';
 import { Composer } from './Conversation';
@@ -14,6 +14,7 @@ export function RoomView({ secret }: { secret: string }) {
   const kiwi = useKiwi();
   const identity = useIdentity();
   const people = usePeople();
+  const groups = useGroups();
   const room = useMemo(() => new Room(secret, kiwi.net, { nick: savedNick() || identity.alias || '' }), [secret, kiwi.net, identity.alias]);
   useTick(useCallback((fn: () => void) => room.onChange(fn), [room]));
   const [joined, setJoined] = useState(false);
@@ -99,7 +100,14 @@ export function RoomView({ secret }: { secret: string }) {
             type="button"
             className="btn btn-sm"
             id="inviteRoom"
-            onClick={() => sendAsMessage(kiwi, people, t('chat.room.inviteText', { link })).catch(toastError)}
+            onClick={async () => {
+              // friends get the room sealed to them, inside the chat; nothing to copy or forward
+              const pks: string[] = await pickPeople(people, { base: kiwi.base });
+              if (!pks.length) return;
+              groups
+                .inviteRoom(pks, { secret, name: room.nick ? t('chat.room.ofNick', { nick: room.nick }) : '' })
+                .then(() => toast(t('chat.group.invited', { n: pks.length }), 'success'), toastError);
+            }}
           >
             <Icon name="user-plus" />
             <span>{t('chat.room.invite')}</span>

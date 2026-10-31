@@ -25,6 +25,8 @@ import { AccountSettings } from './settings.js';
 import { randomId, store } from './util.js';
 
 export const GROUP_KINDS = [KINDS.GROUP_INFO, KINDS.GROUP_MESSAGE, KINDS.GROUP_JOIN, KINDS.GROUP_LEAVE, KINDS.GROUP_KICK];
+const ROOM_INVITE_DAYS = 1; // a room invitation older than this is forgotten: the room is long empty
+const MAX_INVITES = 50;
 export const NAME = 60;
 export const TEXT = 4000;
 const INFO_D = 'info';
@@ -72,9 +74,11 @@ export class Groups {
     this.watching = '';
     this.ready = false;
     // knocks and keys come as rumors in gift wraps, through the inbox; before start() they wait
+    this.inviteListeners = new Set();
     this.offRumors = [
       inbox.onRumor(KINDS.GROUP_KNOCK, (rumor) => this.rumor(rumor)),
       inbox.onRumor(KINDS.GROUP_KEYS, (rumor) => this.rumor(rumor)),
+      inbox.onRumor(KINDS.ROOM_INVITE, (rumor) => this.rumor(rumor)),
     ];
   }
 
@@ -111,6 +115,15 @@ export class Groups {
   /** Links opened whose host has not answered yet: { pub, host, invite, name, myName, at }. */
   knocks() {
     return this.settings.get('knocks', []) || [];
+  }
+
+  /**
+   * Invitations waiting for a yes or no: a group a friend put me in ({ id, type: 'group', pub, w, k, host, name, from, at })
+   * or a live room a friend wants me in ({ id, type: 'room', secret, name, from, at }); room ones a day at most.
+   */
+  invites() {
+    const cut = now() - ROOM_INVITE_DAYS * 86_400;
+    return (this.settings.get('invites', []) || []).filter((i) => i.type !== 'room' || i.at > cut);
   }
 
   entry(pub) {
@@ -267,7 +280,8 @@ export class Groups {
 
   async handleRumor(rumor) {
     const body = parse(rumor.content);
-    if (!isHex64(body.pub) || !isHex64(rumor.pubkey) || this.isBlocked(rumor.pubkey)) return;
+    if (!isHex64(rumor.pubkey) || this.isBlocked(rumor.pubkey)) return;
+    if (rumor.kind !== KINDS.ROOM_INVITE && !isHex64(body.pub)) return; // knocks and keys name a group; a room invitation names a secret
     if (rumor.kind === KINDS.GROUP_KNOCK) {
       // someone at the door of a group I host
       const g = this.entry(body.pub);
@@ -291,16 +305,61 @@ export class Groups {
         await this.update(body.pub, { k: body.k, keys: [have.k, ...(have.keys || [])].slice(0, 20), ...(body.invite ? { invite: String(body.invite) } : {}) });
         return this.emit();
       }
-      if (rumor.pubkey !== body.host && !(await this.invitedBy(rumor.pubkey))) return;
       const knock = this.knocks().find((x) => x.pub === body.pub);
-      await this.settings.set({
-        groups: [...this.list(), { pub: body.pub, w: body.w, k: body.k, keys: [], host: body.host, name: String(body.name || knock?.name || '').slice(0, NAME), invite: String(body.invite || ''), joined: now() }],
-        knocks: this.knocks().filter((x) => x.pub !== body.pub),
-      });
-      await this.resubscribe();
-      await this.join(body.pub, knock?.myName || this.alias);
-      this.emit();
+      const entry = { pub: body.pub, w: body.w, k: body.k, keys: [], host: body.host, name: String(body.name || knock?.name || '').slice(0, NAME), invite: String(body.invite || '') };
+      if (knock && rumor.pubkey === body.host) {
+        // the host answered my knock: I asked, so I am in
+        await this.settings.set({ groups: [...this.list(), { ...entry, joined: now() }], knocks: this.knocks().filter((x) => x.pub !== body.pub) });
+        await this.resubscribe();
+        await this.join(body.pub, knock.myName || this.alias);
+        return this.emit();
+      }
+      // someone put me in without my asking: the host, or a friend who is in it; it waits for my yes
+      if (rumor.pubkey !== body.host && !(await this.invitedBy(rumor.pubkey))) return;
+      if (this.invites().some((i) => i.type === 'group' && i.pub === body.pub)) return;
+      await this.addInvite({ id: randomId(), type: 'group', ...entry, from: rumor.pubkey, at: rumor.created_at });
+    } else if (rumor.kind === KINDS.ROOM_INVITE) {
+      // a friend wants me in a live room: the secret travels sealed to me, never as a link anyone could pass on
+      if (!(await this.invitedBy(rumor.pubkey)) || !/^[A-Za-z0-9_-]{8,}$/.test(String(body.secret || ''))) return;
+      if (rumor.created_at < now() - ROOM_INVITE_DAYS * 86_400) return;
+      if (this.invites().some((i) => i.type === 'room' && i.secret === body.secret)) return;
+      await this.addInvite({ id: randomId(), type: 'room', secret: String(body.secret), name: String(body.name || '').slice(0, NAME), from: rumor.pubkey, at: rumor.created_at });
     }
+  }
+
+  async addInvite(invite) {
+    await this.settings.set({ invites: [...this.invites(), invite].slice(-MAX_INVITES) });
+    if (this.ready) for (const fn of this.inviteListeners) fn(invite);
+    this.emit();
+  }
+
+  /** Yes to an invitation: a group is joined (keys kept, me announced); a room's secret is handed back to open it. */
+  async acceptInvite(id) {
+    const invite = this.invites().find((i) => i.id === id);
+    if (!invite) return null;
+    await this.settings.set({ invites: this.invites().filter((i) => i.id !== id) });
+    if (invite.type === 'group') {
+      if (!this.entry(invite.pub)) {
+        const { id: _id, type: _type, from: _from, at: _at, ...entry } = invite;
+        await this.settings.set({ groups: [...this.list(), { ...entry, joined: now() }] });
+        await this.resubscribe();
+        await this.join(invite.pub, this.alias);
+      }
+      this.emit();
+      return { type: 'group', pub: invite.pub };
+    }
+    this.emit();
+    return { type: 'room', secret: invite.secret };
+  }
+
+  async declineInvite(id) {
+    await this.settings.set({ invites: this.invites().filter((i) => i.id !== id) });
+    this.emit();
+  }
+
+  /** Friends get a sealed invitation to a live room; they open it from the chat, no link changes hands. */
+  async inviteRoom(pks, { secret, name = '' }) {
+    for (const pk of pks) await this.inbox.sendRumor(pk, KINDS.ROOM_INVITE, { secret, name: String(name || '').slice(0, NAME) });
   }
 
   /** Keys from someone who is not the host count when they are a member of that group as we see it later; for now, a friend. */
@@ -468,6 +527,12 @@ export class Groups {
   onMessage(fn) {
     this.messageListeners.add(fn);
     return () => this.messageListeners.delete(fn);
+  }
+
+  /** An invitation that just arrived (a group or a room), while the page is open. */
+  onInvite(fn) {
+    this.inviteListeners.add(fn);
+    return () => this.inviteListeners.delete(fn);
   }
 
   /** A group left, closed by its host, or that put me out: { pub, name, why: 'left' | 'closed' | 'removed' }. */

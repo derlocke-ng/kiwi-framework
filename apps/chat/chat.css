@@ -298,3 +298,21 @@ body {
   width: 0.9em;
   height: 0.9em;
 }
+
+/* ---------- invitations ---------- */
+
+.invites {
+  margin-bottom: 0.6rem;
+}
+
+.invite .conv {
+  border-color: var(--accent);
+  flex-wrap: wrap;
+  cursor: default;
+}
+
+.invite-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
