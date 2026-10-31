@@ -4,9 +4,10 @@
 // the hooks in hooks.ts read from the Kiwi it returns, and every change
 // that matters to the UI goes through kiwi.emit().
 
-import { ID_KEY, loadIdentity } from '../shared/account.js';
+import { ID_KEY, loadIdentity, saveIdentity } from '../shared/account.js';
 import { MOUNT_IDS, orderedMounts } from '../shared/apps.js';
 import { normalizeServer } from '../shared/blossom.js';
+import { DirectMessages } from '../shared/chat.js';
 import { DISTRIBUTION } from '../shared/distribution.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
@@ -52,9 +53,12 @@ export class Kiwi {
   suite!: any;
   blocks!: any;
   people!: any;
+  /** the private-message inbox (shared/chat.js) */
+  messages!: any;
   version = 0;
   private listeners = new Set<() => void>();
   private offSuite: (() => void) | null = null;
+  private offBlocks: (() => void) | null = null;
 
   constructor(net: Net, { current = 'hub', base = './', sprite = 'icons.svg' }: KiwiOptions) {
     this.net = net;
@@ -103,15 +107,40 @@ export class Kiwi {
   private async applySuite(): Promise<void> {
     const lang = this.suite.get('lang');
     if (lang && (LANGUAGES as Record<string, string>)[lang] && lang !== currentLanguage()) await setLanguage(lang);
+    // The key's own settings name the person and their account, so a device that got the key pasted learns them here.
+    const alias = this.suite.get('alias');
+    if (typeof alias === 'string' && alias.trim() && !this.identity().alias) this.adoptAccount({ alias, accountPk: this.suite.get('accountPk') || null });
     this.emit();
+  }
+
+  private adoptAccount({ alias, accountPk }: { alias: string; accountPk?: string | null }): void {
+    const id = this.identity();
+    const name = String(alias).trim().slice(0, 40);
+    saveIdentity({ ...id, alias: name, accountPk: accountPk || id.accountPk || null });
+    if (this.people) this.people.alias = name;
+  }
+
+  /**
+   * What the person is called and, with an account, the account event's key: on this device now,
+   * and in the key's encrypted settings, so every device holding the key knows them too.
+   */
+  async rememberAccount({ alias, accountPk = null }: { alias: string; accountPk?: string | null }): Promise<void> {
+    this.adoptAccount({ alias, accountPk });
+    this.emit();
+    await this.suite?.set({ alias: String(alias).trim().slice(0, 40), ...(accountPk ? { accountPk } : {}) });
   }
 
   private async startPeople(): Promise<void> {
     this.blocks?.stop();
     this.people?.stop();
+    this.messages?.stop();
+    this.offBlocks?.();
     const id = this.identity();
     this.blocks = await new BlockList(id, this.net).start();
-    this.people = await new People(id, this.net, { isBlocked: (pk: string) => this.blocks.isBlocked(pk) }).start();
+    const isBlocked = (pk: string) => Boolean(this.blocks.isBlocked(pk));
+    this.people = await new People(id, this.net, { isBlocked }).start();
+    this.messages = await new DirectMessages(id, this.net, { isBlocked }).start();
+    this.offBlocks = this.blocks.onChange(() => this.messages.purgeBlocked().catch(() => {}));
     this.emit();
   }
 

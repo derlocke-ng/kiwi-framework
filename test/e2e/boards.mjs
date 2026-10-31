@@ -240,6 +240,20 @@ export async function boardsSuite(env, { app, settings, name }) {
   await until(async () => (await texts(E, '[data-part=active] .text')).includes('coffee'), 'board content on E');
   assert.ok(await E.$('.add-item input'), 'E can edit (edit key came through the wallet)');
 
+  step('the account’s key pasted on a fresh device: signed in by name, boards there');
+  const P2 = await dev('P2');
+  await P2.goto(SETTINGS);
+  await P2.waitForSelector('#authForm');
+  await P2.check('input[name=authTab][value=import]', { force: true });
+  await P2.fill('#authForm [name=key]', await A.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).sk));
+  await P2.click('#authBtn');
+  await P2.waitForSelector('.toast-success');
+  await until(async () => (await P2.textContent('#accountBody')).includes(alias), 'the key’s own settings name the account', 40000);
+  await P2.goto(APP);
+  await P2.waitForSelector('.home');
+  await until(async () => (await texts(P2, '.board-title')).length === 3, 'the boards on P2', 20000);
+  await P2.ctx.close();
+
   step('signing out and in as another account on the same device: nothing of the first follows');
   const other = `${alias}b`;
   await E.goto(SETTINGS);

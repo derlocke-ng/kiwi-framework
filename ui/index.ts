@@ -14,6 +14,7 @@ export {
   useIdentity,
   useKiwi,
   useKiwiTick,
+  useMessages,
   useNetTick,
   useOutboxWaiting,
   usePeople,
@@ -27,7 +28,10 @@ export { bootKiwi, Kiwi } from './kiwi';
 export type { AppOptions } from './mount';
 export { mountApp, mountPage } from './mount';
 export { usePeopleNotices } from './notices';
+export type { Unread } from './notify';
+export { chatMount, notificationsSupported, notifyBrowser, notifyEnabled, setNotify, useUnread } from './notify';
 export { useHash } from './route';
+export { sendAsMessage } from './share';
 export { copyText, dismiss, download, toast, toastError } from './toast';
 export type { Events, EventsOptions, Filter, NostrEvent } from './useEvents';
 export { useEvents } from './useEvents';

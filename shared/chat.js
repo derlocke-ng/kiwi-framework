@@ -1,4 +1,6 @@
-// Private messages between two people, NIP-17: a kind 14 rumor (the text,
+// Private messages between two people (the chat app, Uplink in Armory),
+// started by the runtime for every page like People, so the hub shows unread
+// counts and any app can send a link into a conversation. NIP-17: a kind 14 rumor (the text,
 // a `p` tag for the reader) sealed and gift-wrapped (NIP-59, kind 1059) once
 // for the reader and once for the writer's own key, so every device of both
 // sees the conversation and relays see only that some key received a wrapped
@@ -10,9 +12,9 @@
 //   const dm = await new DirectMessages(identity, net, { isBlocked }).start();
 //   await dm.send(pk, 'hello');   dm.onChange(fn);   await net.db.messages(pk)
 
-import { KINDS, isHex64, now } from '../../../shared/events.js';
-import { hexToBytes, nip59 } from '../../../shared/nostr.mjs';
-import { store } from '../../../shared/util.js';
+import { KINDS, isHex64, now } from './events.js';
+import { hexToBytes, nip59 } from './nostr.mjs';
+import { store } from './util.js';
 
 const INBOX_DAYS = 30; // gift wraps carry a date randomised up to two days back; this is how far an inbox looks
 export const TEXT = 4000;
@@ -33,7 +35,10 @@ export class DirectMessages {
     this.readKey = `chat.read.${this.pk.slice(0, 16)}`;
     this.seen = new Set(store.get(this.seenKey, []));
     this.listeners = new Set();
+    this.messageListeners = new Set();
     this.queue = Promise.resolve();
+    this.ready = false; // true once what the device already held is unwrapped: later messages are news
+    this.active = null; // the conversation open on this page, which is not announced
   }
 
   async start() {
@@ -44,6 +49,7 @@ export class DirectMessages {
     this.offChat = db.subscribeChat(() => this.emit());
     this.sub = pool.subscribe([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk], since: now() - INBOX_DAYS * 86_400 }], { onevent: (ev) => db.put(ev) });
     await this.queue;
+    this.ready = true;
     return this;
   }
 
@@ -73,9 +79,14 @@ export class DirectMessages {
     const to = rumor.tags.find((x) => x[0] === 'p')?.[1];
     const other = from === this.pk ? to : from;
     if (!isHex64(from) || !isHex64(other) || this.isBlocked(other)) return this.markSeen(ev.id);
-    // `at` is the writer's second; `seq` is when this device took it, so two messages in one second keep their order
-    const message = { id: rumor.id, conv: other, from, at: rumor.created_at, seq: Date.now(), text: String(rumor.content || '').slice(0, TEXT), wrap: ev.id };
-    if (!(await this.net.db.hasMessage(message.id))) await this.net.db.putMessage(message);
+    // `at` is the writer's second, `t` its millisecond (an `ms` tag of ours; other clients ignore it), `seq` when this
+    // device took it: two messages in one second keep the writers' order on every device, not the relay's.
+    const ms = Math.min(999, Math.max(0, Number(rumor.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
+    const message = { id: rumor.id, conv: other, from, at: rumor.created_at, t: rumor.created_at * 1000 + ms, seq: Date.now(), text: String(rumor.content || '').slice(0, TEXT), wrap: ev.id };
+    if (!(await this.net.db.hasMessage(message.id))) {
+      await this.net.db.putMessage(message);
+      if (this.ready && from !== this.pk) for (const fn of this.messageListeners) fn(message);
+    }
     this.markSeen(ev.id);
   }
 
@@ -91,7 +102,8 @@ export class DirectMessages {
       .trim()
       .slice(0, TEXT);
     if (!content) return null;
-    const rumor = { kind: KINDS.CHAT_MESSAGE, created_at: now(), tags: [['p', toPk]], content };
+    const ms = Date.now();
+    const rumor = { kind: KINDS.CHAT_MESSAGE, created_at: Math.floor(ms / 1000), tags: [['p', toPk], ['ms', String(ms % 1000)]], content };
     const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
     const mine = nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk);
     const { sync } = this.net;
@@ -128,13 +140,18 @@ export class DirectMessages {
     if (gone) this.emit();
   }
 
-  // ---- read state: this device's ----
+  // ---- read state: this device's, in milliseconds (two messages in one second are told apart) ----
 
   lastRead(pk) {
     return store.get(this.readKey, {})[pk] || 0;
   }
 
-  markRead(pk, at = now()) {
+  /** The time of a message: its millisecond when the writer stamped one, else its second. */
+  static timeOf(m) {
+    return m.t || m.at * 1000;
+  }
+
+  markRead(pk, at = Date.now()) {
     const all = store.get(this.readKey, {});
     if ((all[pk] || 0) >= at) return;
     store.set(this.readKey, { ...all, [pk]: at });
@@ -144,6 +161,17 @@ export class DirectMessages {
   onChange(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  /** Called with every message from someone else that arrives while the page is open (not with what was already here). */
+  onMessage(fn) {
+    this.messageListeners.add(fn);
+    return () => this.messageListeners.delete(fn);
+  }
+
+  /** The chat tells the runtime which conversation is on screen, so its messages are not announced. */
+  setActive(pk) {
+    this.active = pk;
   }
 
   emit() {

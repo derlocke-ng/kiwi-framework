@@ -1,5 +1,6 @@
 // The start: live rooms (start one, join one) and your conversations.
 import { type FormEvent, useEffect, useState } from 'react';
+import { DirectMessages } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
 import { relTime } from '../../../shared/i18n.js';
 import { Icon } from '../../../ui/components';
@@ -91,7 +92,7 @@ export function Home() {
     };
   }, [dm, version]);
   const name = (pk: string) => people?.nameOf?.(pk) || fingerprint(pk);
-  const unread = (c: any) => c.from !== identity.pk && c.at > dm.lastRead(c.conv);
+  const unread = (c: any) => c.from !== identity.pk && DirectMessages.timeOf(c) > dm.lastRead(c.conv);
   return (
     <section className="home">
       <Rooms />

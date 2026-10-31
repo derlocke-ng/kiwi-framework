@@ -32,6 +32,8 @@
   "chat.room.enter": "Entrer dans le salon",
   "chat.room.copy": "Copier le lien",
   "chat.room.copied": "Lien du salon",
+  "chat.room.invite": "Inviter des amis",
+  "chat.room.inviteText": "Rejoins mon salon : {link}",
   "chat.room.here": "Présents",
   "chat.room.leave": "Quitter le salon",
   "chat.room.empty": "Rien n’a été dit depuis votre arrivée. Rien d’avant n’est conservé nulle part.",

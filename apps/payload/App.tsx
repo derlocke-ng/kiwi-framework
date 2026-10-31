@@ -7,6 +7,8 @@ import { qrSvg } from '../../shared/qr.js';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { pickPeople } from '../../ui/dialogs';
 import { useKiwi, usePeople, useTick } from '../../ui/hooks';
+import { chatMount } from '../../ui/notify';
+import { sendAsMessage } from '../../ui/share';
 import { toast } from '../../ui/toast';
 import { Receiving } from './receiver.js';
 import { Sharing } from './sender.js';
@@ -150,6 +152,16 @@ function Sending({ sharing, onStop }: { sharing: Sharing; onStop: () => void }) 
           {'share' in navigator ? (
             <button type="button" className="btn" id="share" onClick={() => navigator.share({ title: 'Payload', url: sharing.link }).catch(() => {})}>
               Share…
+            </button>
+          ) : null}
+          {people && chatMount() ? (
+            <button
+              type="button"
+              className="btn"
+              id="shareChat"
+              onClick={() => void sendAsMessage(kiwi, people, `Files for you: ${sharing.link}`).catch(() => {})}
+            >
+              {`Send in ${chatMount()?.name}`}
             </button>
           ) : null}
           <button type="button" className="btn" id="showQr" onClick={() => setQr((q) => !q)}>

@@ -15,6 +15,7 @@ import { store } from '../../shared/util.js';
 import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useBlocks, useIdentity, useKiwi, useKiwiTick, usePeople, useRelayInfos, useT } from '../../ui/hooks';
 import { usePeopleNotices } from '../../ui/notices';
+import { notificationsSupported, notifyEnabled, setNotify } from '../../ui/notify';
 import { copyText, toast } from '../../ui/toast';
 import { HOW, HowItWorks } from '../../ui/widgets/HowItWorks';
 import { useSortable } from '../../ui/widgets/useSortable';
@@ -89,6 +90,24 @@ function DeviceCard() {
 }
 
 /** Proof of work is a device matter: how many cores the shared miner may use. */
+function NotifyCard() {
+  const t = useT();
+  const [on, setOn] = useState(notifyEnabled());
+  const supported = notificationsSupported();
+  const denied = supported && Notification.permission === 'denied';
+  return (
+    <Card id="notify" icon={on ? 'bell' : 'bell-off'} title={t('settings.notify')}>
+      <p className="muted">{t('settings.notifyText')}</p>
+      <label className="check-row">
+        <input type="checkbox" id="notifyToggle" checked={on} disabled={!supported || denied} onChange={(e) => setNotify(e.target.checked).then(setOn)} />
+        <span>{t('settings.notifyToggle')}</span>
+      </label>
+      {denied ? <p className="muted small">{t('settings.notifyDenied')}</p> : null}
+      {supported ? null : <p className="muted small">{t('settings.notifyUnsupported')}</p>}
+    </Card>
+  );
+}
+
 function PowCard() {
   const t = useT();
   const [n, setN] = useState(cores());
@@ -799,7 +818,7 @@ function HowCard() {
 /** Four tabs, so the page stays short; every card keeps its id, and a link to a card opens its tab. */
 const TABS = {
   account: ['account', 'people', 'circles', 'blocked'],
-  general: ['device', 'apps', 'pow'],
+  general: ['device', 'notify', 'apps', 'pow'],
   network: ['relays', 'media'],
   data: ['backup', 'thisDevice', 'how'],
 } as const;
@@ -841,6 +860,7 @@ export function Settings() {
     general: (
       <>
         <DeviceCard />
+        <NotifyCard />
         <AppsCard />
         <PowCard />
       </>

@@ -15,7 +15,7 @@ A room is a link: its `#secret` names the room (relays see a hash of it) and is 
 | File | What |
 |---|---|
 | `main.tsx`, `App.tsx` | the page; routes `#/` (rooms and conversations), `#/dm/<pk>`, `#/room/<secret>`, `#/settings` |
-| `data/dm.js` | `DirectMessages`: wrapping, unwrapping, the inbox, read marks |
+| `shared/chat.js` (framework) | `DirectMessages`: wrapping, unwrapping, the inbox, read marks; started by the runtime on every page, so the hub counts unread messages and any app can send into a conversation |
 | `data/rooms.js` | `Room`: joining, presence, saying, who is here |
 | `pages/` | `Home`, `Conversation` (with the `Composer`), `RoomView`, `ChatSettings` |
 | `chat.css`, `locales/` | the app's own styles and strings |

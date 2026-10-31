@@ -132,6 +132,16 @@ export function usePeople(): any {
   return people;
 }
 
+/** The private-message inbox (shared/chat.js), re-rendering on every message, read mark or forgotten conversation. */
+export function useMessages(): any {
+  const kiwi = useKiwi();
+  useKiwiTick();
+  const messages = kiwi.messages;
+  const sub = useCallback((cb: () => void) => (messages ? messages.onChange(cb) : () => {}), [messages]);
+  useTick(sub);
+  return messages;
+}
+
 export function useBlocks(): any {
   const kiwi = useKiwi();
   useKiwiTick();

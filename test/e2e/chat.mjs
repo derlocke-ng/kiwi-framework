@@ -1,11 +1,13 @@
 // The chat in Chromium: a message to someone by key, answered; the writer's
 // other device holds the conversation; a friend request from the
-// conversation, accepted in the settings; blocking; live rooms between
-// strangers, with nothing kept on the relay; German.
+// conversation, accepted in the settings; a board sent from the boards app,
+// the hub's unread count and toast, a browser notification, a room
+// invitation; blocking; live rooms between strangers, with nothing kept on
+// the relay; German.
 //
 // A distribution runs it against its own site:
 //   import { chatSuite } from 'kiwi-framework/test/e2e/chat.mjs';
-//   await run('uplink', (env) => chatSuite(env, { app: `${env.base}uplink/`, settings: `${env.base}settings.html` }), { webRoot: site });
+//   await run('uplink', (env) => chatSuite(env, { app: `${env.base}uplink/`, settings: `${env.base}settings.html`, boards: `${env.base}loadout/` }), { webRoot: site });
 // Run directly, it builds a test hub with the app at chat/.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,9 +19,9 @@ const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textCont
 
 /**
  * @param {any} env  from env.mjs (run)
- * @param {{ app: string, settings: string }} where  the app's URL and the hub's settings page
+ * @param {{ app: string, settings: string, boards: string }} where  the app's URL, the hub's settings page, the boards app's URL
  */
-export async function chatSuite(env, { app, settings }) {
+export async function chatSuite(env, { app, settings, boards }) {
   const init = (relay) => localStorage.setItem('wjs.relays', JSON.stringify([relay]));
   const dev = (name, options) => device(env, name, init, env.nostrUrl, options);
   const APP = app;
@@ -95,6 +97,69 @@ export async function chatSuite(env, { app, settings }) {
   await open(A);
   assert.ok((await texts(A, '#convs .conv-name')).length === 1);
 
+  step('a board sent from the boards app arrives as a message with its link; the hub counts what is unread and says so');
+  await A.goto(boards);
+  await A.waitForSelector('.home');
+  await A.click('[data-new="check"]');
+  await A.fill('#newBoard input[name=title]', 'Picnic');
+  await A.click('#newBoard [type=submit]');
+  await A.waitForSelector('#boardName', { timeout: 15000 });
+  await A.click('[data-act=share]');
+  await A.waitForSelector('[data-act=chat]');
+  await A.click('[data-act=chat]');
+  await A.waitForSelector('#pickPeople input[name=pk]');
+  await A.check('#pickPeople input[name=pk]', { force: true });
+  await A.click('#pickPeople .btn-primary');
+  await A.waitForSelector('.toast-success');
+  await until(async () => (await messages(B)).some((x) => x.includes('Picnic')), 'the board link on B', 30000);
+  assert.ok(await B.$('#messages .msg a[href*="boards/#"]'), 'the link is clickable');
+  await B.goto(env.base);
+  await B.waitForSelector('#apps');
+  await talk(A, pkB);
+  await say(A, 'one more');
+  await until(async () => (await texts(B, '.toast')).some((x) => /New message/.test(x)), 'B is told while on the hub', 30000);
+  await until(async () => (await B.textContent('[data-app=chat] .count').catch(() => '')) === '1', 'the chat card counts one unread conversation', 15000);
+
+  step('browser notifications, opted in, while the tab is in the background');
+  await B.ctx.addInitScript(() => {
+    window.__notes = [];
+    window.Notification = class {
+      static permission = 'granted';
+      static requestPermission = async () => 'granted';
+      constructor(title, options) {
+        window.__notes.push({ title, body: options?.body });
+      }
+    };
+  });
+  await B.goto(`${SETTINGS}#notify`);
+  await B.waitForSelector('#notifyToggle');
+  await B.check('#notifyToggle', { force: true });
+  await until(async () => (await B.evaluate(() => localStorage.getItem('wjs.notify'))) === 'true', 'opted in');
+  await B.goto(env.base);
+  await B.waitForSelector('#apps');
+  await B.evaluate(() => Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }));
+  await say(A, 'psst');
+  await until(async () => (await B.evaluate(() => window.__notes.length)) === 1, 'a browser notification', 30000);
+  assert.match(await B.evaluate(() => window.__notes[0].body), /psst/);
+  await B.evaluate(() => Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }));
+
+  step('an invitation sends the room’s link to a friend');
+  const invite = `${APP}#/room/invite${Date.now().toString(36)}xyz`;
+  await A.goto(invite);
+  await A.waitForSelector('#enterRoom');
+  await A.fill('#enterRoom [name=nick]', 'ada');
+  await A.click('#enterBtn');
+  await A.waitForSelector('#inviteRoom');
+  await A.click('#inviteRoom');
+  await A.waitForSelector('#pickPeople input[name=pk]');
+  await A.check('#pickPeople input[name=pk]', { force: true });
+  await A.click('#pickPeople .btn-primary');
+  await A.waitForSelector('.toast-success');
+  await talk(B, pkA);
+  await until(async () => (await messages(B)).some((x) => /Join my room/.test(x)), 'the invitation on B', 30000);
+  assert.ok(await B.$('#messages .msg a[href*="/room/"]'), 'with the room’s link');
+  await A.click('#leaveRoom');
+
   step('blocking: the conversation goes at once and new messages never show; unblocking does not bring them back');
   await talk(B, pkA);
   await B.click('[data-act=menu]');
@@ -148,6 +213,9 @@ export async function chatSuite(env, { app, settings }) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
-  const site = await testHub([{ app: 'chat', name: 'Chat', icon: 'message-circle' }]);
-  await run('chat', (env) => chatSuite(env, { app: `${env.base}chat/`, settings: `${env.base}settings.html` }), { webRoot: site });
+  const site = await testHub([
+    { app: 'chat', name: 'Chat', icon: 'message-circle' },
+    { app: 'boards', name: 'Boards', icon: 'list-checks' },
+  ]);
+  await run('chat', (env) => chatSuite(env, { app: `${env.base}chat/`, settings: `${env.base}settings.html`, boards: `${env.base}boards/` }), { webRoot: site });
 }

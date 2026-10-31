@@ -32,6 +32,8 @@
   "chat.room.enter": "Kamer binnengaan",
   "chat.room.copy": "Link kopiëren",
   "chat.room.copied": "Kamerlink",
+  "chat.room.invite": "Vrienden uitnodigen",
+  "chat.room.inviteText": "Kom in mijn kamer: {link}",
   "chat.room.here": "Nu hier",
   "chat.room.leave": "Kamer verlaten",
   "chat.room.empty": "Er is niets gezegd sinds je binnenkwam. Niets van daarvoor wordt ergens bewaard.",

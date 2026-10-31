@@ -2,16 +2,36 @@
 // the composer. Enter sends, Shift+Enter breaks a line.
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { npub } from '../../../shared/account.js';
+import { DirectMessages, TEXT } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
 import { relTime } from '../../../shared/i18n.js';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useBlocks, useIdentity, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
-import { TEXT } from '../data/dm.js';
 import { useDm, useDmVersion } from '../state';
 
 const PAGE = 50;
+const URL_RE = /(https?:\/\/[^\s<>"'`]+)/g;
+
+/** Message text with its links clickable: the site's own open here, others in a new tab. */
+export function Text({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <p>
+      {parts.map((part, i) =>
+        /^https?:\/\//.test(part) ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one text are fixed
+          <a key={i} href={part} rel="noopener noreferrer" target={part.startsWith(location.origin) ? undefined : '_blank'}>
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </p>
+  );
+}
 
 export function Composer({ onSend, placeholder, id = 'composer' }: { onSend: (text: string) => Promise<unknown>; placeholder: string; id?: string }) {
   const t = useT();
@@ -76,8 +96,13 @@ export function Conversation({ pk }: { pk: string }) {
   }, [dm, pk, limit, version]);
   const last = msgs[msgs.length - 1];
   useEffect(() => {
-    if (last) dm.markRead(pk, last.at);
+    if (last) dm.markRead(pk, DirectMessages.timeOf(last));
   }, [dm, pk, last]);
+  // what is on screen is not announced elsewhere on the page
+  useEffect(() => {
+    dm.setActive(pk);
+    return () => dm.setActive(null);
+  }, [dm, pk]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when the newest message changes
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
@@ -159,7 +184,7 @@ export function Conversation({ pk }: { pk: string }) {
         ) : null}
         {msgs.map((m) => (
           <div key={m.id} className={`msg ${m.from === identity.pk ? 'mine' : 'theirs'}`}>
-            <p>{m.text}</p>
+            <Text text={m.text} />
             <time dateTime={new Date(m.at * 1000).toISOString()}>{relTime(m.at * 1000)}</time>
           </div>
         ))}

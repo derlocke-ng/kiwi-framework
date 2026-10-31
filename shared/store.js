@@ -214,7 +214,7 @@ export class LocalStore {
     return Boolean(await req(this.tx('chat').get(id)));
   }
 
-  /** The newest `limit` messages of a conversation before `before` (a time), oldest first; within one second, in the order this device took them. */
+  /** The newest `limit` messages of a conversation before `before` (a time), oldest first; within one second by the writers' milliseconds, then as this device took them. */
   messages(conv, { before = Infinity, limit = 50 } = {}) {
     return new Promise((resolve, reject) => {
       const out = [];
@@ -223,7 +223,7 @@ export class LocalStore {
       r.onerror = () => reject(r.error);
       r.onsuccess = () => {
         const c = r.result;
-        if (!c || out.length >= limit) return resolve(out.sort((a, b) => a.at - b.at || (a.seq || 0) - (b.seq || 0) || (a.id < b.id ? -1 : 1)));
+        if (!c || out.length >= limit) return resolve(out.sort((a, b) => (a.t || a.at * 1000) - (b.t || b.at * 1000) || (a.seq || 0) - (b.seq || 0) || (a.id < b.id ? -1 : 1)));
         out.push(c.value);
         c.continue();
       };

@@ -8,7 +8,7 @@ import { fingerprint } from '../../shared/events.js';
 import { has, tErr } from '../../shared/i18n.js';
 import { Icon } from '../../ui/components';
 import { useIdentity, useKiwi, useT } from '../../ui/hooks';
-import { copyText, download, toast } from '../../ui/toast';
+import { copyText, download, toast, toastError } from '../../ui/toast';
 
 type Mode = 'signin' | 'create' | 'import';
 const featured = () => MOUNTS.find((m) => m.featured) || MOUNTS[0] || null;
@@ -106,6 +106,7 @@ export function Account({ full = false }: { full?: boolean }) {
       }
       adoptIdentity(next);
       await kiwi.restart();
+      if (next.alias) await kiwi.rememberAccount({ alias: String(next.alias), accountPk: (next.accountPk as string | null) || null }); // the key's own settings carry them to every device
       setBusy(false);
       setProgress('');
       form.reset();
@@ -118,48 +119,24 @@ export function Account({ full = false }: { full?: boolean }) {
     }
   };
 
-  if (id.alias) {
-    const app = featured();
-    return (
-      <>
-        <p dangerouslySetInnerHTML={{ __html: t('account.signedIn', { alias: id.alias.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`) }) }} />
-        <p className="muted small">
-          {t('hub.accountSigned')} · {t('account.publicKey')} <code>{fingerprint(id.pk)}</code>
-        </p>
-        <div className="form-actions">
-          {!full && app ? (
-            <a className="btn btn-primary" href={`${app.id}/`}>
-              <Icon name={app.icon} />
-              <span>{t('hub.openApp', { name: app.name })}</span>
-            </a>
-          ) : null}
-          {full ? (
-            <>
-              <button type="button" className="btn" data-act="copy-pub" onClick={() => copyText(npub(id.pk), t('account.publicKey'))}>
-                <Icon name="copy" />
-                <span>{t('account.copyNpub')}</span>
-              </button>
-              <button type="button" className="btn" data-act="export-key" onClick={() => setExportOpen(!exportOpen)}>
-                <Icon name="key-round" />
-                <span>{t('account.exportKey')}</span>
-              </button>
-            </>
-          ) : null}
-          <button type="button" className="btn btn-ghost" data-act="signout" onClick={signOut}>
-            <Icon name="log-out" />
-            <span>{t('account.signOut')}</span>
-          </button>
-        </div>
-        {exportOpen ? <ExportBox /> : <div id="exportBox" hidden />}
-      </>
-    );
-  }
-
   const labels: Record<Mode, string> = { signin: t('account.tab.signIn'), create: t('account.tab.create'), import: t('account.button.import') };
   const hints: Record<Mode, string> = { signin: t('account.hint.signIn'), create: t('account.hint.create'), import: t('account.hint.import') };
-  return (
+  const named = Boolean(id.alias && !id.accountPk); // a key with a name, not an account
+  const saveName = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const name = String(new FormData(e.currentTarget).get('name') || '')
+      .trim()
+      .slice(0, 40);
+    if (!name) return;
+    try {
+      await kiwi.rememberAccount({ alias: name });
+      toast(t('account.nameSaved'), 'success');
+    } catch (err) {
+      toastError(err);
+    }
+  };
+  const authForm = (
     <>
-      <p>{t('hub.accountText')}</p>
       <div className="seg" role="tablist">
         {(['signin', 'create', 'import'] as Mode[]).map((m) => (
           <label key={m}>
@@ -200,6 +177,68 @@ export function Account({ full = false }: { full?: boolean }) {
           {error}
         </p>
       </form>
+    </>
+  );
+  if (id.alias) {
+    const app = featured();
+    const alias = id.alias.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    return (
+      <>
+        <p dangerouslySetInnerHTML={{ __html: named ? t('account.namedKey', { alias }) : t('account.signedIn', { alias }) }} />
+        <p className="muted small">
+          {named ? null : <>{t('hub.accountSigned')} · </>}
+          {t('account.publicKey')} <code>{fingerprint(id.pk)}</code>
+        </p>
+        <div className="form-actions">
+          {!full && app ? (
+            <a className="btn btn-primary" href={`${app.id}/`}>
+              <Icon name={app.icon} />
+              <span>{t('hub.openApp', { name: app.name })}</span>
+            </a>
+          ) : null}
+          {full ? (
+            <>
+              <button type="button" className="btn" data-act="copy-pub" onClick={() => copyText(npub(id.pk), t('account.publicKey'))}>
+                <Icon name="copy" />
+                <span>{t('account.copyNpub')}</span>
+              </button>
+              <button type="button" className="btn" data-act="export-key" onClick={() => setExportOpen(!exportOpen)}>
+                <Icon name="key-round" />
+                <span>{t('account.exportKey')}</span>
+              </button>
+            </>
+          ) : null}
+          <button type="button" className="btn btn-ghost" data-act="signout" onClick={signOut}>
+            <Icon name="log-out" />
+            <span>{t('account.signOut')}</span>
+          </button>
+        </div>
+        {exportOpen ? <ExportBox /> : <div id="exportBox" hidden />}
+        {named && full ? (
+          <div className="key-account" id="keyAccount">
+            <h3>{t('account.createForKey')}</h3>
+            {authForm}
+          </div>
+        ) : null}
+      </>
+    );
+  }
+  return (
+    <>
+      <p>{t('hub.accountText')}</p>
+      {authForm}
+      {full ? (
+        <form className="name-form" id="nameForm" onSubmit={saveName}>
+          <label className="field">
+            {t('account.yourName')}
+            <input name="name" maxLength={40} required autoComplete="nickname" />
+          </label>
+          <button type="submit" className="btn btn-sm">
+            {t('account.saveName')}
+          </button>
+          <p className="muted small">{t('account.yourNameHint')}</p>
+        </form>
+      ) : null}
       <p className="muted small" id="keyNote" data-key={id.imported ? 'imported' : 'device'}>
         <span dangerouslySetInnerHTML={{ __html: id.imported ? t('account.importedKey', { fp: fingerprint(id.pk) }) : t('account.deviceKey') }} />{' '}
         {full ? (

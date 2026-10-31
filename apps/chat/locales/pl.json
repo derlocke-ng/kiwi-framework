@@ -32,6 +32,8 @@
   "chat.room.enter": "Wejdź do pokoju",
   "chat.room.copy": "Kopiuj link",
   "chat.room.copied": "Link do pokoju",
+  "chat.room.invite": "Zaproś znajomych",
+  "chat.room.inviteText": "Dołącz do mojego pokoju: {link}",
   "chat.room.here": "Teraz tutaj",
   "chat.room.leave": "Opuść pokój",
   "chat.room.empty": "Odkąd weszłaś/wszedłeś, nic nie powiedziano. Nic z wcześniej nie jest nigdzie przechowywane.",

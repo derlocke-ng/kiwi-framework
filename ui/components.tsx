@@ -8,6 +8,7 @@ import { fingerprint } from '../shared/events.js';
 import { relTime } from '../shared/i18n.js';
 import { savedRelays } from '../shared/relays.js';
 import { useIdentity, useKiwi, useKiwiTick, useNetTick, useOutboxWaiting, useRelayInfos, useT, useUnsynced } from './hooks';
+import { useUnread } from './notify';
 import { dismiss, toastStore } from './toast';
 import '../shared/topbar.css';
 import '../shared/switcher.css';
@@ -71,9 +72,11 @@ function Switcher({ open, onClose }: { open: boolean; onClose: (viaHistory?: boo
       window.removeEventListener('popstate', onPop);
     };
   }, [open, onClose]);
+  const unread = useUnread();
   if (!visible) return null;
   const skip = new Set(kiwi.hiddenApps());
   const apps = kiwi.orderedApps().filter((a) => !skip.has(a.id));
+  const count = (n: number) => (n ? <span className="count">{n}</span> : null);
   const { base, current } = kiwi;
   const item = (href: string, cls: boolean, icon: string, label: ReactNode, ref?: React.Ref<HTMLAnchorElement>) => (
     <li>
@@ -108,6 +111,7 @@ function Switcher({ open, onClose }: { open: boolean; onClose: (viaHistory?: boo
                 <Icon name={a.icon} />
                 <span>
                   {a.name}
+                  {count(unread.byMount[a.id] || 0)}
                   {a.legacy ? (
                     <>
                       {' '}
@@ -118,7 +122,16 @@ function Switcher({ open, onClose }: { open: boolean; onClose: (viaHistory?: boo
               </a>
             </li>
           ))}
-          {item(`${base}settings.html`, current === 'settings', 'settings', t('hub.settings'), current === 'settings' ? first : undefined)}
+          {item(
+            `${base}settings.html`,
+            current === 'settings',
+            'settings',
+            <>
+              {t('hub.settings')}
+              {count(unread.requests)}
+            </>,
+            current === 'settings' ? first : undefined,
+          )}
         </ul>
       </nav>
     </div>,

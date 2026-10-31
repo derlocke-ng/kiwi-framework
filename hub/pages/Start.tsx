@@ -3,6 +3,7 @@ import { LanguageBanner } from '../../ui/AppShell';
 import { AccountLink, Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useIdentity, useKiwi, useKiwiTick, useT } from '../../ui/hooks';
 import { usePeopleNotices } from '../../ui/notices';
+import { useUnread } from '../../ui/notify';
 
 const Tags = ({ tags }: { tags: string[] }) => (
   <ul className="tags">
@@ -17,6 +18,13 @@ function Apps() {
   const kiwi = useKiwi();
   const t = useT();
   useKiwiTick();
+  const unread = useUnread();
+  const count = (id: string) =>
+    unread.byMount[id] ? (
+      <span className="count" title={t('notify.unread', { n: unread.byMount[id] })}>
+        {unread.byMount[id]}
+      </span>
+    ) : null;
   const hidden = kiwi.hiddenApps();
   const ordered = kiwi.orderedApps();
   const feature = ordered.find((a) => !hidden.includes(a.id));
@@ -30,7 +38,10 @@ function Apps() {
           </div>
           <div className="feature-body">
             {feature.isNew ? <span className="badge">{t('hub.new')}</span> : null}
-            <h2>{feature.name}</h2>
+            <h2>
+              {feature.name}
+              {count(feature.id)}
+            </h2>
             <p>{t(`hub.${feature.id}.text`)}</p>
             <Tags tags={feature.tags} />
           </div>
@@ -48,6 +59,7 @@ function Apps() {
               </span>
               <h3>
                 {a.name}
+                {count(a.id)}
                 {a.isNew ? (
                   <>
                     {' '}

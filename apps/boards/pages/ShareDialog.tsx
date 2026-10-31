@@ -7,6 +7,8 @@ import qrcode from '../../../shared/qrcode.mjs';
 import { Icon } from '../../../ui/components';
 import { pickPeople } from '../../../ui/dialogs';
 import { useKiwi, usePeople, useT } from '../../../ui/hooks';
+import { chatMount } from '../../../ui/notify';
+import { sendAsMessage } from '../../../ui/share';
 import { copyText, toast } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';
 import type { Board } from '../data/boards.js';
@@ -102,6 +104,12 @@ export function ShareDialog({ board, onClose }: { board: Board; onClose: () => v
           <button type="button" className="btn" data-act="friends" onClick={() => void toFriends()}>
             <Icon name="users" />
             <span>{t('share.friends')}</span>
+          </button>
+        ) : null}
+        {people && chatMount() ? (
+          <button type="button" className="btn" data-act="chat" onClick={() => void sendAsMessage(kiwi, people, `${board.info.title}\n${url}`).catch(() => {})}>
+            <Icon name="message-circle" />
+            <span>{t('share.inChat', { app: chatMount()?.name })}</span>
           </button>
         ) : null}
       </div>

@@ -32,6 +32,8 @@
   "chat.room.enter": "Entrar en la sala",
   "chat.room.copy": "Copiar enlace",
   "chat.room.copied": "Enlace de la sala",
+  "chat.room.invite": "Invitar amigos",
+  "chat.room.inviteText": "Únete a mi sala: {link}",
   "chat.room.here": "Ahora aquí",
   "chat.room.leave": "Salir de la sala",
   "chat.room.empty": "No se ha dicho nada desde que entraste. Nada de antes se guarda en ningún sitio.",

@@ -2,7 +2,8 @@
 // Nothing is stored anywhere; leaving is the end of it for you.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../ui/components';
-import { useIdentity, useKiwi, useT, useTick } from '../../../ui/hooks';
+import { useIdentity, useKiwi, usePeople, useT, useTick } from '../../../ui/hooks';
+import { sendAsMessage } from '../../../ui/share';
 import { copyText, toastError } from '../../../ui/toast';
 import { NICK, Room } from '../data/rooms.js';
 import { savedNick, saveNick } from '../state';
@@ -12,6 +13,7 @@ export function RoomView({ secret }: { secret: string }) {
   const t = useT();
   const kiwi = useKiwi();
   const identity = useIdentity();
+  const people = usePeople();
   const room = useMemo(() => new Room(secret, kiwi.net, { nick: savedNick() || identity.alias || '' }), [secret, kiwi.net, identity.alias]);
   useTick(useCallback((fn: () => void) => room.onChange(fn), [room]));
   const [joined, setJoined] = useState(false);
@@ -92,6 +94,17 @@ export function RoomView({ secret }: { secret: string }) {
           <Icon name="link" />
           <span>{t('chat.room.copy')}</span>
         </button>
+        {people ? (
+          <button
+            type="button"
+            className="btn btn-sm"
+            id="inviteRoom"
+            onClick={() => sendAsMessage(kiwi, people, t('chat.room.inviteText', { link })).catch(toastError)}
+          >
+            <Icon name="user-plus" />
+            <span>{t('chat.room.invite')}</span>
+          </button>
+        ) : null}
       </div>
       <div className="messages" id="roomMessages">
         {room.messages.length ? null : <p className="empty">{t('chat.room.empty')}</p>}
