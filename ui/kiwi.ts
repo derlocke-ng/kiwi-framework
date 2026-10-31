@@ -122,6 +122,7 @@ export class Kiwi {
     saveIdentity({ ...id, alias: name, accountPk: accountPk || id.accountPk || null });
     if (this.people) this.people.alias = name;
     if (this.groups) this.groups.alias = name;
+    if (this.messages) this.messages.alias = name;
   }
 
   /**

@@ -19,6 +19,7 @@ import { store } from './util.js';
 const INBOX_DAYS = 30; // gift wraps carry a date randomised up to two days back; this is how far an inbox looks
 export const TEXT = 4000;
 const SEEN_MAX = 4000;
+const NAME = 40; // a writer's name inside a message, as long as an alias
 
 export class DirectMessages {
   /**
@@ -29,6 +30,7 @@ export class DirectMessages {
   constructor(identity, net, { isBlocked = () => false } = {}) {
     this.sk = identity.sk;
     this.pk = identity.pk;
+    this.alias = identity.alias || ''; // travels inside each message, so the reader can name me before we are friends
     this.net = net;
     this.isBlocked = isBlocked;
     this.seenKey = `chat.seen.${this.pk.slice(0, 16)}`;
@@ -87,7 +89,8 @@ export class DirectMessages {
     // `at` is the writer's second, `t` its millisecond (an `ms` tag of ours; other clients ignore it), `seq` when this
     // device took it: two messages in one second keep the writers' order on every device, not the relay's.
     const ms = Math.min(999, Math.max(0, Number(rumor.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
-    const message = { id: rumor.id, conv: other, from, at: rumor.created_at, t: rumor.created_at * 1000 + ms, seq: Date.now(), text: String(rumor.content || '').slice(0, TEXT), wrap: ev.id };
+    const name = String(rumor.tags.find((x) => x[0] === 'name')?.[1] || '').slice(0, NAME); // what the writer calls themselves, sealed with the text
+    const message = { id: rumor.id, conv: other, from, name, at: rumor.created_at, t: rumor.created_at * 1000 + ms, seq: Date.now(), text: String(rumor.content || '').slice(0, TEXT), wrap: ev.id };
     if (!(await this.net.db.hasMessage(message.id))) {
       await this.net.db.putMessage(message);
       if (this.ready && from !== this.pk) for (const fn of this.messageListeners) fn(message);
@@ -108,7 +111,8 @@ export class DirectMessages {
       .slice(0, TEXT);
     if (!content) return null;
     const ms = Date.now();
-    const rumor = { kind: KINDS.CHAT_MESSAGE, created_at: Math.floor(ms / 1000), tags: [['p', toPk], ['ms', String(ms % 1000)]], content };
+    const tags = [['p', toPk], ['ms', String(ms % 1000)], ...(this.alias ? [['name', this.alias.slice(0, NAME)]] : [])];
+    const rumor = { kind: KINDS.CHAT_MESSAGE, created_at: Math.floor(ms / 1000), tags, content };
     const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
     const mine = nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk);
     const { sync } = this.net;

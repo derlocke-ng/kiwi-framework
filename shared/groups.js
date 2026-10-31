@@ -260,7 +260,7 @@ export class Groups {
     const inner = sign({ kind, content, tags }, this.sk);
     const sealed = await seal(hexToBytes(g.k), inner);
     const event = addressable ? makeAddressable(kind, INFO_D, sealed, g.w) : sign({ kind, content: sealed, tags: [] }, g.w);
-    await this.net.sync.publish(event, { wait: 'one' });
+    await this.net.sync.publish(event); // stored here first and shown; the outbox carries it to the relays, now or when they are back
     return inner;
   }
 

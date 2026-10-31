@@ -16,6 +16,7 @@ export const DEFAULT_RELAYS = DISTRIBUTION.relays; // the distribution's choice 
 const RETRY_EVERY = 15_000;
 const CONNECT_TIMEOUT = 8000;
 const SEEN_MAX = 4000;
+const STALE_AFTER = 15_000; // hidden this long, a phone may have cut the sockets without telling us: renew them on return
 
 export const normalizeRelayUrl = (input) => {
   let s = String(input || '').trim();
@@ -54,7 +55,17 @@ export class RelayPool {
     for (const url of urls) this.add(url);
     this.timer = setInterval(() => this.tick(), 1000);
     this.retryTimer = setInterval(() => this.retry(), RETRY_EVERY);
-    if (typeof addEventListener === 'function') addEventListener('online', () => this.retry());
+    this.hiddenAt = 0;
+    if (typeof addEventListener === 'function') {
+      addEventListener('online', () => this.wake());
+      addEventListener('pageshow', () => this.wake());
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') this.hiddenAt = Date.now();
+          else this.wake();
+        });
+      }
+    }
   }
 
   get urls() {
@@ -103,6 +114,34 @@ export class RelayPool {
   retry() {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     for (const entry of this.relays.values()) if (!entry.relay.connected) this.connect(entry);
+  }
+
+  /**
+   * Back in the foreground, or back on the network: relays that dropped get a connection now, not after
+   * nostr-tools' back-off, and after a long absence every connection is renewed, since a socket the phone
+   * cut can still look open until a ping fails a minute later. Subscriptions follow on the new connections.
+   */
+  wake() {
+    const away = this.hiddenAt ? Date.now() - this.hiddenAt : 0;
+    this.hiddenAt = 0;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    for (const entry of this.relays.values()) {
+      if (entry.relay.connected && away < STALE_AFTER) continue;
+      if (entry.relay.connected) this.renew(entry);
+      else this.connect(entry);
+    }
+  }
+
+  /** A fresh connection to a relay whose socket we no longer trust; its subscriptions are sent again once it is up. */
+  renew(entry) {
+    try {
+      entry.relay.close(); // tells our subscriptions, which forget this relay and take a new REQ on reconnect
+    } catch {
+      /* already closed */
+    }
+    entry.connecting = false;
+    this.tick();
+    this.connect(entry);
   }
 
   tick() {

@@ -256,6 +256,32 @@ export async function chatSuite(env, { app, settings, boards }) {
   await open(A2, '#/groups');
   assert.deepEqual(await texts(A2, '#groupList .conv-name'), [], 'no group left on A2');
 
+  step('offline: a group made without a relay exists once and reaches the relay when the relay is back; a message sent meanwhile arrives on return');
+  await open(B, '#/groups');
+  await B.ctx.setOffline(true);
+  await B.click('#newGroup');
+  await B.fill('#groupForm [name=name]', 'Offline club');
+  await B.fill('#groupForm [name=myName]', 'Bea');
+  await B.click('#groupForm [type=submit]');
+  await B.waitForSelector('#groupComposer textarea', { timeout: 15000 }); // made here, shown here; no relay is waited for
+  const offlinePub = await B.getAttribute('.group', 'data-group');
+  await say(B, 'anyone?', '#groupComposer');
+  await until(async () => (await groupMessages(B)).includes('anyone?'), 'the message shows at once');
+  await talk(A, pkB);
+  await say(A, 'while you were away');
+  await sleep(1000);
+  await B.ctx.setOffline(false);
+  await until(async () => (await B.$eval('#sync', (el) => el.dataset.state)) === 'on', 'B is back on the relay', 30000);
+  await until(
+    async () => (await env.relayEvents([{ kinds: [30720, 7820, 7821] }])).filter((e) => e.pubkey.startsWith(offlinePub)).length >= 3,
+    'info, join and message reached the relay from the outbox',
+    40000,
+  );
+  await open(B, '#/groups');
+  assert.deepEqual(await texts(B, '#groupList .conv-name'), ['Offline club'], 'made once, whatever the relay did');
+  await talk(B, pkA);
+  await until(async () => (await messages(B)).includes('while you were away'), 'the message sent meanwhile is here', 30000);
+
   step('blocking: the conversation goes at once and new messages never show; unblocking does not bring them back');
   await talk(B, pkA);
   await B.click('[data-act=menu]');
@@ -297,8 +323,16 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.deepEqual(await messages(R3, '#roomMessages'), [], 'nothing from before for the latecomer');
   assert.equal((await env.relayEvents([{ kinds: [21710, 21700] }])).length, 0, 'the relay stored none of it');
   assert.ok(await R1.$('#copyRoom'), 'the link can be copied');
+  await R2.reload();
+  await R2.waitForSelector('#roomComposer textarea');
+  assert.equal(await R2.$('#enterRoom'), null, 'a reload puts bob straight back in, no name asked');
+  await until(async () => /bob/.test(await R2.textContent('#members')) && /ada/.test(await R2.textContent('#members')), 'bob sees the room again', 20000);
+  await sleep(1500);
+  assert.equal(((await R1.textContent('#members')).match(/bob/g) || []).length, 1, 'the same bob on R1, not a newcomer beside a ghost');
   await R1.click('#leaveRoom');
   await R1.waitForSelector('#chatTabs');
+  await until(async () => !/ada/.test(await R2.textContent('#members')), 'ada is off R2’s list the moment she leaves', 8000);
+  assert.ok(/\(2\)/.test(await R2.textContent('.room .who small')), 'the header counts who is here');
 
   step('a German browser gets the chat in German');
   const G = await dev('G', { locale: 'de-DE' });

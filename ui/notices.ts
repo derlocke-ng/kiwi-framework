@@ -56,7 +56,9 @@ export function usePeopleNotices(): void {
     if (!messages || !chat) return;
     return messages.onMessage((m: any) => {
       if (current === chat.id && messages.active === m.conv) return;
-      const name = people?.nameOf?.(m.from) || fingerprint(m.from);
+      // the friend's name as we know them, else the name they signed the message with (a friend who asked before names travelled, or no friend yet)
+      const known = people?.friends?.().find((f: any) => f.pk === m.from)?.name;
+      const name = known || m.name || fingerprint(m.from);
       const href = `${base}${chat.id}/#/dm/${m.conv}`;
       toast(t('notify.message', { name }), 'info', 8000, { label: t('people.open'), href });
       notifyBrowser({ title: t('notify.message', { name }), body: m.text.slice(0, 120), url: href, tag: `msg-${m.conv}`, icon });

@@ -108,7 +108,9 @@ export function Conversation({ pk }: { pk: string }) {
     end.current?.scrollIntoView({ block: 'end' });
   }, [last?.id]);
 
-  const name = people?.nameOf?.(pk) || fingerprint(pk);
+  // the friend's name, else the name they sign their messages with (no friend yet, or one from before names travelled), else the key's fingerprint
+  const signed = [...msgs].reverse().find((m) => m.from === pk && m.name)?.name;
+  const name = people?.friends?.().find((f: any) => f.pk === pk)?.name || signed || fingerprint(pk);
   const friend = Boolean(people?.isFriend(pk));
   const asked = Boolean(people?.outgoing().some((r: any) => r.pk === pk));
   const blocked = Boolean(blocks?.isBlocked(pk));

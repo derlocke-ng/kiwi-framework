@@ -1,6 +1,6 @@
 # chat
 
-Private messages between accounts and live rooms that vanish, on nostr. One of the framework's own apps; [Armory](https://github.com/derlocke-ng/armory) mounts it as **Uplink** (`framework: 'chat'`), live at <https://derlocke-ng.github.io/armory/uplink/>.
+Private messages between accounts, groups and live rooms that vanish, on nostr. A message carries the writer's name inside the seal, so the reader can name them before they are friends; a group is made and spoken in without waiting for a relay (the outbox delivers). One of the framework's own apps; [Armory](https://github.com/derlocke-ng/armory) mounts it as **Uplink** (`framework: 'chat'`), live at <https://derlocke-ng.github.io/armory/uplink/>.
 
 ## Messages
 
@@ -12,7 +12,7 @@ A group stays until its host closes it. It is a key pair: its pubkey is where it
 
 ## Rooms
 
-A room is a link: its `#secret` names the room (relays see a hash of it) and is the key everything in it is sealed with. Messages and presence are **ephemeral** nostr events (kinds 21710 and 21700) tagged with the room's id: relays pass them to whoever is in the room right now and keep nothing, so a room has no history and is gone when the last person leaves. Everyone speaks under a key made for the visit; the nickname travels inside the sealed content. No account is needed. This is what EnigmaJS did, on nostr.
+A room is a link: its `#secret` names the room (relays see a hash of it) and is the key everything in it is sealed with. Messages and presence are **ephemeral** nostr events (kinds 21710 and 21700) tagged with the room's id: relays pass them to whoever is in the room right now and keep nothing, so a room has no history and is gone when the last person leaves. Everyone speaks under a key made for the visit; the nickname travels inside the sealed content. Leaving tells the room, so the others drop the name at once; a reload puts the person straight back in as the same person (the tab keeps the visit's key and name in session storage). No account is needed. This is what EnigmaJS did, on nostr.
 
 ## Files
 

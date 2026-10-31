@@ -109,7 +109,8 @@ function Messages({ convs }: { convs: any[] }) {
   const people = usePeople();
   const identity = useIdentity();
   const [picking, setPicking] = useState(false);
-  const name = (pk: string) => people?.nameOf?.(pk) || fingerprint(pk);
+  // the friend's name, else the name the other side signs their messages with, else the key's fingerprint
+  const name = (c: any) => people?.friends?.().find((f: any) => f.pk === c.conv)?.name || (c.from !== identity.pk && c.name) || fingerprint(c.conv);
   const unread = (c: any) => c.from !== identity.pk && DirectMessages.timeOf(c) > dm.lastRead(c.conv);
   return (
     <>
@@ -126,10 +127,10 @@ function Messages({ convs }: { convs: any[] }) {
             <li key={c.conv} className={unread(c) ? 'unread' : ''}>
               <a href={`#/dm/${c.conv}`} className="conv">
                 <span className="avatar" aria-hidden="true">
-                  {name(c.conv)[0].toUpperCase()}
+                  {name(c)[0].toUpperCase()}
                 </span>
                 <span className="conv-main">
-                  <span className="conv-name">{name(c.conv)}</span>
+                  <span className="conv-name">{name(c)}</span>
                   <span className="conv-preview">
                     {c.from === identity.pk ? `${t('chat.you')}: ` : ''}
                     {c.text}

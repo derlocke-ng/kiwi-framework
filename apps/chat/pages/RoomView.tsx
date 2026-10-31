@@ -5,9 +5,11 @@ import { Icon } from '../../../ui/components';
 import { pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT, useTick } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
-import { NICK, Room } from '../data/rooms.js';
+import { NICK, Room, remembered } from '../data/rooms.js';
 import { savedNick, saveNick } from '../state';
 import { Composer } from './Conversation';
+
+const SHOWN = 6; // names in the header; the rest is a count, the full list on a tap
 
 export function RoomView({ secret }: { secret: string }) {
   const t = useT();
@@ -15,11 +17,21 @@ export function RoomView({ secret }: { secret: string }) {
   const identity = useIdentity();
   const people = usePeople();
   const groups = useGroups();
-  const room = useMemo(() => new Room(secret, kiwi.net, { nick: savedNick() || identity.alias || '' }), [secret, kiwi.net, identity.alias]);
+  // one room object per visit: a name learned later changes the suggestion, never the room
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the alias is only the first suggestion for the name
+  const room = useMemo(() => {
+    const before = remembered(secret); // this tab was in the room before a reload: the same name, the same voice
+    return new Room(secret, kiwi.net, { nick: before?.nick || savedNick() || identity.alias || '', sk: before?.sk });
+  }, [secret, kiwi.net]);
   useTick(useCallback((fn: () => void) => room.onChange(fn), [room]));
-  const [joined, setJoined] = useState(false);
+  const [joined, setJoined] = useState(() => Boolean(remembered(secret))); // straight back in after a reload
+  const [busy, setBusy] = useState(false);
+  const [everyone, setEveryone] = useState(false);
   const end = useRef<HTMLDivElement | null>(null);
-  useEffect(() => () => room.leave(), [room]);
+  useEffect(() => {
+    if (joined) room.join();
+    return () => room.leave();
+  }, [room, joined]);
   const last = room.messages[room.messages.length - 1];
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when the newest message changes
   useEffect(() => {
@@ -32,20 +44,24 @@ export function RoomView({ secret }: { secret: string }) {
     const nick = String(new FormData(e.currentTarget).get('nick') || '')
       .trim()
       .slice(0, NICK);
-    if (!nick) return;
+    if (!nick || busy) return;
     saveNick(nick);
+    setBusy(true);
     try {
       await room.setNick(nick);
-      await room.join();
-      setJoined(true);
+      setJoined(true); // the effect joins; no relay is waited for
     } catch (err) {
       toastError(err);
+    } finally {
+      setBusy(false);
     }
   };
   const leave = () => {
     room.leave();
     location.hash = '#/';
   };
+  const names = room.present().map((m: any) => m.nick || t('chat.room.anon'));
+  const hidden = everyone ? 0 : Math.max(0, names.length - SHOWN);
 
   if (!joined) {
     return (
@@ -65,7 +81,7 @@ export function RoomView({ secret }: { secret: string }) {
             <Icon name="lock" /> {t('chat.room.hint')}
           </p>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary" id="enterBtn">
+            <button type="submit" className="btn btn-primary" id="enterBtn" disabled={busy}>
               {t('chat.room.enter')}
             </button>
           </div>
@@ -82,12 +98,17 @@ export function RoomView({ secret }: { secret: string }) {
         <div className="who">
           <h1>{t('chat.room.title')}</h1>
           <small className="muted">
-            {t('chat.room.here')}:{' '}
-            <span id="members">
-              {room
-                .present()
-                .map((m: any) => m.nick || t('chat.room.anon'))
-                .join(', ')}
+            {t('chat.room.here')} ({names.length}):{' '}
+            <span id="members" title={names.join(', ')}>
+              {(hidden ? names.slice(0, SHOWN) : names).join(', ')}
+              {hidden ? (
+                <>
+                  {', '}
+                  <button type="button" className="link-btn" id="moreMembers" onClick={() => setEveryone(true)}>
+                    +{hidden}
+                  </button>
+                </>
+              ) : null}
             </span>
           </small>
         </div>
