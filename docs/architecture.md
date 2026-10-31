@@ -168,7 +168,7 @@ Data is lost only if every device that ever held it is gone *and* there is no ba
 
 - **Friends are mutual**: request and accept, both sides hold each other, delivered as gift wraps so relays see neither who asked nor who answered. The list itself is an encrypted event under the user's key; nostr's public follow list is never used. Each person has a friends key for friends-only content, handed to friends privately and rotated when someone is removed.
 - **Marketplace listings carry coarse plaintext tags**: category, seller country and shipping destinations (country codes, `EU`, worldwide, pickup only), so relays can filter and a phone downloads only what applies to it. Everything else in a listing is encrypted. Accepted trade-off: relays learn that some key lists seeds in a country.
-- **Device settings are site-wide**: language (`wjs.lang`) and appearance (`wjs.theme`) are chosen on the hub or in any app and apply to every page, live across tabs through the storage event. Appearance stays on the device (a phone at night and a desk by day want different things); language, hidden apps and app order also go into the account's settings (kind 30791, `suite`) and follow the person to every device signed in as them. **A sign-out keeps nothing of the account**: the device gets a fresh key, and only device keys are kept aside for apps to carry data from (`previousIdentities()`), so one account's boards never follow a sign-in to another.
+- **Device settings are site-wide**: language (`wjs.lang`) and appearance (`wjs.theme`: light, dark or the system's; `wjs.accent`: one of the palettes in `ui.css`, lime by default) are chosen on the hub or in any app and apply to every page, live across tabs through the storage event. Appearance stays on the device (a phone at night and a desk by day want different things); language, hidden apps and app order also go into the account's settings (kind 30791, `suite`) and follow the person to every device signed in as them. **A sign-out keeps nothing of the account**: the device gets a fresh key, and only device keys are kept aside for apps to carry data from (`previousIdentities()`), so one account's boards never follow a sign-in to another.
 
 ## Moderation
 
@@ -206,7 +206,7 @@ Every page looks and navigates the same because every page is React on the same 
 
 | File | What |
 |---|---|
-| `shared/ui.css` | tokens (light, dark, explicit theme), base styles, buttons, inputs, forms, segmented control, cards, banners, modal, menu, toasts |
+| `shared/ui.css` | tokens as light/dark pairs (`--accent-l`, `--accent-d`, …; the page takes one side by the system or `<html data-theme>`), accent palettes (`<html data-accent>`: forest, sky, violet, amber, rose, graphite beside the default lime; each swaps the accent pair and gives dark mode plain grey surfaces), base styles, buttons, inputs, forms, segmented control, cards, banners, modal, menu, toasts |
 | `shared/widgets.css` | the widgets' styles (lists, editor, collection, feed, media) |
 | `shared/topbar.css`, `switcher.css` | the top bar (switcher button, brand, right-hand slot; one height and one width everywhere, `--bar-width`) and the app sheet |
 | `ui/components.tsx` | `TopBar`, the switcher (start page, apps not hidden, settings; hardware back closes it), `StatusPill`, `AccountLink`, `Toasts`, `Icon` |

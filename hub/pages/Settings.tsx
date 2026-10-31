@@ -10,7 +10,7 @@ import { fingerprint, isHex64 } from '../../shared/events.js';
 import { currentLanguage, fmtDateTime, LANGUAGES, tErr } from '../../shared/i18n.js';
 import { CORES_KEY, cores, hardwareCores } from '../../shared/pow.js';
 import { DEFAULT_RELAYS, normalizeRelayUrl, savedRelays, saveRelays } from '../../shared/relays.js';
-import { theme } from '../../shared/theme.js';
+import { ACCENTS, accent, theme } from '../../shared/theme.js';
 import { store } from '../../shared/util.js';
 import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
 import { useBlocks, useIdentity, useKiwi, useKiwiTick, usePeople, useRelayInfos, useT } from '../../ui/hooks';
@@ -52,6 +52,7 @@ function DeviceCard() {
   const t = useT();
   useKiwiTick();
   const th = theme();
+  const ac = accent();
   return (
     <Card id="device" icon="languages" title={t('settings.deviceSettings')}>
       <p className="muted">{t('settings.deviceText')}</p>
@@ -71,6 +72,14 @@ function DeviceCard() {
             <label key={v}>
               <input type="radio" name="theme" value={v} checked={th === v} onChange={() => kiwi.chooseTheme(v)} />
               <span>{t(`account.theme.${v}`)}</span>
+            </label>
+          ))}
+        </div>
+        <div className="accents" id="accentSeg" role="radiogroup" aria-label={t('account.accent')}>
+          {ACCENTS.map((a) => (
+            <label key={a} className="swatch" data-accent={a} title={t(`account.accent.${a}`)}>
+              <input type="radio" name="accent" value={a} checked={ac === a} onChange={() => kiwi.chooseAccent(a)} aria-label={t(`account.accent.${a}`)} />
+              <span />
             </label>
           ))}
         </div>

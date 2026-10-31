@@ -1,72 +1,133 @@
 /* kiwi-framework design library: tokens and components every page shares.
-   Light and dark follow the system unless <html data-theme> overrides it.
-   An app imports this first and adds only what is its own. */
+   Light and dark follow the system unless <html data-theme> overrides it;
+   <html data-accent> picks the accent palette. An app imports this first and
+   adds only what is its own. */
 
+/* Every colour has a light and a dark value (-l, -d); the page takes one set,
+   by the system or by <html data-theme>. An accent palette (<html data-accent>,
+   this device's choice like light and dark) swaps the accent pair, and gives
+   the dark side plain grey surfaces instead of the default's green-tinted ones. */
 :root {
-  --bg: #f6f6f3;
-  --surface: #ffffff;
-  --surface-2: #efefea;
-  --border: #e2e2dc;
-  --border-strong: #cfcfc7;
-  --text: #1b1c19;
-  --muted: #6b6d66;
-  --accent: #4d7c0f;
-  --accent-strong: #3f6212;
-  --accent-soft: #ecf5dc;
-  --on-accent: #ffffff;
-  --danger: #b42318;
-  --danger-soft: #fdecea;
-  --warn-soft: #fff6dc;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 16px rgb(0 0 0 / 0.05);
-  --shadow-pop: 0 8px 30px rgb(0 0 0 / 0.14);
+  --bg-l: #f6f6f3;
+  --surface-l: #ffffff;
+  --surface-2-l: #efefea;
+  --border-l: #e2e2dc;
+  --border-strong-l: #cfcfc7;
+  --text-l: #1b1c19;
+  --muted-l: #6b6d66;
+  --accent-l: #4d7c0f;
+  --accent-strong-l: #3f6212;
+  --accent-soft-l: #ecf5dc;
+  --on-accent-l: #ffffff;
+  --danger-l: #b42318;
+  --danger-soft-l: #fdecea;
+  --warn-soft-l: #fff6dc;
+  --shadow-l: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 16px rgb(0 0 0 / 0.05);
+  --shadow-pop-l: 0 8px 30px rgb(0 0 0 / 0.14);
+
+  --bg-d: #0e0f0d;
+  --surface-d: #161814;
+  --surface-2-d: #1e211b;
+  --border-d: #2a2d26;
+  --border-strong-d: #3a3e35;
+  --text-d: #e7e8e3;
+  --muted-d: #9a9d93;
+  --accent-d: #a3e635;
+  --accent-strong-d: #bef264;
+  --accent-soft-d: #1f2a12;
+  --on-accent-d: #10140a;
+  --danger-d: #f97066;
+  --danger-soft-d: #2c1513;
+  --warn-soft-d: #2a2410;
+  --shadow-d: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-pop-d: 0 10px 40px rgb(0 0 0 / 0.55);
+
   --radius: 14px;
   --radius-sm: 9px;
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   --gutter: max(16px, env(safe-area-inset-left));
+
+  --bg: var(--bg-l);
+  --surface: var(--surface-l);
+  --surface-2: var(--surface-2-l);
+  --border: var(--border-l);
+  --border-strong: var(--border-strong-l);
+  --text: var(--text-l);
+  --muted: var(--muted-l);
+  --accent: var(--accent-l);
+  --accent-strong: var(--accent-strong-l);
+  --accent-soft: var(--accent-soft-l);
+  --on-accent: var(--on-accent-l);
+  --danger: var(--danger-l);
+  --danger-soft: var(--danger-soft-l);
+  --warn-soft: var(--warn-soft-l);
+  --shadow: var(--shadow-l);
+  --shadow-pop: var(--shadow-pop-l);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0e0f0d;
-    --surface: #161814;
-    --surface-2: #1e211b;
-    --border: #2a2d26;
-    --border-strong: #3a3e35;
-    --text: #e7e8e3;
-    --muted: #9a9d93;
-    --accent: #a3e635;
-    --accent-strong: #bef264;
-    --accent-soft: #1f2a12;
-    --on-accent: #10140a;
-    --danger: #f97066;
-    --danger-soft: #2c1513;
-    --warn-soft: #2a2410;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-pop: 0 10px 40px rgb(0 0 0 / 0.55);
+    --bg: var(--bg-d);
+    --surface: var(--surface-d);
+    --surface-2: var(--surface-2-d);
+    --border: var(--border-d);
+    --border-strong: var(--border-strong-d);
+    --text: var(--text-d);
+    --muted: var(--muted-d);
+    --accent: var(--accent-d);
+    --accent-strong: var(--accent-strong-d);
+    --accent-soft: var(--accent-soft-d);
+    --on-accent: var(--on-accent-d);
+    --danger: var(--danger-d);
+    --danger-soft: var(--danger-soft-d);
+    --warn-soft: var(--warn-soft-d);
+    --shadow: var(--shadow-d);
+    --shadow-pop: var(--shadow-pop-d);
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #0e0f0d;
-  --surface: #161814;
-  --surface-2: #1e211b;
-  --border: #2a2d26;
-  --border-strong: #3a3e35;
-  --text: #e7e8e3;
-  --muted: #9a9d93;
-  --accent: #a3e635;
-  --accent-strong: #bef264;
-  --accent-soft: #1f2a12;
-  --on-accent: #10140a;
-  --danger: #f97066;
-  --danger-soft: #2c1513;
-  --warn-soft: #2a2410;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-pop: 0 10px 40px rgb(0 0 0 / 0.55);
+  --bg: var(--bg-d);
+  --surface: var(--surface-d);
+  --surface-2: var(--surface-2-d);
+  --border: var(--border-d);
+  --border-strong: var(--border-strong-d);
+  --text: var(--text-d);
+  --muted: var(--muted-d);
+  --accent: var(--accent-d);
+  --accent-strong: var(--accent-strong-d);
+  --accent-soft: var(--accent-soft-d);
+  --on-accent: var(--on-accent-d);
+  --danger: var(--danger-d);
+  --danger-soft: var(--danger-soft-d);
+  --warn-soft: var(--warn-soft-d);
+  --shadow: var(--shadow-d);
+  --shadow-pop: var(--shadow-pop-d);
   color-scheme: dark;
+}
+
+/* ---------- accent palettes ---------- */
+/* Any element with data-accent gets the pair (the page, or a swatch in the settings; lime is named too, so its swatch keeps its colour under another palette). */
+[data-accent='lime'] { --accent-l: #4d7c0f; --accent-strong-l: #3f6212; --accent-soft-l: #ecf5dc; --on-accent-l: #ffffff; --accent-d: #a3e635; --accent-strong-d: #bef264; --accent-soft-d: #1f2a12; --on-accent-d: #10140a; }
+[data-accent='forest'] { --accent-l: #2f6b4f; --accent-strong-l: #245540; --accent-soft-l: #e3f1ea; --on-accent-l: #ffffff; --accent-d: #6ec49a; --accent-strong-d: #8fd6b3; --accent-soft-d: #142a20; --on-accent-d: #06130d; }
+[data-accent='sky'] { --accent-l: #0369a1; --accent-strong-l: #075985; --accent-soft-l: #e0f2fe; --on-accent-l: #ffffff; --accent-d: #38bdf8; --accent-strong-d: #7dd3fc; --accent-soft-d: #0c2434; --on-accent-d: #06202e; }
+[data-accent='violet'] { --accent-l: #6d28d9; --accent-strong-l: #5b21b6; --accent-soft-l: #ede9fe; --on-accent-l: #ffffff; --accent-d: #a78bfa; --accent-strong-d: #c4b5fd; --accent-soft-d: #221a3a; --on-accent-d: #140d2b; }
+[data-accent='amber'] { --accent-l: #b45309; --accent-strong-l: #92400e; --accent-soft-l: #fef3c7; --on-accent-l: #ffffff; --accent-d: #fbbf24; --accent-strong-d: #fcd34d; --accent-soft-d: #2d230b; --on-accent-d: #1f1704; }
+[data-accent='rose'] { --accent-l: #be123c; --accent-strong-l: #9f1239; --accent-soft-l: #ffe4e6; --on-accent-l: #ffffff; --accent-d: #fb7185; --accent-strong-d: #fda4af; --accent-soft-d: #2e1218; --on-accent-d: #1f0a0e; }
+[data-accent='graphite'] { --accent-l: #374151; --accent-strong-l: #1f2937; --accent-soft-l: #e5e7eb; --on-accent-l: #ffffff; --accent-d: #cbd5e1; --accent-strong-d: #e2e8f0; --accent-soft-d: #1f242c; --on-accent-d: #0f1318; }
+
+/* With any palette but the default, dark surfaces are plain grey rather than green-tinted. */
+:root[data-accent]:not([data-accent='lime']) {
+  --bg-d: #0e0f11;
+  --surface-d: #15171b;
+  --surface-2-d: #1c1f24;
+  --border-d: #2a2e35;
+  --border-strong-d: #3a3f48;
+  --text-d: #e6e7ea;
+  --muted-d: #9a9ea7;
 }
 
 /* ---------- base ---------- */

@@ -15,7 +15,7 @@ import { RelayPool, savedRelays } from '../shared/relays.js';
 import { AccountSettings } from '../shared/settings.js';
 import { LocalStore } from '../shared/store.js';
 import { Sync } from '../shared/sync.js';
-import { applyTheme, setTheme, watchDeviceSettings } from '../shared/theme.js';
+import { applyTheme, setAccent, setTheme, watchDeviceSettings } from '../shared/theme.js';
 
 export interface Identity {
   sk: string;
@@ -125,6 +125,12 @@ export class Kiwi {
   /** Light, dark or the system's: this device's, since a phone and a desk want different things. */
   chooseTheme(th: string): void {
     setTheme(th);
+    this.emit();
+  }
+
+  /** The accent palette (ACCENTS in shared/theme.js): this device's too. */
+  chooseAccent(a: string): void {
+    setAccent(a);
     this.emit();
   }
 
