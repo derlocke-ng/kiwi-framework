@@ -168,7 +168,7 @@ Data is lost only if every device that ever held it is gone *and* there is no ba
 
 - **Friends are mutual**: request and accept, both sides hold each other, delivered as gift wraps so relays see neither who asked nor who answered. The list itself is an encrypted event under the user's key; nostr's public follow list is never used. Each person has a friends key for friends-only content, handed to friends privately and rotated when someone is removed.
 - **Marketplace listings carry coarse plaintext tags**: category, seller country and shipping destinations (country codes, `EU`, worldwide, pickup only), so relays can filter and a phone downloads only what applies to it. Everything else in a listing is encrypted. Accepted trade-off: relays learn that some key lists seeds in a country.
-- **Device settings are site-wide**: language (`wjs.lang`) and theme (`wjs.theme`) are chosen on the hub or in any app and apply everywhere, live across tabs through the storage event. They stay on the device; account settings (kind 30791) are for things that should follow the account.
+- **Device settings are site-wide**: language (`wjs.lang`) and appearance (`wjs.theme`) are chosen on the hub or in any app and apply to every page, live across tabs through the storage event. Appearance stays on the device (a phone at night and a desk by day want different things); language, hidden apps and app order also go into the account's settings (kind 30791, `suite`) and follow the person to every device signed in as them. **A sign-out keeps nothing of the account**: the device gets a fresh key, and only device keys are kept aside for apps to carry data from (`previousIdentities()`), so one account's boards never follow a sign-in to another.
 
 ## Moderation
 

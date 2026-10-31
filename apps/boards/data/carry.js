@@ -14,7 +14,11 @@ async function carryEntries(wallet, entries) {
   }
 }
 
-/** The boards this device kept under its previous keys move to the current one. */
+/**
+ * The boards this device kept under its previous device keys move to the
+ * current one (a device that signs in keeps what it made before). Accounts
+ * are never a source: previousIdentities() holds device keys only.
+ */
 export async function carryOver({ identity, wallet, settings, net }) {
   for (const prev of previousIdentities()) {
     if (prev.pk === identity.pk || wasCarried('loadout', prev.pk)) continue;

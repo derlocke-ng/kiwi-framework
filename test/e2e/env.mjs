@@ -4,6 +4,7 @@
 // ones), a static server for apps/, and Chromium.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
@@ -33,11 +34,22 @@ export async function until(fn, what, ms = 10000) {
   throw new Error(`Timed out waiting for ${what} (last: ${last})`);
 }
 
+/** A port nothing listens on right now, so suites running side by side never collide. */
+export function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on('error', reject);
+    srv.listen(0, () => {
+      const { port } = srv.address();
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
 export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `${name}-e2e-`));
-  const gunPort = 20000 + Math.floor(Math.random() * 20000);
-  const webPort = gunPort + 1;
-  const nostrPort = gunPort + 2;
+  const [gunPort, webPort, nostrPort] = await Promise.all([freePort(), freePort(), freePort()]);
   let runs = 0;
   const startGun = () =>
     spawn(process.execPath, [path.join(root, 'scripts/relay.cjs'), String(gunPort)], { env: { ...process.env, RADATA: path.join(tmp, `radata-${runs++}`) }, stdio: 'ignore' });

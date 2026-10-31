@@ -1,4 +1,4 @@
-name: Test
+name: Test and release
 
 on:
   push:
@@ -41,3 +41,29 @@ jobs:
         run: npx playwright-core install --with-deps chromium
       - name: The widgets and the framework's apps in a browser
         run: npm run test:e2e
+
+  # A new version on main is a release: once the checks above pass, the commit is
+  # tagged v<version> and published with the commit's message as its notes.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, browser]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag and publish when package.json names a version without a tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$v" > /dev/null; then
+            echo "$v is released already"
+            exit 0
+          fi
+          git log -1 --pretty=%B | sed '/^Co-Authored-By:/d; /^Claude-Session:/d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > notes.md
+          git tag "$v"
+          git push origin "$v"
+          gh release create "$v" --title "$v" --notes-file notes.md --generate-notes

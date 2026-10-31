@@ -39,12 +39,15 @@ const PREV_KEY = 'wjs.identity.prev';
 
 /**
  * Switch this device to another identity (sign-in, account creation, key
- * import). The key it had before is kept aside so every app can carry its
- * data over to the new key on its next start; see previousIdentities().
+ * import). A device key it had before is kept aside so every app can carry
+ * its data over to the new key on its next start; see previousIdentities().
+ * An account it was signed in as is never kept: an account's data is its
+ * own and must not follow a sign-in to another account on the same device.
  */
 export function adoptIdentity(next) {
   const current = store.get(ID_KEY);
-  if (current?.sk && current.pk !== next.pk) {
+  const deviceKey = current?.sk && !current.alias && !current.accountPk;
+  if (deviceKey && current.pk !== next.pk) {
     const prev = previousIdentities().filter((p) => p.pk !== current.pk && p.pk !== next.pk);
     prev.push({ sk: current.sk, pk: current.pk, since: Date.now() });
     store.set(PREV_KEY, prev.slice(-5));
@@ -52,7 +55,7 @@ export function adoptIdentity(next) {
   saveIdentity(next);
 }
 
-/** Keys this device used before the current one, oldest first. */
+/** Device keys this device used before the current one, oldest first; never an account. */
 export const previousIdentities = () => store.get(PREV_KEY, []).filter((p) => isHex64(p?.sk) && isHex64(p?.pk));
 
 /** An app marks a previous key as carried over; keys older than a day are dropped. */

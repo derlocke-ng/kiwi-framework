@@ -4,6 +4,7 @@
 // which the apps not yet ported still use.
 import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { fingerprint } from '../shared/events.js';
 import { relTime } from '../shared/i18n.js';
 import { savedRelays } from '../shared/relays.js';
 import { useIdentity, useKiwi, useKiwiTick, useNetTick, useOutboxWaiting, useRelayInfos, useT, useUnsynced } from './hooks';
@@ -196,7 +197,11 @@ export function AccountLink({ href, label = null, id = 'accountLink' }: { href: 
   const t = useT();
   const identity = useIdentity();
   const alias = identity.alias;
-  const title = alias ? t('app.signedInAs', { alias }) : label || t('app.deviceKeyBadge');
+  const title = alias
+    ? t('app.signedInAs', { alias })
+    : identity.imported
+      ? t('app.importedKeyBadge', { fp: fingerprint(identity.pk) })
+      : label || t('app.deviceKeyBadge');
   return (
     <a className="icon-btn" href={href} id={id} title={title} aria-label={title}>
       {alias ? (

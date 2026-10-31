@@ -102,13 +102,15 @@ export function Account({ full = false }: { full?: boolean }) {
         next = { sk, pk, alias, accountPk: event.pubkey, created: Date.now() };
       } else {
         const sk = importKey(String(f.get('key') || ''), pass);
-        next = { sk, pk: pubkeyOf(sk), alias: null, accountPk: null, created: Date.now() };
+        next = { sk, pk: pubkeyOf(sk), alias: null, accountPk: null, imported: true, created: Date.now() };
       }
       adoptIdentity(next);
       await kiwi.restart();
       setBusy(false);
       setProgress('');
+      form.reset();
       if (next.alias) toast(t('hub.welcome', { alias: String(next.alias) }), 'success');
+      else toast(t('hub.keyInUse', { fp: fingerprint(String(next.pk)) }), 'success');
     } catch (err) {
       setError(tErr(err));
       setBusy(false);
@@ -198,11 +200,15 @@ export function Account({ full = false }: { full?: boolean }) {
           {error}
         </p>
       </form>
-      <p className="muted small">
-        <span dangerouslySetInnerHTML={{ __html: t('account.deviceKey') }} />{' '}
+      <p className="muted small" id="keyNote" data-key={id.imported ? 'imported' : 'device'}>
+        <span dangerouslySetInnerHTML={{ __html: id.imported ? t('account.importedKey', { fp: fingerprint(id.pk) }) : t('account.deviceKey') }} />{' '}
         {full ? (
           <>
-            {t('account.publicKey')} <code>{fingerprint(id.pk)}</code>{' '}
+            {id.imported ? null : (
+              <>
+                {t('account.publicKey')} <code>{fingerprint(id.pk)}</code>{' '}
+              </>
+            )}
             <button type="button" className="link-btn" data-act="export-key" onClick={() => setExportOpen(!exportOpen)}>
               {t('account.exportKey')}
             </button>

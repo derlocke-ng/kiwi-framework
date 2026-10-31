@@ -15,13 +15,15 @@ import { RelayPool, savedRelays } from '../shared/relays.js';
 import { AccountSettings } from '../shared/settings.js';
 import { LocalStore } from '../shared/store.js';
 import { Sync } from '../shared/sync.js';
-import { applyTheme, setTheme, theme, watchDeviceSettings } from '../shared/theme.js';
+import { applyTheme, setTheme, watchDeviceSettings } from '../shared/theme.js';
 
 export interface Identity {
   sk: string;
   pk: string;
   alias: string | null;
   accountPk?: string | null;
+  /** pasted by the person (nsec, ncryptsec or hex), not made here */
+  imported?: boolean;
   created?: number;
 }
 
@@ -97,12 +99,10 @@ export class Kiwi {
     await this.applySuite();
   }
 
-  /** The account's language and theme win over the device's. */
+  /** The account's language wins over the device's; appearance is each device's own. */
   private async applySuite(): Promise<void> {
     const lang = this.suite.get('lang');
     if (lang && (LANGUAGES as Record<string, string>)[lang] && lang !== currentLanguage()) await setLanguage(lang);
-    const th = this.suite.get('theme');
-    if (th && th !== theme()) setTheme(th);
     this.emit();
   }
 
@@ -122,10 +122,10 @@ export class Kiwi {
     this.suite?.set({ lang: code }).catch(() => {});
   }
 
+  /** Light, dark or the system's: this device's, since a phone and a desk want different things. */
   chooseTheme(th: string): void {
     setTheme(th);
     this.emit();
-    this.suite?.set({ theme: th }).catch(() => {});
   }
 
   hiddenApps(): string[] {

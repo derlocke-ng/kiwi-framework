@@ -193,6 +193,21 @@ export async function boardsSuite(env, { app, settings, name }) {
   await until(async () => (await C.$('.board .state')) && (await C.textContent('.board .state')).includes('deleted'), 'deletion seen by viewer C');
   assert.ok(!(await texts(A, '.board-title')).includes('Temp'), 'deleted board left the wallet');
 
+  step('a plain nostr key pasted on another device brings that key’s boards; the page says which key it uses');
+  const PK = await dev('PK');
+  await PK.goto(SETTINGS);
+  await PK.waitForSelector('#authForm');
+  await PK.check('input[name=authTab][value=import]', { force: true });
+  await PK.fill('#authForm [name=key]', await A.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).sk));
+  await PK.click('#authBtn');
+  await PK.waitForSelector('.toast-success');
+  await until(async () => (await PK.getAttribute('#keyNote', 'data-key')) === 'imported', 'the settings say a pasted key is in use');
+  await PK.goto(APP);
+  await PK.waitForSelector('.home');
+  await until(async () => (await texts(PK, '.board-title')).length === 3, 'the key’s boards on PK', 20000);
+  assert.match(await PK.getAttribute('#accountLink', 'title'), /Using key/, 'the account button names the key');
+  await PK.ctx.close();
+
   step('A creates an account; E signs in and gets every board');
   const alias = `e2e${Date.now().toString(36)}`;
   const pass = 'correct horse battery staple';
@@ -224,6 +239,36 @@ export async function boardsSuite(env, { app, settings, name }) {
   await E.click('.board-card:has-text("Groceries")');
   await until(async () => (await texts(E, '[data-part=active] .text')).includes('coffee'), 'board content on E');
   assert.ok(await E.$('.add-item input'), 'E can edit (edit key came through the wallet)');
+
+  step('signing out and in as another account on the same device: nothing of the first follows');
+  const other = `${alias}b`;
+  await E.goto(SETTINGS);
+  await E.waitForSelector('[data-act=signout]');
+  await E.evaluate(() => {
+    window.confirm = () => true;
+  });
+  await E.click('[data-act=signout]');
+  await E.waitForSelector('#authForm');
+  await E.check('input[name=authTab][value=create]', { force: true });
+  await E.fill('#authForm [name=alias]', other);
+  await E.fill('#authForm [name=pass]', pass);
+  await E.fill('#authForm [name=pass2]', pass);
+  await E.click('#authBtn');
+  await until(async () => (await E.textContent('#accountBody')).includes(other), 'second account created', 60000);
+  await E.goto(APP);
+  await E.waitForSelector('.home');
+  await sleep(4000);
+  assert.deepEqual(await texts(E, '.board-title'), [], 'the second account starts empty');
+  assert.ok(!(await E.evaluate(() => localStorage.getItem('wjs.identity.prev') || '')).includes(JSON.stringify(alias)), 'no account is kept aside');
+  await E.goto(SETTINGS);
+  await E.waitForSelector('[data-act=signout]');
+  await E.evaluate(() => {
+    window.confirm = () => true;
+  });
+  await E.click('[data-act=signout]');
+  await E.waitForSelector('#authForm');
+  await signIn(E);
+  await until(async () => (await texts(E, '.board-title')).length === 3, 'E back on the first account sees its boards again', 20000);
 
   step('a wrong password finds no account');
   const W = await dev('W');

@@ -22,7 +22,7 @@ The engine and the parts of a federated community hub on nostr. It ships nothing
 npm install git+https://github.com/derlocke-ng/kiwi-framework.git#<tag or commit>
 ```
 
-Pin a release tag (or a commit between releases); `v0.1.0` is the last plain-JavaScript hub, the React hub comes after it. To run the browser harness (`test/e2e/env.mjs`) a distribution also needs `playwright-core` and `gun` as dev dependencies; Armory's `package.json` has both.
+Pin a release tag (or a commit between releases); `v0.1.0` is the last plain-JavaScript hub, the React hub comes after it. A release is a version bump: when a push to `main` changes `version` in `package.json` and the checks pass, CI tags it `v<version>` and publishes the GitHub release with the commit message as its notes. To run the browser harness (`test/e2e/env.mjs`) a distribution also needs `playwright-core` and `gun` as dev dependencies; Armory's `package.json` has both.
 
 A distribution is a repository with `distribution.js` (name, relays, the apps it ships and the mounts it shows; an app entry with `framework: 'boards'` is one of the framework's own apps under the distribution's name), `locales/` (its own strings), `apps/<id>/` for each app (a React app on `kiwi-framework/ui` when it has a `main.tsx`, which `new-app.mjs` scaffolds; for a framework app only what is laid over it), and optionally `public/` (files copied over the site root) and `icons.svg` (symbols added to the sprite). Then:
 
