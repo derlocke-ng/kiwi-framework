@@ -26,6 +26,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   const dev = (name, options) => device(env, name, init, env.nostrUrl, options);
   const APP = app;
   const SETTINGS = settings;
+  const MOUNT = new URL(app).pathname.split('/').filter(Boolean).pop(); // the chat's mount id on this hub (chat, uplink, …)
   const pkOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
   const messages = (page, sel = '#messages') => texts(page, `${sel} .msg p`);
   async function open(page) {
@@ -118,7 +119,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   await talk(A, pkB);
   await say(A, 'one more');
   await until(async () => (await texts(B, '.toast')).some((x) => /New message/.test(x)), 'B is told while on the hub', 30000);
-  await until(async () => (await B.textContent('[data-app=chat] .count').catch(() => '')) === '1', 'the chat card counts one unread conversation', 15000);
+  await until(async () => (await B.textContent(`[data-app="${MOUNT}"] .count`).catch(() => '')) === '1', 'the chat card counts one unread conversation', 15000);
 
   step('browser notifications, opted in, while the tab is in the background');
   await B.ctx.addInitScript(() => {
