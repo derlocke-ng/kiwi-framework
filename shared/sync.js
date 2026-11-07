@@ -80,8 +80,9 @@ export class Sync {
    * `wait: 'all'` resolves with every relay's answer.
    */
   async publish(event, { wait = 'none', network = 'hub' } = {}) {
-    await this.store.put(event, network);
-    await this.store.setPending(event.id, this.pool.urlsOf(network));
+    // stored and owed to its relays in one step: a page that goes away now still sends it on its next visit
+    const urls = this.pool.urlsOf(network);
+    if ((await this.store.put(event, network, { pending: urls })) === 'ignored' && urls.length) await this.store.setPending(event.id, urls);
     this.emit();
     let first;
     const gotOne = new Promise((resolve) => (first = resolve));

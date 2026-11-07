@@ -167,6 +167,8 @@ Addressable events replace by `(kind, pubkey, d)` with the newest `created_at` w
 
 ## Local first, offline, heal, backup
 
+An event and the relays it is owed to (its outbox entry) are written in one IndexedDB transaction (`store.put(event, network, { pending })`, since 0.14.1): a page that goes away right after a change leaves the event either unstored or stored and owed, never stored and forgotten; the next page load flushes what is owed.
+
 1. **Every write goes to IndexedDB first**, then to every connected relay. Relays that were offline or rejected the event for a transient reason get it from the **outbox** when they next connect.
 2. **Reads come from IndexedDB** and are updated by live subscriptions; the UI never waits for a relay.
 3. **Heal.** On every relay (re)connect each device re-publishes its copy of every "watched" author (its own key, its account event, every board in its wallet), throttled to once per 30 minutes per relay and author. Relays treat duplicates as no-ops and newer versions as replacements, so healing is idempotent and can never roll back an edit. A relay that lost its disk is repaired by the first device that reconnects.

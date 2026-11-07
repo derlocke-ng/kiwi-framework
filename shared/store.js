@@ -91,14 +91,23 @@ export class LocalStore {
   // ---- events ----
 
   /**
-   * Store an event unless something newer at its address is already here.
+   * Store an event unless something newer at its address is already here. With `pending`, the
+   * relays that still need it are recorded in the same transaction: a page that goes away right
+   * after a change leaves the event either unstored or stored and owed to its relays, never
+   * stored and forgotten.
+   * @param {object} event
+   * @param {string | null} [network]  the network the event belongs to ('hub' when none)
+   * @param {{ pending?: string[] | null }} [options]
    * @returns {Promise<'stored'|'ignored'>}
    */
-  async put(event, network = null) {
+  async put(event, network = null, { pending = null } = {}) {
     if (isEphemeralKind(event.kind)) return 'ignored';
     observe(event); // even when it is older than ours: our next write must beat every version anyone has
     const address = addressOf(event);
-    const os = this.tx('events', 'readwrite');
+    // one transaction over every store touched: a request on a second transaction in between would let the first commit early
+    const tx = this.db.transaction(['events', 'nets', 'outbox'], 'readwrite');
+    const os = tx.objectStore('events');
+    const nets = tx.objectStore('nets');
     let replaced = null;
     if (address) {
       const current = await req(os.index('address').get(address));
@@ -111,9 +120,9 @@ export class LocalStore {
       return 'ignored';
     }
     await req(os.put({ id: event.id, pubkey: event.pubkey, kind: event.kind, created_at: event.created_at, ...(address ? { address } : {}), event }));
-    // the nets table after the events transaction is done: a request on another store in between would let it commit early
-    if (replaced) await req(this.tx('nets', 'readwrite').delete(replaced));
-    if (network && network !== 'hub') await req(this.tx('nets', 'readwrite').put({ id: event.id, net: network }));
+    if (replaced) await req(nets.delete(replaced));
+    if (network && network !== 'hub') await req(nets.put({ id: event.id, net: network }));
+    if (pending?.length) await this.markPending(tx.objectStore('outbox'), event.id, pending);
     for (const fn of this.listeners) fn(event, network || 'hub');
     return 'stored';
   }
@@ -189,7 +198,11 @@ export class LocalStore {
 
   async setPending(id, urls) {
     if (!urls.length) return;
-    const os = this.tx('outbox', 'readwrite');
+    await this.markPending(this.tx('outbox', 'readwrite'), id, urls);
+  }
+
+  /** The outbox entry of `id` gains `urls`, on the given outbox store (part of a larger transaction, or its own). */
+  async markPending(os, id, urls) {
     const cur = await req(os.get(id));
     const acked = cur?.acked || [];
     const pending = [...new Set([...(cur?.pending || []), ...urls])].filter((u) => !acked.includes(u));
