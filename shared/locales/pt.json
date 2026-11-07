@@ -303,5 +303,13 @@
   "media.chooseServers": "Escolher servidores",
   "media.error.noServer": "Nenhum servidor de media aceitou o ficheiro.",
   "media.error.notFound": "O ficheiro não está em nenhum dos seus servidores.",
-  "media.error.notImage": "Este ficheiro não é uma foto que este navegador consiga ler."
+  "media.error.notImage": "Este ficheiro não é uma foto que este navegador consiga ler.",
+  "account.relaysLocked": "Os relays deste hub são definidos pelo seu operador e não podem ser alterados aqui: {hub} funciona apenas através deles.",
+  "account.publicRelays": "Área pública",
+  "account.publicRelaysText": "{mounts}: em relays que qualquer pessoa alcança, para ali falar também com pessoas de fora deste hub. Tudo o resto fica nos relays próprios do hub.",
+  "account.hubRelays": "Os relays deste hub",
+  "gate.title": "{hub} não está acessível",
+  "gate.text": "Os seus relays estão dentro da sua própria rede. Liga-te a essa rede (a VPN) e esta página continua por si.",
+  "gate.retry": "Tentar novamente",
+  "sync.public": "área pública"
 }

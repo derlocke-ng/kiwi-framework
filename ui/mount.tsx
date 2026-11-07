@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { Overlays } from './dialogs';
 import { KiwiContext } from './hooks';
 import { bootKiwi, type KiwiOptions } from './kiwi';
+import { NetworkGate } from './NetworkGate';
 
 export async function mountPage(Page: ComponentType, options: KiwiOptions = {}): Promise<void> {
   const el = document.getElementById('root');
@@ -19,6 +20,7 @@ export async function mountPage(Page: ComponentType, options: KiwiOptions = {}):
         <KiwiContext.Provider value={kiwi}>
           <Page />
           <Overlays />
+          <NetworkGate />
         </KiwiContext.Provider>
       </StrictMode>,
     );

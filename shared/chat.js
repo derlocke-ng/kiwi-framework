@@ -13,6 +13,7 @@
 //   await dm.send(pk, 'hello');   dm.onChange(fn);   await net.db.messages(pk)
 
 import { KINDS, isHex64, now } from './events.js';
+import { baseStore, whole } from './peers.js';
 import { hexToBytes, nip59 } from './nostr.mjs';
 import { store } from './util.js';
 
@@ -25,13 +26,15 @@ export class DirectMessages {
   /**
    * @param {{ sk: string, pk: string }} identity
    * @param {{ pool: any, db: any, sync: any }} net
-   * @param {{ isBlocked?: (pk: string) => boolean }} [options]
+   * @param {{ isBlocked?: (pk: string) => boolean, peers?: import('./peers.js').PeerNetworks | null }} [options]
+   *   peers: which network each person is reached on (a hub with a public area); none: the hub's
    */
-  constructor(identity, net, { isBlocked = () => false } = {}) {
+  constructor(identity, net, { isBlocked = () => false, peers = null } = {}) {
     this.sk = identity.sk;
     this.pk = identity.pk;
     this.alias = identity.alias || ''; // travels inside each message, so the reader can name me before we are friends
     this.net = net;
+    this.peers = peers;
     this.isBlocked = isBlocked;
     this.seenKey = `chat.seen.${this.pk.slice(0, 16)}`;
     this.readKey = `chat.read.${this.pk.slice(0, 16)}`;
@@ -45,15 +48,22 @@ export class DirectMessages {
   }
 
   async start() {
-    const { db, pool } = this.net;
+    // wraps for me arrive on every network the hub has; each is stored as its network's, and tells where its writer is reached
+    const db = baseStore(this.net.db);
+    const pool = whole(this.net.pool);
     const forMe = (ev) => ev.kind === KINDS.GIFT_WRAP && ev.tags.some((x) => x[0] === 'p' && x[1] === this.pk);
     for (const ev of await db.query([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk] }])) this.receive(ev);
-    this.offStore = db.subscribe((ev) => forMe(ev) && this.receive(ev));
+    this.offStore = db.subscribe((ev, network) => forMe(ev) && this.receive(ev, network));
     this.offChat = db.subscribeChat(() => this.emit());
-    this.sub = pool.subscribe([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk], since: now() - INBOX_DAYS * 86_400 }], { onevent: (ev) => db.put(ev) });
+    this.sub = pool.subscribe([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk], since: now() - INBOX_DAYS * 86_400 }], { onevent: (ev, url) => db.put(ev, pool.networkOf?.(url) || 'hub') });
     await this.queue;
     this.ready = true;
     return this;
+  }
+
+  /** The network someone is reached on: where their notes came from, else this page's. */
+  networkOf(pk) {
+    return this.peers?.of(pk) || 'hub';
   }
 
   stop() {
@@ -62,14 +72,14 @@ export class DirectMessages {
     this.offChat?.();
   }
 
-  /** A wrap for this key: unwrapped once, in order. */
-  receive(ev) {
+  /** A wrap for this key: unwrapped once, in order. `network`: where it arrived, when known. */
+  receive(ev, network = null) {
     if (this.seen.has(ev.id)) return this.queue;
-    this.queue = this.queue.then(() => this.handle(ev)).catch(() => {});
+    this.queue = this.queue.then(() => this.handle(ev, network)).catch(() => {});
     return this.queue;
   }
 
-  async handle(ev) {
+  async handle(ev, network = null) {
     if (this.seen.has(ev.id)) return;
     let rumor;
     try {
@@ -77,9 +87,10 @@ export class DirectMessages {
     } catch {
       return this.markSeen(ev.id);
     }
+    if (network && isHex64(rumor.pubkey) && rumor.pubkey !== this.pk) this.peers?.learn(rumor.pubkey, network);
     if (rumor.kind !== KINDS.CHAT_MESSAGE) {
       // another module's rumor: the groups' knocks and keys come through here; People's are its own
-      for (const fn of this.rumorHandlers.get(rumor.kind) || []) fn(rumor, ev);
+      for (const fn of this.rumorHandlers.get(rumor.kind) || []) fn(rumor, ev, network);
       return this.markSeen(ev.id);
     }
     const from = rumor.pubkey;
@@ -116,8 +127,8 @@ export class DirectMessages {
     const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
     const mine = nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk);
     const { sync } = this.net;
-    await sync.publish(theirs, { wait: 'one' });
-    await sync.publish(mine); // the store takes it and the message shows up through handle()
+    await whole(sync).publish(theirs, { wait: 'one', network: this.networkOf(toPk) }); // to the reader, on their network
+    await sync.publish(mine); // to my other devices, on the hub's; the store takes it and the message shows up through handle()
     return rumor;
   }
 
@@ -179,11 +190,11 @@ export class DirectMessages {
     return () => this.rumorHandlers.get(kind)?.delete(fn);
   }
 
-  /** A rumor of another kind to one person, wrapped for them and for my other devices. */
+  /** A rumor of another kind to one person, wrapped for them (on their network) and for my other devices. */
   async sendRumor(toPk, kind, body) {
     const rumor = { kind, created_at: now(), tags: [['p', toPk]], content: JSON.stringify(body) };
     const { sync } = this.net;
-    await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk), { wait: 'one' });
+    await whole(sync).publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk), { wait: 'one', network: this.networkOf(toPk) });
     await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk));
   }
 

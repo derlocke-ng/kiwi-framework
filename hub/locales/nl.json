@@ -87,5 +87,7 @@
   "media.result.imagesOnly": "Alleen foto’s, onversleuteld",
   "media.result.paid": "Vraagt betaling",
   "media.result.denied": "Geweigerd: {reason}",
-  "media.result.unreachable": "Onbereikbaar, of blokkeert deze site"
+  "media.result.unreachable": "Onbereikbaar, of blokkeert deze site",
+  "hub.public": "Openbaar",
+  "hub.publicArea": "Open voor mensen buiten deze hub"
 }

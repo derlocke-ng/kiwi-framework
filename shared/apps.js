@@ -14,6 +14,7 @@
 //   tags     what it runs on, shown on the hub card
 //   core     part of every distribution; a fork cannot drop it
 //   legacy   built elsewhere (Vite), not precached, marked Legacy
+//   network  (a mount's) 'hub', the hub's own relays, or 'public', the public area's relays (shared/relays.js)
 import { DISTRIBUTION } from './distribution.js';
 
 /** Core apps ship with the framework itself and are in every distribution. None yet: chat and notifications come here. */
@@ -29,8 +30,12 @@ export const appById = (id) => APPS.find((a) => a.id === id) || null;
 export const MOUNTS = DISTRIBUTION.mounts.map((m) => {
   const app = appById(m.app);
   if (!app) throw new Error(`distribution mounts unknown app "${m.app}"`);
-  return { ...app, ...m, app: app.id, id: m.id, name: m.name || app.name, icon: m.icon || app.icon, space: m.space || null, tags: m.tags || app.tags };
+  return { ...app, ...m, app: app.id, id: m.id, name: m.name || app.name, icon: m.icon || app.icon, space: m.space || null, tags: m.tags || app.tags, network: m.network === 'public' ? 'public' : 'hub' };
 });
+/** The network a page is on: a public mount's is the public area's, everything else (the hub's pages, hub mounts) the hub's own. */
+export const networkOfPage = (current) => (mountById(current)?.network === 'public' ? 'public' : 'hub');
+/** Does this hub have a public area? */
+export const hasPublicArea = () => MOUNTS.some((m) => m.network === 'public') && Boolean(DISTRIBUTION.publicRelays?.length);
 export const MOUNT_IDS = MOUNTS.map((m) => m.id);
 export const mountById = (id) => MOUNTS.find((m) => m.id === id) || null;
 /** The mounts of one app, e.g. every market this hub ships. */

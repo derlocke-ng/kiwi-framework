@@ -87,5 +87,7 @@
   "media.result.imagesOnly": "Photos only, unencrypted",
   "media.result.paid": "Wants payment",
   "media.result.denied": "Refused: {reason}",
-  "media.result.unreachable": "Unreachable, or it blocks this site"
+  "media.result.unreachable": "Unreachable, or it blocks this site",
+  "hub.public": "Public",
+  "hub.publicArea": "Open to people outside this hub"
 }

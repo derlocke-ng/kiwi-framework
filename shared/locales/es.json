@@ -303,5 +303,13 @@
   "media.chooseServers": "Elegir servidores",
   "media.error.noServer": "Ningún servidor multimedia aceptó el archivo.",
   "media.error.notFound": "El archivo no está en ninguno de sus servidores.",
-  "media.error.notImage": "Este archivo no es una foto que este navegador pueda leer."
+  "media.error.notImage": "Este archivo no es una foto que este navegador pueda leer.",
+  "account.relaysLocked": "Los relés de este hub los fija su operador y no se pueden cambiar aquí: {hub} funciona solo a través de ellos.",
+  "account.publicRelays": "Zona pública",
+  "account.publicRelaysText": "{mounts}: en relés que cualquiera alcanza, para poder hablar allí con personas de fuera de este hub. Todo lo demás se queda en los relés propios del hub.",
+  "account.hubRelays": "Los relés de este hub",
+  "gate.title": "{hub} no está accesible",
+  "gate.text": "Sus relés están dentro de su propia red. Conéctate a esa red (la VPN) y esta página continúa por sí sola.",
+  "gate.retry": "Reintentar",
+  "sync.public": "zona pública"
 }

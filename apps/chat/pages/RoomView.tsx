@@ -112,7 +112,7 @@ export function RoomView({ secret }: { secret: string }) {
             </span>
           </small>
         </div>
-        <button type="button" className="btn btn-sm" id="copyRoom" onClick={() => copyText(link, t('chat.room.copied'))}>
+        <button type="button" className="btn btn-sm" id="copyRoom" title={t('chat.room.copy')} onClick={() => copyText(link, t('chat.room.copied'))}>
           <Icon name="link" />
           <span>{t('chat.room.copy')}</span>
         </button>
@@ -121,6 +121,7 @@ export function RoomView({ secret }: { secret: string }) {
             type="button"
             className="btn btn-sm"
             id="inviteRoom"
+            title={t('chat.room.invite')}
             onClick={async () => {
               // friends get the room sealed to them, inside the chat; nothing to copy or forward
               const pks: string[] = await pickPeople(people, { base: kiwi.base });

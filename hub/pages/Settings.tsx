@@ -2,14 +2,14 @@
 // but the runtime, so a fork can drop or reorder cards without touching the rest.
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { adoptIdentity, decodeKey, forgetIdentity, npub, pubkeyOf } from '../../shared/account.js';
-import { mountById } from '../../shared/apps.js';
+import { hasPublicArea, MOUNTS, mountById } from '../../shared/apps.js';
 import { decryptBackup, encryptBackup } from '../../shared/backup.js';
 import { normalizeServer, probe } from '../../shared/blossom.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { fingerprint, isHex64 } from '../../shared/events.js';
 import { currentLanguage, fmtDateTime, LANGUAGES, tErr } from '../../shared/i18n.js';
 import { CORES_KEY, cores, hardwareCores } from '../../shared/pow.js';
-import { DEFAULT_RELAYS, normalizeRelayUrl, savedRelays, saveRelays } from '../../shared/relays.js';
+import { DEFAULT_RELAYS, normalizeRelayUrl, relaysLocked, savedRelays, saveRelays } from '../../shared/relays.js';
 import { ACCENTS, accent, theme } from '../../shared/theme.js';
 import { store } from '../../shared/util.js';
 import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
@@ -450,10 +450,33 @@ function RelaysCard() {
     saveRelays(list);
     location.reload();
   };
+  const locked = relaysLocked();
+  const publicArea = hasPublicArea();
   return (
     <Card id="relays" icon="radio-tower" title={t('account.relays')}>
       <p className="muted">{t('account.relaysText')}</p>
-      <RelayList detailed />
+      {locked ? (
+        <p className="muted" id="relaysLocked">
+          <Icon name="lock" /> {t('account.relaysLocked', { hub: DISTRIBUTION.name })}
+        </p>
+      ) : null}
+      {publicArea ? <h3 className="small">{t('account.hubRelays')}</h3> : null}
+      <RelayList detailed network="hub" />
+      {publicArea ? (
+        <>
+          <h3 className="small" id="publicRelays">
+            {t('account.publicRelays')}
+          </h3>
+          <p className="muted small">
+            {t('account.publicRelaysText', {
+              mounts: MOUNTS.filter((m) => m.network === 'public')
+                .map((m) => m.name)
+                .join(', '),
+            })}
+          </p>
+          <RelayList detailed network="public" />
+        </>
+      ) : null}
       <div className="form-actions">
         <button type="button" className="btn btn-sm" data-act="sync-now" disabled={busy} onClick={syncNow}>
           <span>{t('account.syncNow')}</span>
@@ -462,31 +485,33 @@ function RelaysCard() {
           <span>{t('account.diagnostics')}</span>
         </button>
       </div>
-      <details className="relay-edit">
-        <summary>{t('account.editRelays')}</summary>
-        <form className="form" id="relayForm" onSubmit={save}>
-          <label className="field">
-            <span>{t('account.oneUrlPerLine')}</span>
-            <textarea name="relays" rows={5} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />
-          </label>
-          <div className="form-actions">
-            <button type="submit" className="btn btn-sm">
-              {t('account.saveReconnect')}
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-ghost"
-              data-act="relay-reset"
-              onClick={() => {
-                saveRelays(DEFAULT_RELAYS);
-                location.reload();
-              }}
-            >
-              {t('account.resetRelays')}
-            </button>
-          </div>
-        </form>
-      </details>
+      {locked ? null : (
+        <details className="relay-edit">
+          <summary>{t('account.editRelays')}</summary>
+          <form className="form" id="relayForm" onSubmit={save}>
+            <label className="field">
+              <span>{t('account.oneUrlPerLine')}</span>
+              <textarea name="relays" rows={5} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />
+            </label>
+            <div className="form-actions">
+              <button type="submit" className="btn btn-sm">
+                {t('account.saveReconnect')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                data-act="relay-reset"
+                onClick={() => {
+                  saveRelays(DEFAULT_RELAYS);
+                  location.reload();
+                }}
+              >
+                {t('account.resetRelays')}
+              </button>
+            </div>
+          </form>
+        </details>
+      )}
     </Card>
   );
 }

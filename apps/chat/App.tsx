@@ -21,6 +21,12 @@ export function ChatApp() {
   useEffect(() => {
     document.title = mount.name;
   }, [mount.name]);
+  // a thread (a conversation, a group, a room) is a messenger screen: the page is the viewport, the composer pinned at the bottom
+  const thread = route.page === 'dm' || route.page === 'group' || route.page === 'room';
+  useEffect(() => {
+    document.body.classList.toggle('thread', thread);
+    return () => document.body.classList.remove('thread');
+  }, [thread]);
 
   const page =
     route.page === 'room' ? (

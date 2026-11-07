@@ -837,3 +837,38 @@ select:focus {
     transition: none !important;
   }
 }
+
+/* A private hub's page while none of its relays is reachable (ui/NetworkGate.tsx). */
+.wjs-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+.wjs-gate-card {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  max-width: 28rem;
+  padding: 24px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.wjs-gate-card > .icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--accent);
+}
+.wjs-gate-card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.wjs-gate-card p {
+  margin: 0;
+}

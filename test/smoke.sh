@@ -49,5 +49,13 @@ done
 grep -q '"name": "Lists"' "$D/_site/lists/manifest.webmanifest"
 test -f "$D/_site/legacy/index.html"
 grep -q '"name": "Shopping"' "$D/_site/shopping/manifest.webmanifest"
-echo "smoke: a fresh distribution with one app of its own and the framework's boards builds"
+# a semi-public hub: a mount on the public network needs public relays; the build says so, then builds with them
+node -e "const fs=require('fs');const f=process.argv[1];let s=fs.readFileSync(f,'utf8');s=s.replace(/\{ id: 'shopping', app: 'lists', name: 'Shopping' \}/, \"{ id: 'shopping', app: 'lists', name: 'Shopping', network: 'public' }\");fs.writeFileSync(f,s)" "$D/distribution.js"
+grep -q "network: 'public'" "$D/distribution.js"
+if node "$FW/scripts/build-site.mjs" "$D/_site2" > "$D/build.log" 2>&1; then echo "a public mount without public relays must not build"; exit 1; fi
+grep -q "names no publicRelays" "$D/build.log"
+node -e "const fs=require('fs');const f=process.argv[1];let s=fs.readFileSync(f,'utf8');s=s.replace(/publicRelays: \[\]/, \"publicRelays: ['wss://nos.lol']\");fs.writeFileSync(f,s)" "$D/distribution.js"
+node "$FW/scripts/build-site.mjs" "$D/_site2" > /dev/null
+grep -q "network: 'public'" "$D/_site2/shared/distribution.js"
+echo "smoke: a fresh distribution with one app of its own and the framework's boards builds, with a public area too"
 rm -rf "$D"

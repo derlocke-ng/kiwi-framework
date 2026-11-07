@@ -294,5 +294,13 @@
   "media.chooseServers": "Choose servers",
   "media.error.noServer": "No media server took the file.",
   "media.error.notFound": "The file is on none of its servers.",
-  "media.error.notImage": "This file is not a photo this browser can read."
+  "media.error.notImage": "This file is not a photo this browser can read.",
+  "account.relaysLocked": "This hub’s relays are set by its operator and cannot be changed here: {hub} works over them alone.",
+  "account.publicRelays": "Public area",
+  "account.publicRelaysText": "{mounts}: on relays anyone reaches, so people outside this hub can be talked to there. Everything else stays on the hub’s own relays.",
+  "account.hubRelays": "This hub’s relays",
+  "gate.title": "{hub} is not reachable",
+  "gate.text": "Its relays are inside its own network. Connect to that network (the VPN) and this page continues by itself.",
+  "gate.retry": "Try again",
+  "sync.public": "public area"
 }

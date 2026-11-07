@@ -294,5 +294,13 @@
   "media.chooseServers": "Servers kiezen",
   "media.error.noServer": "Geen enkele mediaserver nam het bestand aan.",
   "media.error.notFound": "Het bestand staat op geen van zijn servers.",
-  "media.error.notImage": "Dit bestand is geen foto die deze browser kan lezen."
+  "media.error.notImage": "Dit bestand is geen foto die deze browser kan lezen.",
+  "account.relaysLocked": "De relays van deze hub bepaalt de beheerder; hier zijn ze niet te wijzigen: {hub} werkt alleen via deze relays.",
+  "account.publicRelays": "Openbaar deel",
+  "account.publicRelaysText": "{mounts}: op relays die iedereen bereikt, zodat daar ook met mensen buiten deze hub gesproken kan worden. Al het andere blijft op de eigen relays van de hub.",
+  "account.hubRelays": "De relays van deze hub",
+  "gate.title": "{hub} is niet bereikbaar",
+  "gate.text": "De relays staan in het eigen netwerk. Maak verbinding met dat netwerk (de VPN) en deze pagina gaat vanzelf verder.",
+  "gate.retry": "Opnieuw proberen",
+  "sync.public": "openbaar deel"
 }

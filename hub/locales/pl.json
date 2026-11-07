@@ -89,5 +89,7 @@
   "media.result.imagesOnly": "Tylko zdjęcia, bez szyfrowania",
   "media.result.paid": "Wymaga płatności",
   "media.result.denied": "Odmowa: {reason}",
-  "media.result.unreachable": "Nieosiągalny albo blokuje tę stronę"
+  "media.result.unreachable": "Nieosiągalny albo blokuje tę stronę",
+  "hub.public": "Publiczne",
+  "hub.publicArea": "Otwarte dla osób spoza tego huba"
 }

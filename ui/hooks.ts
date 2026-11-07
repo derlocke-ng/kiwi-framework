@@ -4,7 +4,7 @@
 // something they show has changed.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { t, tErr } from '../shared/i18n.js';
-import { savedRelays } from '../shared/relays.js';
+import { whole } from '../shared/peers.js';
 import { AccountSettings } from '../shared/settings.js';
 import type { Identity, Kiwi } from './kiwi';
 import { toast } from './toast';
@@ -110,7 +110,7 @@ export function useRelayInfos(): Map<string, any> {
   const [infos, setInfos] = useState<Map<string, any>>(() => new Map());
   useEffect(() => {
     let alive = true;
-    for (const url of savedRelays()) {
+    for (const url of whole(net.pool).urls) {
       Promise.resolve(net.pool.info(url)).then((info: any) => {
         if (alive && info) setInfos((m) => new Map(m).set(url, info));
       });

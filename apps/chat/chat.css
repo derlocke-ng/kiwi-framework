@@ -152,9 +152,31 @@ body {
   display: block;
 }
 
-/* ---------- a conversation, a room ---------- */
+/* ---------- a conversation, a group, a room: a messenger screen ----------
+   The page is the viewport: the top bar, the thread, the composer pinned at
+   the bottom; the messages scroll inside, the footer stays away. */
+
+body.thread {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.thread #root {
+  min-height: 0;
+}
+
+body.thread .view {
+  min-height: 0;
+  padding-bottom: 0;
+  overflow-y: auto;
+}
+
+body.thread .foot {
+  display: none;
+}
 
 .conversation,
+.group,
 .room {
   flex: 1;
   display: flex;
@@ -178,11 +200,13 @@ body {
 
 .messages {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.5rem 0 1rem;
+  padding: 0.5rem 0 0.75rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .messages .older {
@@ -229,13 +253,14 @@ body {
 }
 
 .composer {
-  position: sticky;
-  bottom: 0;
+  flex: none;
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
-  padding: 0.5rem 0 max(0.5rem, env(safe-area-inset-bottom));
-  background: var(--bg);
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 0.5rem var(--gutter) max(0.5rem, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .composer textarea {
@@ -243,11 +268,19 @@ body {
   resize: none;
   min-height: 2.6rem;
   max-height: 10rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 1.3rem;
   field-sizing: content;
 }
 
 .composer .btn {
   flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
 }
 
 .room-enter .card {
@@ -315,4 +348,11 @@ body {
   display: flex;
   gap: 0.4rem;
   margin-left: auto;
+}
+
+/* a room's header on a phone: the actions as icons */
+@media (max-width: 560px) {
+  .room .page-head .btn-sm span {
+    display: none;
+  }
 }

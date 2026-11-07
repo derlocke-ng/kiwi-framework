@@ -5,15 +5,16 @@
 // that matters to the UI goes through kiwi.emit().
 
 import { ID_KEY, loadIdentity, saveIdentity } from '../shared/account.js';
-import { MOUNT_IDS, orderedMounts } from '../shared/apps.js';
+import { MOUNT_IDS, networkOfPage, orderedMounts } from '../shared/apps.js';
 import { normalizeServer } from '../shared/blossom.js';
 import { DirectMessages } from '../shared/chat.js';
 import { DISTRIBUTION } from '../shared/distribution.js';
 import { Groups } from '../shared/groups.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
+import { PeerNetworks } from '../shared/peers.js';
 import { People } from '../shared/people.js';
-import { RelayPool, savedRelays } from '../shared/relays.js';
+import { RelayPool, savedNetworks } from '../shared/relays.js';
 import { AccountSettings } from '../shared/settings.js';
 import { LocalStore } from '../shared/store.js';
 import { Sync } from '../shared/sync.js';
@@ -47,7 +48,14 @@ export interface KiwiOptions {
 }
 
 export class Kiwi {
+  /** this page's network, seen from its mount: a public mount's events go to the public relays alone */
   readonly net: Net;
+  /** the hub's own network, where the account's settings, people and inbox live */
+  readonly hubNet: Net;
+  /** every network at once (the inbox listens on all of them) */
+  readonly whole: Net;
+  /** 'hub' or 'public': the network of this page */
+  readonly network: string;
   readonly current: string;
   readonly base: string;
   readonly sprite: string;
@@ -58,16 +66,22 @@ export class Kiwi {
   messages!: any;
   /** the groups the person is in (shared/groups.js) */
   groups!: any;
+  /** which network each person is reached on (shared/peers.js) */
+  peers!: any;
   version = 0;
   private listeners = new Set<() => void>();
   private offSuite: (() => void) | null = null;
   private offBlocks: (() => void) | null = null;
 
   constructor(net: Net, { current = 'hub', base = './', sprite = 'icons.svg' }: KiwiOptions) {
-    this.net = net;
+    this.whole = net;
     this.current = current;
     this.base = base;
     this.sprite = sprite;
+    this.network = networkOfPage(current);
+    const scope = (network: string): Net => ({ db: net.db.scope(network), pool: net.pool.scope(network), sync: net.sync.scope(network) });
+    this.hubNet = scope('hub');
+    this.net = this.network === 'hub' ? this.hubNet : scope(this.network);
   }
 
   identity(): Identity {
@@ -100,7 +114,7 @@ export class Kiwi {
   private async startSuite(): Promise<void> {
     this.offSuite?.();
     this.suite?.stop();
-    this.suite = new AccountSettings(this.identity(), this.net, 'suite');
+    this.suite = new AccountSettings(this.identity(), this.hubNet, 'suite');
     await this.suite.start();
     this.offSuite = this.suite.onChange(() => this.applySuite());
     await this.applySuite();
@@ -142,11 +156,12 @@ export class Kiwi {
     this.groups?.stop();
     this.offBlocks?.();
     const id = this.identity();
-    this.blocks = await new BlockList(id, this.net).start();
+    this.peers = new PeerNetworks(id.pk, { fallback: this.network }); // someone first met on this page is reached on its network
+    this.blocks = await new BlockList(id, this.hubNet).start();
     const isBlocked = (pk: string) => Boolean(this.blocks.isBlocked(pk));
-    this.people = await new People(id, this.net, { isBlocked }).start();
-    this.messages = new DirectMessages(id, this.net, { isBlocked });
-    this.groups = new Groups(id, this.net, { isBlocked, inbox: this.messages }); // registers for knocks and keys before the inbox replays
+    this.people = await new People(id, this.hubNet, { isBlocked, peers: this.peers }).start();
+    this.messages = new DirectMessages(id, this.hubNet, { isBlocked, peers: this.peers });
+    this.groups = new Groups(id, this.hubNet, { isBlocked, inbox: this.messages, network: this.network }); // registers for knocks and keys before the inbox replays
     this.groups.friendCheck = (pk: string) => Boolean(this.people?.isFriend(pk));
     await this.messages.start();
     await this.groups.start();
@@ -232,7 +247,7 @@ export async function bootKiwi({ current = 'hub', base = './', sprite = 'icons.s
   }
   const strings = initI18n({ dirs });
   const db = await LocalStore.open('wjs');
-  const pool = new RelayPool(savedRelays());
+  const pool = new RelayPool(savedNetworks());
   const sync = new Sync(pool, db);
   await strings;
   const kiwi = new Kiwi({ db, pool, sync }, { current, base, sprite });

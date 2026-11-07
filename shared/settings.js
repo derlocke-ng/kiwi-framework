@@ -2,9 +2,19 @@
 // event per namespace (kind 30791, d = 'suite' | 'loadout' | …) under the
 // user's own key, cached in localStorage so screens draw before relays answer.
 
+import { baseStore, whole } from './peers.js';
 import { KINDS, makeAddressable, seal, open } from './events.js';
 import { selfKey } from './account.js';
 import { store } from './util.js';
+
+/** The hub's own network's view of a net (shared/relays.js, shared/sync.js, shared/store.js), or the net as given when it has no networks. */
+const onHub = (net) => {
+  const pool = whole(net.pool);
+  const sync = whole(net.sync);
+  const db = baseStore(net.db);
+  if (typeof pool?.scope !== 'function' || typeof sync?.scope !== 'function' || typeof db?.scope !== 'function') return net;
+  return { ...net, db: db.scope('hub'), pool: pool.scope('hub'), sync: sync.scope('hub') };
+};
 
 export class AccountSettings {
   /**
@@ -16,7 +26,7 @@ export class AccountSettings {
     this.sk = identity.sk;
     this.pk = identity.pk;
     this.key = selfKey(identity.sk);
-    this.net = net;
+    this.net = onHub(net); // a person's settings live on the hub's own network, whichever mount they are changed from
     this.d = d;
     this.cacheKey = `wjs.settings.${d}.${this.pk.slice(0, 16)}`;
     this.data = store.get(this.cacheKey, {});

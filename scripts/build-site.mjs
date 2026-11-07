@@ -16,6 +16,7 @@
 // (a package.json) is built with it, anything else copied. The site service worker's
 // precache list and version are computed from the result, so every deploy
 // busts the cache by itself. `import { assemble }` does the same for tests.
+import { checkDistribution } from '../shared/distribution-check.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -147,6 +148,8 @@ export function precacheList(out, config) {
 export async function assemble({ distribution = process.cwd(), out = path.join(distribution, '_site'), legacy = true, gallery = false, log = () => {} } = {}) {
   distribution = path.resolve(distribution);
   const config = await loadDistribution(distribution);
+  const problems = checkDistribution(config);
+  if (problems.length) throw new Error(`distribution.js:\n  ${problems.join('\n  ')}`);
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
 

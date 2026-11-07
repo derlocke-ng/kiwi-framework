@@ -6,7 +6,7 @@
 import { matchFilters } from './nostr.mjs';
 import { addressOf, supersedes, isEphemeralKind, observe } from './events.js';
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const req = (r) =>
   new Promise((resolve, reject) => {
@@ -43,6 +43,11 @@ export class LocalStore {
           chat.createIndex('conv', 'conv');
           chat.createIndex('convAt', ['conv', 'at']);
         }
+        if (e.oldVersion < 3) {
+          // Which network an event belongs to (the hub's relays, or the public ones): what was published or
+          // received on one network is never healed onto the other. An event without an entry is the hub's.
+          db.createObjectStore('nets', { keyPath: 'id' });
+        }
       };
       r.onsuccess = () => resolve(new LocalStore(r.result));
       r.onerror = () => reject(r.error);
@@ -54,26 +59,62 @@ export class LocalStore {
     return this.db.transaction(name, mode).objectStore(name);
   }
 
+  /**
+   * The same store seen from one network: what is written through it is marked as that network's, and
+   * what is read (query, byAuthor, the change feed) is that network's alone. Listeners are shared.
+   * @param {string} network  'hub' or 'public'
+   */
+  scope(network) {
+    const base = this;
+    const scoped = Object.create(base);
+    scoped.network = network;
+    scoped.base = base;
+    scoped.put = (event) => base.put(event, network);
+    scoped.query = (filters) => base.query(filters, network);
+    scoped.byAuthor = (pubkey) => base.byAuthor(pubkey, network);
+    scoped.subscribe = (fn) => base.subscribe((event, net) => (net || 'hub') === network && fn(event, net));
+    scoped.scope = (n) => base.scope(n);
+    scoped.all = () => base.all();
+    return scoped;
+  }
+
+  /** event id -> network, for every event that has one. */
+  async netMap() {
+    return new Map((await req(this.tx('nets').getAll())).map((r) => [r.id, r.net]));
+  }
+
+  /** The network an event belongs to: the hub's unless recorded otherwise. */
+  async netOf(id) {
+    return (await req(this.tx('nets').get(id)))?.net || 'hub';
+  }
+
   // ---- events ----
 
   /**
    * Store an event unless something newer at its address is already here.
    * @returns {Promise<'stored'|'ignored'>}
    */
-  async put(event) {
+  async put(event, network = null) {
     if (isEphemeralKind(event.kind)) return 'ignored';
     observe(event); // even when it is older than ours: our next write must beat every version anyone has
     const address = addressOf(event);
     const os = this.tx('events', 'readwrite');
+    let replaced = null;
     if (address) {
       const current = await req(os.index('address').get(address));
       if (current && !supersedes(event, current.event)) return 'ignored';
-      if (current) await req(os.delete(current.id));
+      if (current) {
+        await req(os.delete(current.id));
+        replaced = current.id;
+      }
     } else if (await req(os.getKey(event.id))) {
       return 'ignored';
     }
     await req(os.put({ id: event.id, pubkey: event.pubkey, kind: event.kind, created_at: event.created_at, ...(address ? { address } : {}), event }));
-    for (const fn of this.listeners) fn(event);
+    // the nets table after the events transaction is done: a request on another store in between would let it commit early
+    if (replaced) await req(this.tx('nets', 'readwrite').delete(replaced));
+    if (network && network !== 'hub') await req(this.tx('nets', 'readwrite').put({ id: event.id, net: network }));
+    for (const fn of this.listeners) fn(event, network || 'hub');
     return 'stored';
   }
 
@@ -90,11 +131,12 @@ export class LocalStore {
   }
 
   /** Events matching nostr filters, newest first. */
-  async query(filters) {
+  async query(filters, network = null) {
     const list = Array.isArray(filters) ? filters : [filters];
     const authors = list.every((f) => f.authors?.length) ? [...new Set(list.flatMap((f) => f.authors))] : null;
     const os = this.tx('events');
-    const rows = authors ? (await Promise.all(authors.map((pk) => req(os.index('pubkey').getAll(pk))))).flat() : await req(os.getAll());
+    let rows = authors ? (await Promise.all(authors.map((pk) => req(os.index('pubkey').getAll(pk))))).flat() : await req(os.getAll());
+    if (network) rows = await this.onNetwork(rows, network);
     const events = rows
       .map((r) => r.event)
       .filter((e) => matchFilters(list, e))
@@ -103,17 +145,33 @@ export class LocalStore {
     return events;
   }
 
-  async byAuthor(pubkey) {
-    return (await req(this.tx('events').index('pubkey').getAll(pubkey))).map((r) => r.event);
+  async byAuthor(pubkey, network = null) {
+    let rows = await req(this.tx('events').index('pubkey').getAll(pubkey));
+    if (network) rows = await this.onNetwork(rows, network);
+    return rows.map((r) => r.event);
+  }
+
+  /** The rows among `rows` that belong to `network` (one lookup of the nets table, not one per row). */
+  async onNetwork(rows, network) {
+    if (!rows.length) return rows;
+    const nets = network === 'hub' && rows.length < 8 ? null : await this.netMap();
+    const netOf = async (id) => (nets ? nets.get(id) : (await req(this.tx('nets').get(id)))?.net) || 'hub';
+    const out = [];
+    for (const r of rows) if ((await netOf(r.id)) === network) out.push(r);
+    return out;
   }
 
   async remove(id) {
     await req(this.tx('events', 'readwrite').delete(id));
+    await req(this.tx('nets', 'readwrite').delete(id));
   }
 
   async removeByAuthor(pubkey) {
     const os = this.tx('events', 'readwrite');
-    for (const id of await req(os.index('pubkey').getAllKeys(pubkey))) await req(os.delete(id));
+    const ids = await req(os.index('pubkey').getAllKeys(pubkey));
+    for (const id of ids) await req(os.delete(id));
+    const nets = this.tx('nets', 'readwrite');
+    for (const id of ids) await req(nets.delete(id));
   }
 
   /** Called with every event that was stored (local writes and relay arrivals alike). */
@@ -199,7 +257,7 @@ export class LocalStore {
 
   /** Forget everything (sign-out, wipe). */
   async clear() {
-    for (const name of ['events', 'outbox', 'meta', 'chat']) await req(this.tx(name, 'readwrite').clear());
+    for (const name of ['events', 'outbox', 'meta', 'chat', 'nets']) await req(this.tx(name, 'readwrite').clear());
   }
 
   // ---- chat: unwrapped private messages, by conversation ----

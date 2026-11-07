@@ -2,6 +2,12 @@
 // re-sends open subscriptions after a drop; this adds retries for relays that
 // were down when we started, a status feed for the UI, de-duplication across
 // relays, per-relay publishing for the outbox, and NIP-11 info with caching.
+//
+// Relays belong to named networks: `hub`, the hub's own relays (inside a
+// company's VPN for a private hub), and `public`, relays anyone reaches, for
+// a semi-public hub's public area. A subscription, a fetch or a publish names
+// its network and touches only that network's relays; pool.scope(network) is
+// the pool seen from one network, which is what an app gets as its `net.pool`.
 
 import { Relay, fetchRelayInformation } from './nostr.mjs';
 import { DISTRIBUTION } from './distribution.js';
@@ -31,10 +37,26 @@ export const normalizeRelayUrl = (input) => {
   }
 };
 
+/** A hub whose relays a person may not replace (a private hub: its relays are the company's). */
+export const relaysLocked = () => DISTRIBUTION.policy?.relays === 'locked';
+
+/** The hub's relays: the person's own list, unless the hub locks its relays. */
 export function savedRelays() {
+  if (relaysLocked()) return DEFAULT_RELAYS;
   const saved = store.get(RELAYS_KEY);
   return Array.isArray(saved) && saved.length ? saved : DEFAULT_RELAYS;
 }
+
+/** The relays of the public area, the distribution's choice; a person cannot change them. */
+export const PUBLIC_RELAYS = /** @type {string[]} */ ((DISTRIBUTION.publicRelays || []).map(normalizeRelayUrl).filter(Boolean));
+
+/** Every network this hub has, with its relays: `hub` always, `public` when the distribution names public relays. */
+export function savedNetworks() {
+  return { hub: savedRelays(), ...(PUBLIC_RELAYS.length ? { public: PUBLIC_RELAYS } : {}) };
+}
+
+/** The names of the hub's networks. */
+export const NETWORKS = Object.keys(savedNetworks());
 
 export function saveRelays(list) {
   const clean = [...new Set(list.map(normalizeRelayUrl).filter(Boolean))];
@@ -47,12 +69,17 @@ export function saveRelays(list) {
 export const isPermanent = (error) => /^(blocked|invalid|restricted|error: unknown)/.test(String(error || ''));
 
 export class RelayPool {
-  constructor(urls = savedRelays()) {
-    this.relays = new Map(); // url -> { relay, open, latency, connecting, lastError }
+  /** @param {Record<string, string[]> | string[]} networks  network -> relays; a plain list is the hub's network alone */
+  constructor(networks = savedNetworks()) {
+    this.networks = {}; // network -> [url]
+    this.relays = new Map(); // url -> { relay, open, latency, connecting, lastError, networks: Set }
     this.statusListeners = new Set();
     this.connectListeners = new Set();
     this.subs = new Set();
-    for (const url of urls) this.add(url);
+    for (const [network, urls] of Object.entries(Array.isArray(networks) ? { hub: networks } : networks)) {
+      this.networks[network] = [];
+      for (const url of urls) this.add(url, network);
+    }
     this.timer = setInterval(() => this.tick(), 1000);
     this.retryTimer = setInterval(() => this.retry(), RETRY_EVERY);
     this.hiddenAt = 0;
@@ -72,11 +99,35 @@ export class RelayPool {
     return [...this.relays.keys()];
   }
 
-  add(url) {
-    if (this.relays.has(url)) return;
+  /** The relays of one network (every relay when none is named). */
+  urlsOf(network = null) {
+    return network ? [...(this.networks[network] || [])] : this.urls;
+  }
+
+  /** The networks a relay serves (by our URL or nostr-tools', which ends in a slash). */
+  networksOf(url) {
+    const entry = this.relays.get(url) || this.relays.get(String(url).replace(/\/$/, ''));
+    return [...(entry?.networks || [])];
+  }
+
+  /** The network a relay is counted on: the hub's when it serves both. */
+  networkOf(url) {
+    const nets = this.networksOf(url);
+    return nets.includes('hub') ? 'hub' : nets[0] || null;
+  }
+
+  add(url, network = 'hub') {
+    if (!this.networks[network]) this.networks[network] = [];
+    if (!this.networks[network].includes(url)) this.networks[network].push(url);
+    const have = this.relays.get(url);
+    if (have) {
+      have.networks.add(network);
+      for (const sub of this.subs) this.attach(sub, have); // a subscription of this network may have skipped the relay
+      return;
+    }
     const relay = new Relay(url, { enablePing: true, enableReconnect: true });
     relay.onnotice = (msg) => console.info(`${url}: ${msg}`);
-    const entry = { relay, open: false, latency: null, connecting: false, lastError: null, publishError: null, publishErrorAt: 0, lastOkAt: 0 };
+    const entry = { url, relay, open: false, latency: null, connecting: false, lastError: null, publishError: null, publishErrorAt: 0, lastOkAt: 0, networks: new Set([network]) };
     this.relays.set(url, entry);
     for (const sub of this.subs) this.attach(sub, entry);
     this.connect(entry);
@@ -91,6 +142,10 @@ export class RelayPool {
       /* ignore */
     }
     this.relays.delete(url);
+    for (const list of Object.values(this.networks)) {
+      const i = list.indexOf(url);
+      if (i >= 0) list.splice(i, 1);
+    }
     this.tick();
   }
 
@@ -160,13 +215,21 @@ export class RelayPool {
     if (changed) this.emitStatus();
   }
 
-  status() {
-    const list = [...this.relays].map(([url, e]) => ({ url, open: e.open, latency: e.latency, error: e.lastError, publishError: e.publishError, publishErrorAt: e.publishErrorAt, lastOkAt: e.lastOkAt }));
-    return { relays: list, total: list.length, connected: list.filter((r) => r.open).length };
+  /** The relays' state, of one network or of all. */
+  status(network = null) {
+    const list = [...this.relays]
+      .filter(([, e]) => !network || e.networks.has(network))
+      .map(([url, e]) => ({ url, open: e.open, latency: e.latency, error: e.lastError, publishError: e.publishError, publishErrorAt: e.publishErrorAt, lastOkAt: e.lastOkAt, networks: [...e.networks] }));
+    return { network, relays: list, total: list.length, connected: list.filter((r) => r.open).length };
   }
 
   get online() {
     return [...this.relays.values()].some((e) => e.open);
+  }
+
+  /** Is any relay of this network connected? */
+  onlineOf(network) {
+    return [...this.relays.values()].some((e) => e.open && e.networks.has(network));
   }
 
   emitStatus() {
@@ -187,11 +250,11 @@ export class RelayPool {
   }
 
   /**
-   * Subscribe on every relay; each event is delivered once. `oneose(url)`
-   * fires per relay as it finishes its stored events.
+   * Subscribe on every relay of `network` (every relay when none is named); each event is delivered
+   * once, as `onevent(event, url)`. `oneose(url)` fires per relay as it finishes its stored events.
    */
-  subscribe(filters, { onevent, oneose } = {}) {
-    const sub = { filters, onevent, oneose, seen: new Set(), handles: new Map(), closed: false };
+  subscribe(filters, { onevent, oneose, network = null } = {}) {
+    const sub = { filters, onevent, oneose, network, seen: new Set(), handles: new Map(), closed: false };
     this.subs.add(sub);
     for (const entry of this.relays.values()) this.attach(sub, entry);
     return {
@@ -204,8 +267,9 @@ export class RelayPool {
   }
 
   attach(sub, entry) {
-    // Only live connections take a REQ; tick() attaches the rest as relays come up.
+    // Only live connections of the subscription's network take a REQ; tick() attaches the rest as relays come up.
     if (sub.closed || sub.handles.has(entry.relay.url) || !entry.relay.connected) return;
+    if (sub.network && !entry.networks.has(sub.network)) return;
     let handle;
     try {
       handle = entry.relay.subscribe(sub.filters, {
@@ -213,9 +277,9 @@ export class RelayPool {
           if (sub.seen.has(event.id)) return;
           sub.seen.add(event.id);
           if (sub.seen.size > SEEN_MAX) sub.seen.delete(sub.seen.values().next().value);
-          sub.onevent?.(event);
+          sub.onevent?.(event, entry.url);
         },
-        oneose: () => sub.oneose?.(entry.relay.url),
+        oneose: () => sub.oneose?.(entry.url),
         onclose: () => sub.handles.delete(entry.relay.url),
       });
     } catch {
@@ -224,14 +288,15 @@ export class RelayPool {
     sub.handles.set(entry.relay.url, handle);
   }
 
-  /** Fetch matching events once from every relay (until EOSE or timeout). */
-  async fetch(filters, { ms = 6000, until = null } = {}) {
+  /** Fetch matching events once from every relay of `network` (until EOSE or timeout). */
+  async fetch(filters, { ms = 6000, until = null, network = null } = {}) {
     const events = new Map();
-    const open = this.urls.filter((u) => this.relays.get(u).open);
+    const open = this.urlsOf(network).filter((u) => this.relays.get(u).open);
     if (!open.length) return [];
     await new Promise((resolve) => {
       let waiting = open.length;
       const sub = this.subscribe(filters, {
+        network,
         onevent: (e) => {
           events.set(e.id, e);
           if (until && until([...events.values()])) finish(); // enough: don't wait for slower relays
@@ -297,16 +362,16 @@ export class RelayPool {
   }
 
   /**
-   * Publish to every relay. `onResult(url, { ok, error, permanent })` fires per
-   * relay as answers arrive; the promise resolves with the summary once every
+   * Publish to every relay of `network` (every relay when none is named). `onResult(url, { ok, error,
+   * permanent })` fires per relay as answers arrive; the promise resolves with the summary once every
    * relay answered or timed out.
    * @returns {Promise<{ok: string[], failed: {url: string, error: string, permanent: boolean}[]}>}
    */
-  async publish(event, { onResult = null } = {}) {
+  async publish(event, { onResult = null, network = null } = {}) {
     const ok = [];
     const failed = [];
     await Promise.all(
-      this.urls.map((url) =>
+      this.urlsOf(network).map((url) =>
         this.publishTo(url, event).then(
           () => {
             ok.push(url);
@@ -346,5 +411,82 @@ export class RelayPool {
     clearInterval(this.timer);
     clearInterval(this.retryTimer);
     for (const url of this.urls) this.remove(url);
+  }
+
+  /** This pool seen from one network: what an app on that network gets as its `net.pool`. */
+  scope(network) {
+    return new ScopedPool(this, network);
+  }
+}
+
+/**
+ * One network's view of the pool: the same connections, but subscriptions, fetches, publishes, the
+ * status and the relay list are that network's alone. `all` is the whole pool, for the inbox, which
+ * listens on every network a hub has.
+ */
+export class ScopedPool {
+  constructor(pool, network) {
+    this.all = pool;
+    this.network = network;
+  }
+  get urls() {
+    return this.all.urlsOf(this.network);
+  }
+  get relays() {
+    return new Map([...this.all.relays].filter(([, e]) => e.networks.has(this.network)));
+  }
+  get online() {
+    return this.all.onlineOf(this.network);
+  }
+  urlsOf(network = this.network) {
+    return this.all.urlsOf(network);
+  }
+  networksOf(url) {
+    return this.all.networksOf(url);
+  }
+  networkOf(url) {
+    return this.all.networkOf(url);
+  }
+  onlineOf(network) {
+    return this.all.onlineOf(network);
+  }
+  status() {
+    return this.all.status(this.network);
+  }
+  onStatus(fn) {
+    return this.all.onStatus(() => fn(this.status()));
+  }
+  onConnect(fn) {
+    return this.all.onConnect((url) => this.all.networksOf(url).includes(this.network) && fn(url));
+  }
+  subscribe(filters, options = {}) {
+    return this.all.subscribe(filters, { ...options, network: this.network });
+  }
+  fetch(filters, options = {}) {
+    return this.all.fetch(filters, { ...options, network: this.network });
+  }
+  fetchFrom(url, filters, options) {
+    return this.all.fetchFrom(url, filters, options);
+  }
+  publish(event, options = {}) {
+    return this.all.publish(event, { ...options, network: this.network });
+  }
+  publishTo(url, event) {
+    return this.all.publishTo(url, event);
+  }
+  notePublish(url, error) {
+    return this.all.notePublish(url, error);
+  }
+  info(url) {
+    return this.all.info(url);
+  }
+  scope(network) {
+    return this.all.scope(network);
+  }
+  wake() {
+    return this.all.wake();
+  }
+  retry() {
+    return this.all.retry();
   }
 }

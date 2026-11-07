@@ -6,7 +6,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExtern
 import { createPortal } from 'react-dom';
 import { fingerprint } from '../shared/events.js';
 import { relTime } from '../shared/i18n.js';
-import { savedRelays } from '../shared/relays.js';
+import { whole } from '../shared/peers.js';
 import { useIdentity, useKiwi, useKiwiTick, useNetTick, useOutboxWaiting, useRelayInfos, useT, useUnsynced } from './hooks';
 import { useUnread } from './notify';
 import { dismiss, toastStore } from './toast';
@@ -198,7 +198,7 @@ export function StatusPill({ href = 'settings.html#relays', id = 'sync' }: { hre
       : t('sync.offline');
   const title = s.connected ? t('sync.titleOn', { connected: s.connected, relays: s.total }) : t('sync.titleOff');
   return (
-    <a className="wjs-status" id={id} href={href} title={title} data-state={s.connected ? 'on' : 'off'}>
+    <a className="wjs-status" id={id} href={href} title={title} data-state={s.connected ? 'on' : 'off'} data-network={s.network || 'hub'}>
       <span className="wjs-status-dot" />
       <span className="wjs-status-text">{text}</span>
     </a>
@@ -267,16 +267,18 @@ export function Toasts() {
 }
 
 /** The saved relays with their state; `detailed` adds what waits for each and the last rejection. */
-export function RelayList({ detailed = false }: { detailed?: boolean }) {
+/** The relays of this page's network, or of the named one ('hub' or 'public'), with their state. */
+export function RelayList({ detailed = false, network = null }: { detailed?: boolean; network?: string | null }) {
   const { net } = useKiwi();
   const t = useT();
   useNetTick();
   const infos = useRelayInfos();
   const waiting = useOutboxWaiting();
-  const status: any[] = net.pool.status().relays;
+  const pool = network ? whole(net.pool).scope(network) : net.pool;
+  const status: any[] = pool.status().relays;
   return (
-    <ul id="relayList" className="relay-list">
-      {savedRelays().map((url: string) => {
+    <ul id={network === 'public' ? 'relayListPublic' : 'relayList'} className="relay-list" data-network={network || net.pool.network || 'hub'}>
+      {pool.urls.map((url: string) => {
         const r = status.find((x) => x.url === url);
         const info = infos.get(url);
         const state = r?.open ? (r.latency != null ? t('relay.latency', { n: r.latency }) : t('relay.connected')) : t('relay.notConnected');

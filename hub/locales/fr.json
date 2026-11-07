@@ -88,5 +88,7 @@
   "media.result.imagesOnly": "Photos seulement, non chiffrées",
   "media.result.paid": "Demande un paiement",
   "media.result.denied": "Refusé : {reason}",
-  "media.result.unreachable": "Injoignable, ou bloque ce site"
+  "media.result.unreachable": "Injoignable, ou bloque ce site",
+  "hub.public": "Public",
+  "hub.publicArea": "Ouvert aux personnes extérieures à ce hub"
 }

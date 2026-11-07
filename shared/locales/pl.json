@@ -312,5 +312,13 @@
   "media.chooseServers": "Wybierz serwery",
   "media.error.noServer": "Żaden serwer multimediów nie przyjął pliku.",
   "media.error.notFound": "Pliku nie ma na żadnym z jego serwerów.",
-  "media.error.notImage": "Ten plik nie jest zdjęciem, które ta przeglądarka potrafi odczytać."
+  "media.error.notImage": "Ten plik nie jest zdjęciem, które ta przeglądarka potrafi odczytać.",
+  "account.relaysLocked": "Przekaźniki tego huba ustala jego operator i nie można ich tu zmienić: {hub} działa wyłącznie przez nie.",
+  "account.publicRelays": "Strefa publiczna",
+  "account.publicRelaysText": "{mounts}: na przekaźnikach dostępnych dla każdego, aby można tam było rozmawiać z osobami spoza tego huba. Wszystko inne zostaje na własnych przekaźnikach huba.",
+  "account.hubRelays": "Przekaźniki tego huba",
+  "gate.title": "{hub} jest nieosiągalny",
+  "gate.text": "Jego przekaźniki są w jego własnej sieci. Połącz się z tą siecią (VPN), a ta strona sama będzie działać dalej.",
+  "gate.retry": "Spróbuj ponownie",
+  "sync.public": "strefa publiczna"
 }

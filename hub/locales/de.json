@@ -87,5 +87,7 @@
   "media.result.imagesOnly": "Nur Fotos, unverschlüsselt",
   "media.result.paid": "Will Bezahlung",
   "media.result.denied": "Abgelehnt: {reason}",
-  "media.result.unreachable": "Nicht erreichbar, oder sperrt diese Seite"
+  "media.result.unreachable": "Nicht erreichbar, oder sperrt diese Seite",
+  "hub.public": "Öffentlich",
+  "hub.publicArea": "Offen für Menschen außerhalb dieses Hubs"
 }

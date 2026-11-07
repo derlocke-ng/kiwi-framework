@@ -10,11 +10,18 @@
 //   mounts   what the start page and the switcher show: an app mounted on a
 //            space, with a name and icon of its own if it wants. The id is the
 //            route on this hub (<id>/) and the i18n key of its card (hub.<id>.text).
-//   relays   the default relays until the user picks their own
+//   relays   the hub's own network: the default relays until the user picks
+//            their own (unless the policy locks them); a private hub names
+//            relays inside its VPN here, so its apps work only from inside
+//   publicRelays  the public area's relays, for mounts with network: 'public':
+//            a semi-public hub lets its people talk to outsiders there
 //   media    the default media (Blossom) servers for photos and files, first
 //            choice first, until the user picks their own; empty: no uploads
 //   how      the topics of the hub's "How it works" (shared/how.js); null: HOW.hub
 //   policy   userMounts: may a user follow a space this hub does not ship?
+//            relays: 'open' (a person may use their own) or 'locked' (the hub's are fixed)
+//            requireHub: true for a private hub: its pages wait while none of its relays is reachable
+//   mounts[].network  'hub' (default) or 'public' (shared/distribution-check.js has the rules)
 export const DISTRIBUTION = {
   id: 'kiwi',
   name: 'kiwi-framework',
@@ -25,10 +32,12 @@ export const DISTRIBUTION = {
   repo: 'https://github.com/derlocke-ng/kiwi-framework',
   relays: ['wss://nos.lol', 'wss://relay.damus.io', 'wss://nostr.mom', 'wss://relay.primal.net'],
   /** @type {string[]} */
+  publicRelays: [],
+  /** @type {string[]} */
   media: [],
   /** @type {string[] | null} */
   how: null,
-  policy: { userMounts: false },
+  policy: { userMounts: false, relays: 'open', requireHub: false },
   apps: [],
   mounts: [],
 };

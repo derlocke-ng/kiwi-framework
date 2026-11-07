@@ -21,6 +21,7 @@
 
 import { isHex64, KINDS, makeAddressable, now, open, seal, sign } from './events.js';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes, verifyEvent } from './nostr.mjs';
+import { baseStore, whole } from './peers.js';
 import { AccountSettings } from './settings.js';
 import { randomId, store } from './util.js';
 
@@ -53,13 +54,16 @@ export class Groups {
   /**
    * @param {{ sk: string, pk: string, alias?: string|null }} identity
    * @param {{ pool: any, db: any, sync: any }} net
-   * @param {{ isBlocked?: (pk: string) => boolean, inbox: any }} options  inbox: the DirectMessages that unwraps gift wraps (knocks and keys arrive through it)
+   * @param {{ isBlocked?: (pk: string) => boolean, inbox: any, network?: string }} options
+   *   inbox: the DirectMessages that unwraps gift wraps (knocks and keys arrive through it);
+   *   network: this page's ('hub' or 'public'): a group made or knocked at here lives on it
    */
-  constructor(identity, net, { isBlocked = () => false, inbox }) {
+  constructor(identity, net, { isBlocked = () => false, inbox, network = 'hub' }) {
     this.sk = identity.sk;
     this.pk = identity.pk;
     this.alias = String(identity.alias || '');
     this.net = net;
+    this.network = network;
     this.isBlocked = isBlocked;
     this.inbox = inbox;
     this.settings = new AccountSettings(identity, net, 'chat');
@@ -76,9 +80,9 @@ export class Groups {
     // knocks and keys come as rumors in gift wraps, through the inbox; before start() they wait
     this.inviteListeners = new Set();
     this.offRumors = [
-      inbox.onRumor(KINDS.GROUP_KNOCK, (rumor) => this.rumor(rumor)),
-      inbox.onRumor(KINDS.GROUP_KEYS, (rumor) => this.rumor(rumor)),
-      inbox.onRumor(KINDS.ROOM_INVITE, (rumor) => this.rumor(rumor)),
+      inbox.onRumor(KINDS.GROUP_KNOCK, (rumor, _ev, network) => this.rumor(rumor, network)),
+      inbox.onRumor(KINDS.GROUP_KEYS, (rumor, _ev, network) => this.rumor(rumor, network)),
+      inbox.onRumor(KINDS.ROOM_INVITE, (rumor, _ev, network) => this.rumor(rumor, network)),
     ];
   }
 
@@ -88,18 +92,18 @@ export class Groups {
       this.resubscribe().catch(() => {});
       this.emit();
     });
-    this.offStore = this.net.db.subscribe((ev) => this.mine(ev) && this.receive(ev));
+    this.offStore = baseStore(this.net.db).subscribe((ev) => this.mine(ev) && this.receive(ev)); // groups live on either network
     await this.resubscribe();
     await this.queue;
     this.ready = true;
     const waiting = this.pendingRumors;
     this.pendingRumors = [];
-    for (const r of waiting) await this.handleRumor(r).catch(() => {});
+    for (const [r, network] of waiting) await this.handleRumor(r, network).catch(() => {});
     return this;
   }
 
   stop() {
-    this.sub?.close();
+    for (const sub of this.subs || []) sub.close();
     this.offStore?.();
     for (const off of this.offRumors) off();
     this.settings.stop();
@@ -164,21 +168,34 @@ export class Groups {
     return GROUP_KINDS.includes(ev.kind) && Boolean(this.entry(ev.pubkey));
   }
 
+  /** The network a group lives on: where it was made, or where its keys reached me. */
+  networkOf(pub) {
+    return this.entry(pub)?.network || 'hub';
+  }
+
   async resubscribe() {
-    const { db, pool, sync } = this.net;
-    const pubs = this.list().map((g) => g.pub);
-    for (const pub of pubs) {
-      if (this.state.has(pub)) continue;
-      const g = this.entry(pub);
-      this.state.set(pub, { name: g.name || '', host: g.host, closed: false, open: false, members: new Map(), requests: [] });
-      for (const ev of (await db.query([{ kinds: GROUP_KINDS, authors: [pub] }])).sort((a, b) => a.created_at - b.created_at)) await this.handle(ev);
+    const db = baseStore(this.net.db);
+    const pool = whole(this.net.pool);
+    const sync = whole(this.net.sync);
+    const groups = this.list();
+    for (const g of groups) {
+      if (this.state.has(g.pub)) continue;
+      this.state.set(g.pub, { name: g.name || '', host: g.host, closed: false, open: false, members: new Map(), requests: [] });
+      for (const ev of (await db.query([{ kinds: GROUP_KINDS, authors: [g.pub] }], g.network || 'hub')).sort((a, b) => a.created_at - b.created_at)) await this.handle(ev);
     }
-    const key = [...pubs].sort().join(',');
+    // one subscription per network: a group's events are asked for, and healed, on its own network alone
+    const byNetwork = new Map();
+    for (const g of groups) {
+      const n = g.network || 'hub';
+      if (!byNetwork.has(n)) byNetwork.set(n, []);
+      byNetwork.get(n).push(g.pub);
+    }
+    const key = [...byNetwork].map(([n, pubs]) => `${n}:${[...pubs].sort().join(',')}`).join('|');
     if (key === this.watching) return;
     this.watching = key;
-    this.sub?.close();
-    this.sub = pubs.length ? pool.subscribe([{ kinds: GROUP_KINDS, authors: pubs }], { onevent: (ev) => db.put(ev) }) : null;
-    if (pubs.length) sync.watch(pubs);
+    for (const sub of this.subs || []) sub.close();
+    this.subs = [...byNetwork].map(([network, pubs]) => pool.subscribe([{ kinds: GROUP_KINDS, authors: pubs }], { network, onevent: (ev) => db.put(ev, network) }));
+    for (const [network, pubs] of byNetwork) sync.watch(pubs, network);
   }
 
   receive(ev) {
@@ -260,7 +277,7 @@ export class Groups {
     const inner = sign({ kind, content, tags }, this.sk);
     const sealed = await seal(hexToBytes(g.k), inner);
     const event = addressable ? makeAddressable(kind, INFO_D, sealed, g.w) : sign({ kind, content: sealed, tags: [] }, g.w);
-    await this.net.sync.publish(event); // stored here first and shown; the outbox carries it to the relays, now or when they are back
+    await whole(this.net.sync).publish(event, { network: g.network || 'hub' }); // stored here first and shown; the outbox carries it to the group's relays, now or when they are back
     return inner;
   }
 
@@ -270,15 +287,16 @@ export class Groups {
 
   // ---- the person side: knocks and keys, as rumors to one person ----
 
-  rumor(rumor) {
+  /** A knock, keys or a room invitation from the inbox; `network`: where the wrap arrived, when known. */
+  rumor(rumor, network = null) {
     if (!this.ready) {
-      this.pendingRumors.push(rumor);
+      this.pendingRumors.push([rumor, network]);
       return;
     }
-    this.queue = this.queue.then(() => this.handleRumor(rumor)).catch(() => {});
+    this.queue = this.queue.then(() => this.handleRumor(rumor, network)).catch(() => {});
   }
 
-  async handleRumor(rumor) {
+  async handleRumor(rumor, network = null) {
     const body = parse(rumor.content);
     if (!isHex64(rumor.pubkey) || this.isBlocked(rumor.pubkey)) return;
     if (rumor.kind !== KINDS.ROOM_INVITE && !isHex64(body.pub)) return; // knocks and keys name a group; a room invitation names a secret
@@ -306,7 +324,8 @@ export class Groups {
         return this.emit();
       }
       const knock = this.knocks().find((x) => x.pub === body.pub);
-      const entry = { pub: body.pub, w: body.w, k: body.k, keys: [], host: body.host, name: String(body.name || knock?.name || '').slice(0, NAME), invite: String(body.invite || '') };
+      // the group lives where its keys reached me: the network I knocked on, or the one the invitation came over
+      const entry = { pub: body.pub, w: body.w, k: body.k, keys: [], host: body.host, name: String(body.name || knock?.name || '').slice(0, NAME), invite: String(body.invite || ''), network: knock?.network || network || this.network };
       if (knock && rumor.pubkey === body.host) {
         // the host answered my knock: I asked, so I am in
         await this.settings.set({ groups: [...this.list(), { ...entry, joined: now() }], knocks: this.knocks().filter((x) => x.pub !== body.pub) });
@@ -378,7 +397,7 @@ export class Groups {
   /** Make a group: its keys, its info, me as the first member. Resolves with its pubkey. */
   async create(name, { myName, open = false } = {}) {
     const w = newKey();
-    const g = { pub: getPublicKey(hexToBytes(w)), w, k: newKey(), keys: [], host: this.pk, name: String(name).trim().slice(0, NAME), invite: randomId(), open, joined: now() };
+    const g = { pub: getPublicKey(hexToBytes(w)), w, k: newKey(), keys: [], host: this.pk, name: String(name).trim().slice(0, NAME), invite: randomId(), open, joined: now(), network: this.network };
     await this.settings.set({ groups: [...this.list(), g] });
     this.state.set(g.pub, { name: g.name, host: g.host, closed: false, open, members: new Map(), requests: [] });
     await this.publishInfo(g, { name: g.name, open });
@@ -391,7 +410,7 @@ export class Groups {
   async knock({ pub, host, invite, name, myName }) {
     if (this.entry(pub)) return;
     const me = String(myName || this.alias || '').slice(0, NAME);
-    await this.settings.set({ knocks: [...this.knocks().filter((x) => x.pub !== pub), { pub, host, invite, name: String(name || '').slice(0, NAME), myName: me, at: now() }] });
+    await this.settings.set({ knocks: [...this.knocks().filter((x) => x.pub !== pub), { pub, host, invite, name: String(name || '').slice(0, NAME), myName: me, at: now(), network: this.network }] });
     await this.inbox.sendRumor(host, KINDS.GROUP_KNOCK, { pub, invite, name: me });
     this.emit();
   }
@@ -509,7 +528,7 @@ export class Groups {
     await this.settings.set({ groups: this.list().filter((g) => g.pub !== pub) });
     await this.net.db.removeConversation(pub);
     await this.net.db.removeByAuthor(pub).catch(() => {});
-    this.net.sync.unwatch?.(pub);
+    whole(this.net.sync).unwatch?.(pub);
     for (const fn of this.goneListeners) fn({ pub, name, why });
     this.emit();
   }

@@ -47,16 +47,25 @@ export function freePort() {
   });
 }
 
-export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
+/**
+ * The servers a suite needs: a gun relay, a nostr relay (the hub's), a web server for `webRoot`, two
+ * Blossom servers, a browser. `nostrPort` fixes the hub relay's port (a distribution built with the
+ * relay's URL baked in); `publicPort` starts a second nostr relay, the public one, at that port.
+ */
+export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort = null, publicPort = null } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `${name}-e2e-`));
-  const [gunPort, webPort, nostrPort] = await Promise.all([freePort(), freePort(), freePort()]);
+  const [gunPort, webPort, freeNostr] = await Promise.all([freePort(), freePort(), freePort()]);
+  nostrPort = nostrPort || freeNostr;
   let runs = 0;
   const startGun = () =>
     spawn(process.execPath, [path.join(root, 'scripts/relay.cjs'), String(gunPort)], { env: { ...process.env, RADATA: path.join(tmp, `radata-${runs++}`) }, stdio: 'ignore' });
   let gun = startGun();
   let nostrRuns = 0;
-  const startNostr = () => startRelay({ port: nostrPort, dir: path.join(tmp, `nostr-${nostrRuns++}`), name: 'e2e relay' });
+  let nostrDir = null;
+  const startNostr = (dir = null) => startRelay({ port: nostrPort, dir: (nostrDir = dir || path.join(tmp, `nostr-${nostrRuns++}`)), name: 'e2e relay' });
   let nostr = await startNostr();
+  const publicRelay = publicPort ? await startRelay({ port: publicPort, dir: path.join(tmp, 'nostr-public'), name: 'public relay' }) : null;
+  const servers = [];
   const blossom = await startBlossom();
   const blossomStrict = await startBlossom({ accept: (type) => type.startsWith('image/') || 'only images here' });
   const web = spawn(process.execPath, [path.join(root, 'scripts/serve.mjs'), webRoot, String(webPort)], { stdio: 'ignore' });
@@ -68,6 +77,8 @@ export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
     tmp,
     relayUrl: `http://localhost:${gunPort}/gun`,
     nostrUrl: nostr.url,
+    /** the public relay's URL, when the suite asked for one */
+    publicUrl: publicRelay?.url || null,
     /** media servers: blobs are in .blobs (sha256 → { data, type, owner }) */
     blossom,
     blossomStrict,
@@ -89,13 +100,30 @@ export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
       await nostr.close();
       nostr = await startNostr();
     },
-    /** Events on the nostr relay, as a reader with no keys sees them. */
-    async relayEvents(filters) {
-      const client = await Relay.connect(nostr.url);
+    /** The hub's relay goes away (the VPN is gone) and keeps its data for resumeNostr(). */
+    async pauseNostr() {
+      await nostr.close();
+      nostr = null;
+    },
+    async resumeNostr() {
+      if (!nostr) nostr = await startNostr(nostrDir);
+    },
+    /** Events on the nostr relay (`which`: 'hub' or 'public'), as a reader with no keys sees them. */
+    async relayEvents(filters, which = 'hub') {
+      const url = which === 'public' ? publicRelay.url : nostr.url;
+      const client = await Relay.connect(url);
       const out = [];
       await new Promise((resolve) => client.subscribe(filters, { onevent: (e) => out.push(e), oneose: resolve }));
       client.close();
       return out;
+    },
+    /** Serve another site (a second hub) for the rest of the run; resolves with its base URL. */
+    async serve(dir) {
+      const port = await freePort();
+      servers.push(spawn(process.execPath, [path.join(root, 'scripts/serve.mjs'), dir, String(port)], { stdio: 'ignore' }));
+      const base = `http://localhost:${port}/`;
+      await until(() => fetch(base).then(() => true), 'second web server');
+      return base;
     },
     /** Publish an event straight to the nostr relay; resolves with the relay's answer. */
     async relayPublish(event) {
@@ -110,7 +138,9 @@ export async function setup(name, { webRoot = path.join(root, 'apps') } = {}) {
       await browser.close().catch(() => {});
       gun.kill();
       web.kill();
-      await nostr.close().catch(() => {});
+      for (const s of servers) s.kill();
+      await nostr?.close().catch(() => {});
+      await publicRelay?.close().catch(() => {});
       await blossom.close();
       await blossomStrict.close();
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -185,24 +215,26 @@ export async function topBar(env, url) {
 
 /**
  * A hub with nothing but some of the framework's own apps, each mounted at its own name
- * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks' }]); resolves with the site's folder.
+ * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks', network?: 'public' }]); `options`
+ * set the hub's name, relays, publicRelays and policy. Resolves with the site's folder.
  */
-export async function testHub(apps) {
+export async function testHub(apps, { name = 'Test hub', relays = [], publicRelays = [], policy = {} } = {}) {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-hub-'));
   const config = {
     id: 'test-hub',
-    name: 'Test hub',
-    shortName: 'Test',
-    brandHtml: 'Test hub',
+    name,
+    shortName: name,
+    brandHtml: name,
     description: 'Framework apps on their own, for the browser suites.',
     homepage: './',
     repo: './',
-    relays: [],
+    relays,
+    publicRelays,
     media: [],
     how: null,
-    policy: { userMounts: false },
+    policy: { userMounts: false, ...policy },
     apps: apps.map((a) => ({ id: a.app, name: a.name, icon: a.icon, tags: [], framework: a.app })),
-    mounts: apps.map((a, i) => ({ id: a.app, app: a.app, featured: i === 0 })),
+    mounts: apps.map((a, i) => ({ id: a.app, app: a.app, featured: i === 0, ...(a.network ? { network: a.network } : {}) })),
   };
   fs.writeFileSync(path.join(dist, 'distribution.js'), `export const DISTRIBUTION = ${JSON.stringify(config)};\n`);
   const { out } = await assemble({ distribution: dist, out: fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-site-')), legacy: false });

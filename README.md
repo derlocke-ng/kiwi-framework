@@ -24,7 +24,7 @@ npm install git+https://github.com/derlocke-ng/kiwi-framework.git#<tag or commit
 
 Pin a release tag (or a commit between releases); `v0.1.0` is the last plain-JavaScript hub, the React hub comes after it. A release is a version bump: when a push to `main` changes `version` in `package.json` and the checks pass, CI tags it `v<version>` and publishes the GitHub release with the commit message as its notes. To run the browser harness (`test/e2e/env.mjs`) a distribution also needs `playwright-core` and `gun` as dev dependencies; Armory's `package.json` has both.
 
-A distribution is a repository with `distribution.js` (name, relays, the apps it ships and the mounts it shows; an app entry with `framework: 'boards'` is one of the framework's own apps under the distribution's name), `locales/` (its own strings), `apps/<id>/` for each app (a React app on `kiwi-framework/ui` when it has a `main.tsx`, which `new-app.mjs` scaffolds; for a framework app only what is laid over it), and optionally `public/` (files copied over the site root) and `icons.svg` (symbols added to the sprite). Then:
+A distribution is a repository with `distribution.js` (name, relays, the apps it ships and the mounts it shows; an app entry with `framework: 'boards'` is one of the framework's own apps under the distribution's name; `publicRelays` and a mount's `network: 'public'` make a public area beside the hub's own network, `policy.relays: 'locked'` and `policy.requireHub` make a private hub whose relays sit inside its VPN, see `docs/architecture.md`, *Hubs*), `locales/` (its own strings), `apps/<id>/` for each app (a React app on `kiwi-framework/ui` when it has a `main.tsx`, which `new-app.mjs` scaffolds; for a framework app only what is laid over it), and optionally `public/` (files copied over the site root) and `icons.svg` (symbols added to the sprite). Then:
 
 ```sh
 node node_modules/kiwi-framework/scripts/dev.mjs               # the hub with hot reload, apps under /<id>/
@@ -46,7 +46,7 @@ npm test                 # unit tests
 npm run typecheck        # TypeScript over ui/ and hub/
 npm run lint             # Biome: lint and format (lint:fix writes the fixes)
 npm run test:smoke       # a distribution from scratch, with one scaffolded React app, builds
-npm run test:e2e         # every widget on the gallery page, then the boards, notices, payload, pong and chat apps on a test hub, then a scaffolded app, in Chromium against local nostr and gun relays and media servers
+npm run test:e2e         # every widget on the gallery page, then the boards, notices, payload, pong and chat apps on a test hub, a private hub with a public area and an outsider, then a scaffolded app, in Chromium against local nostr and gun relays and media servers
 npm run probe -- nostr.download   # what public media servers do with an upload (needs open network access)
 npm run vendor           # after bumping nostr-tools, gun, qrcode-generator or lucide-static
 npm run build && npm run serve   # the production build at http://localhost:8080

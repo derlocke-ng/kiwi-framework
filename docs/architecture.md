@@ -28,6 +28,16 @@ What a hub shows is a list of **mounts**: app code plus a space, with its own id
 
 A shared link names the app, the space and the item, never the host. A hub resolves it to the mount serving that app and space; without one it says whose space this is and offers to open the link on the hub it came from, or to add the mount if the operator allows that. Content inside a link is a nostr address with relay hints, so a board or post from another instance is fetched from the relays it lives on. Loadout's `/loadout/#/b/…` links already have the shape; the host part becomes irrelevant and the hints get added.
 
+### Hubs: private, public, semi-public
+
+A hub has one or two **networks** of relays (`shared/relays.js`, since 0.14). Its **own network** is `relays` in `distribution.js`: for a public hub like Armory these are public relays; for a company's private hub they are relays inside its VPN (kiwi-node), so its apps work only from inside. A **public area** is a second network, `publicRelays`, that mounts marked `network: 'public'` use: a semi-public hub puts its chat there, so its people can talk to outsiders, while everything else stays on its own relays.
+
+Every event belongs to one network and never crosses to the other: a mount's `net` (pool, sync and store) is scoped to its network, the outbox waits for that network's relays alone, and healing re-publishes an author's events only onto relays of the network they were published or received on (the store keeps a network per event, `nets`). The account's settings, friends and block list live on the hub's own network. The inbox listens on every network, and a sealed note to a person goes to the network they are reached on (`shared/peers.js`): learned from where their notes arrived, or the network of the page a conversation starts on; someone once seen on the hub's own network stays there, since an outsider cannot write to those relays. A group lives on the network it was made on or on which its keys arrived.
+
+Two policies make a hub private: `policy.relays: 'locked'` fixes the hub's relays (a person cannot replace them in the settings, which show them read-only), and `policy.requireHub: true` makes the hub's pages wait behind a gate while none of the hub's relays is reachable ("connect to the network"), which lifts by itself when one connects; pages of the public area are never gated. The start page marks public mounts; the status pill and the relay lists say which network a page is on. `shared/distribution-check.js` is what the build enforces: a public mount needs public relays and the other way round.
+
+Still to come here: relay hints in links (a board or group link names the relays it lives on), per-user relay lists (kinds 10002/10050) so a conversation finds a stranger's inbox without a shared relay, and spaces with relays of their own.
+
 ### Relays: lists, not sameness
 
 Two hubs need not share relays. Each user publishes a relay list (kind 10002: where they write, where they read) and a list for private wraps (kind 10050). To reach someone the framework fetches their lists and publishes to their read relays; to follow someone it subscribes to their write relays. The lists are found on a few directory relays and travel inside the first contact: a friend request and a share carry the sender's lists in the wrap, so the reply needs no lookup. A kiwi relay per instance then simply appears in that instance's users' lists. This goes in before the first fork.
@@ -255,7 +265,7 @@ The freelancer noticeboard is public by nature, so its defence is not encryption
 
 ## Roadmap
 
-Next, in this order: ~~the rename of the distribution; the repository split with `distribution.js` as the config and the catalog manifest~~ (done: kiwi-framework, Armory, kiwi-web-catalog); relay lists per user and relay hints in links; spaces and mounts in the event design; the widget and module extraction (markdown and lists out of Loadout first, then collections with pinning, then the feed for Outpost and DevBoard); the chat on the same parts; the blog on the markdown editor and the feed.
+Next, in this order: ~~the rename of the distribution; the repository split with `distribution.js` as the config and the catalog manifest~~ (done: kiwi-framework, Armory, kiwi-web-catalog); ~~private and semi-public hubs: networks per mount, locked relays, the gate~~ (done, 0.14, see *Hubs*); relay lists per user and relay hints in links; spaces and mounts in the event design; the widget and module extraction (markdown and lists out of Loadout first, then collections with pinning, then the feed for Outpost and DevBoard); the chat on the same parts; the blog on the markdown editor and the feed.
 
 
 1. ~~Shared core; Loadout on nostr~~ (done — `test/e2e/loadout.mjs` runs 17 multi-device scenarios against the dev relay, including two relay wipes).

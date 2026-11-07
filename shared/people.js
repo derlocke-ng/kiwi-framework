@@ -12,6 +12,7 @@
 //   people.onShare('loadout', (share) => { …; people.consume(share.id); })
 import { KINDS, now, fingerprint, isHex64 } from './events.js';
 import { nip59, hexToBytes } from './nostr.mjs';
+import { baseStore, whole } from './peers.js';
 import { AccountSettings } from './settings.js';
 import { randomId, fail } from './util.js';
 
@@ -24,13 +25,15 @@ export class People {
   /**
    * @param {{ sk: string, pk: string, alias?: string|null }} identity
    * @param {{ pool: import('./relays.js').RelayPool, db: import('./store.js').LocalStore, sync: import('./sync.js').Sync }} net
-   * @param {{ isBlocked?: (pk: string) => boolean }} [options]
+   * @param {{ isBlocked?: (pk: string) => boolean, peers?: import('./peers.js').PeerNetworks | null }} [options]
+   *   peers: which network each person is reached on (a hub with a public area); none: the hub's
    */
-  constructor(identity, net, { isBlocked = () => false } = {}) {
+  constructor(identity, net, { isBlocked = () => false, peers = null } = {}) {
     this.sk = identity.sk;
     this.pk = identity.pk;
     this.alias = String(identity.alias || '').slice(0, NAME);
     this.net = net;
+    this.peers = peers;
     this.isBlocked = isBlocked;
     this.settings = new AccountSettings(identity, net, 'people');
     this.listeners = new Set();
@@ -45,11 +48,13 @@ export class People {
   async start() {
     await this.settings.start();
     this.settings.onChange(() => this.emit());
-    const { db, pool } = this.net;
+    // wraps for me arrive on every network the hub has; each tells where its writer is reached
+    const db = baseStore(this.net.db);
+    const pool = whole(this.net.pool);
     const forMe = (ev) => ev.kind === KINDS.GIFT_WRAP && ev.tags.some((x) => x[0] === 'p' && x[1] === this.pk);
     for (const ev of (await db.query([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk] }])).reverse()) this.receive(ev);
-    this.offStore = db.subscribe((ev) => forMe(ev) && this.receive(ev));
-    this.sub = pool.subscribe([this.filter], { onevent: (ev) => db.put(ev) });
+    this.offStore = db.subscribe((ev, network) => forMe(ev) && this.receive(ev, network));
+    this.sub = pool.subscribe([this.filter], { onevent: (ev, url) => db.put(ev, pool.networkOf?.(url) || 'hub') });
     await this.queue;
     return this;
   }
@@ -199,18 +204,20 @@ export class People {
 
   // ---- the wire ----
 
+  /** A sealed note to one person, on the network they are reached on. */
   async send(toPk, kind, content, { wait = true } = {}) {
     const rumor = { kind, created_at: now(), tags: [['p', toPk]], content: JSON.stringify(content) };
     const wrap = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
-    await this.net.sync.publish(wrap, wait ? { wait: 'one' } : {});
+    await whole(this.net.sync).publish(wrap, { ...(wait ? { wait: 'one' } : {}), network: this.peers?.of(toPk) || 'hub' });
   }
 
-  receive(ev) {
-    this.queue = this.queue.then(() => this.handle(ev)).catch(() => {});
+  /** `network`: where the wrap arrived, when known. */
+  receive(ev, network = null) {
+    this.queue = this.queue.then(() => this.handle(ev, network)).catch(() => {});
     return this.queue;
   }
 
-  async handle(ev) {
+  async handle(ev, network = null) {
     const seen = this.settings.get('seen', []);
     if (seen.includes(ev.id)) return;
     let rumor;
@@ -222,6 +229,7 @@ export class People {
     const OURS = [KINDS.FRIEND_REQUEST, KINDS.FRIEND_ACCEPT, KINDS.FRIEND_REMOVE, KINDS.SHARE];
     if (!OURS.includes(rumor.kind)) return; // another module's rumor (a chat message): neither handled nor marked here
     const from = rumor.pubkey;
+    if (network && isHex64(from) && from !== this.pk) this.peers?.learn(from, network);
     if (!isHex64(from) || from === this.pk || this.isBlocked(from)) return this.markSeen(ev.id);
     let body = {};
     try {

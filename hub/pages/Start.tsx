@@ -38,6 +38,11 @@ function Apps() {
           </div>
           <div className="feature-body">
             {feature.isNew ? <span className="badge">{t('hub.new')}</span> : null}
+            {feature.network === 'public' ? (
+              <span className="badge public" title={t('hub.publicArea')}>
+                {t('hub.public')}
+              </span>
+            ) : null}
             <h2>
               {feature.name}
               {count(feature.id)}
@@ -64,6 +69,14 @@ function Apps() {
                   <>
                     {' '}
                     <span className="badge">{t('hub.new')}</span>
+                  </>
+                ) : null}
+                {a.network === 'public' ? (
+                  <>
+                    {' '}
+                    <span className="badge public" title={t('hub.publicArea')}>
+                      {t('hub.public')}
+                    </span>
                   </>
                 ) : null}
                 {a.legacy ? (

@@ -10,6 +10,11 @@
 // the gaps are published, at most every few hours per relay and author
 // (remembered across page loads), never while a relay asked us to back off.
 // Relays keep the newest version per address, so healing never rolls back.
+//
+// Every event belongs to a network (shared/relays.js): it is published to
+// that network's relays, waits in the outbox for them alone, and is healed
+// onto them alone, so nothing of a hub's own network ever reaches the
+// public relays. sync.scope(network) is the sync seen from one network.
 
 import { isPermanent } from './relays.js';
 import { store as local } from './util.js';
@@ -29,7 +34,7 @@ export class Sync {
     this.pool = pool;
     this.store = store;
     this.healed = new Map(Object.entries(local.get(HEALED_KEY, {}))); // `${url}|${pubkey}` -> time
-    this.authors = new Set(); // whose events to heal
+    this.authors = new Map(); // whose events to heal: pubkey -> Set(network)
     this.listeners = new Set();
     this.errorListeners = new Set();
     this.backoff = new Map(Object.entries(local.get(BACKOFF_KEY, {}))); // url -> time before which we leave the relay alone
@@ -68,19 +73,20 @@ export class Sync {
   }
 
   /**
-   * Store an event and send it to every relay, now or later. Resolves as soon
+   * Store an event and send it to every relay of its network, now or later. Resolves as soon
    * as the event is stored locally (the UI never waits for relays).
    * `wait: 'one'` resolves when the first relay accepts and rejects when none
    * does (for things that must reach a relay now, like a new account).
    * `wait: 'all'` resolves with every relay's answer.
    */
-  async publish(event, { wait = 'none' } = {}) {
-    await this.store.put(event);
-    await this.store.setPending(event.id, this.pool.urls);
+  async publish(event, { wait = 'none', network = 'hub' } = {}) {
+    await this.store.put(event, network);
+    await this.store.setPending(event.id, this.pool.urlsOf(network));
     this.emit();
     let first;
     const gotOne = new Promise((resolve) => (first = resolve));
     const all = this.pool.publish(event, {
+      network,
       onResult: (url, r) => {
         if (r.ok) first({ ok: [url], failed: [] });
         if (r.ok || r.permanent) this.store.ack(event.id, url, { accepted: r.ok }).then(() => this.emit());
@@ -152,30 +158,42 @@ export class Sync {
     }
   }
 
-  /** Re-publish what the connected relays miss, now (the "Sync now" button). */
-  async healAll() {
+  /** Re-publish what the connected relays (of one network, or all) miss, now (the "Sync now" button). */
+  async healAll(network = null) {
     await this.flushAll({ force: true });
-    for (const url of this.pool.urls) if (this.pool.relays.get(url)?.open) await this.healRelay(url, { force: true });
+    for (const url of this.pool.urlsOf(network)) if (this.pool.relays.get(url)?.open) await this.healRelay(url, { force: true });
   }
 
-  /** Keep re-publishing these authors' events to relays that (re)connect. */
-  watch(pubkeys) {
-    for (const pk of pubkeys) this.authors.add(pk);
+  /** Keep re-publishing these authors' events on this network to its relays as they (re)connect. */
+  watch(pubkeys, network = 'hub') {
+    for (const pk of pubkeys) {
+      if (!this.authors.has(pk)) this.authors.set(pk, new Set());
+      this.authors.get(pk).add(network);
+    }
   }
 
-  unwatch(pubkey) {
-    this.authors.delete(pubkey);
+  unwatch(pubkey, network = null) {
+    if (!network) return this.authors.delete(pubkey);
+    const nets = this.authors.get(pubkey);
+    nets?.delete(network);
+    if (nets && !nets.size) this.authors.delete(pubkey);
   }
 
-  /** Fill one relay's gaps for the watched authors (or the given ones). */
-  async healRelay(url, { force = false, authors = this.authors } = {}) {
+  /**
+   * Fill one relay's gaps: for each watched author (or the given ones), the events of theirs that
+   * belong to a network this relay serves. What was published on the hub's network never goes to a
+   * public relay this way, and the other way round.
+   */
+  async healRelay(url, { force = false, authors = null, network = null } = {}) {
     let sent = 0;
     if (!force && this.quiet(url)) return sent;
-    for (const pk of authors) {
+    const served = network ? [network] : this.pool.networksOf(url);
+    const list = authors ? authors.map((pk) => [pk, served]) : [...this.authors].map(([pk, nets]) => [pk, served.filter((n) => nets.has(n))]).filter(([, nets]) => nets.length);
+    for (const [pk, nets] of list) {
       const key = `${url}|${pk}`;
       if (!force && Date.now() - (this.healed.get(key) || 0) < HEAL_EVERY) continue;
       this.rememberHealed(key, Date.now());
-      const mine = await this.store.byAuthor(pk);
+      const mine = (await Promise.all(nets.map((n) => this.store.byAuthor(pk, n)))).flat();
       if (!mine.length) continue;
       let theirs;
       try {
@@ -208,13 +226,13 @@ export class Sync {
     return sent;
   }
 
-  /** Fill one author's gaps on every connected relay (opening a board). */
-  async healAuthor(pubkey) {
-    this.authors.add(pubkey);
+  /** Fill one author's gaps on every connected relay of their network (opening a board). */
+  async healAuthor(pubkey, network = 'hub') {
+    this.watch([pubkey], network);
     let sent = 0;
-    for (const url of this.pool.urls) {
+    for (const url of this.pool.urlsOf(network)) {
       if (!this.pool.relays.get(url)?.open) continue;
-      sent += await this.healRelay(url, { authors: [pubkey] });
+      sent += await this.healRelay(url, { authors: [pubkey], network });
     }
     return sent;
   }
@@ -240,5 +258,57 @@ export class Sync {
 
   emit() {
     for (const fn of this.listeners) fn();
+  }
+
+  /** This sync seen from one network: what an app on that network gets as its `net.sync`. */
+  scope(network) {
+    return new ScopedSync(this, network);
+  }
+}
+
+/** One network's view of the sync: publishing, watching and healing name that network; the outbox counts are the whole device's. */
+export class ScopedSync {
+  constructor(sync, network) {
+    this.all = sync;
+    this.network = network;
+  }
+  publish(event, options = {}) {
+    return this.all.publish(event, { ...options, network: this.network });
+  }
+  watch(pubkeys) {
+    this.all.watch(pubkeys, this.network);
+  }
+  unwatch(pubkey) {
+    this.all.unwatch(pubkey, this.network);
+  }
+  healAuthor(pubkey) {
+    return this.all.healAuthor(pubkey, this.network);
+  }
+  healRelay(url, options = {}) {
+    return this.all.healRelay(url, { ...options, network: this.network });
+  }
+  healAll() {
+    return this.all.healAll(this.network);
+  }
+  flushAll(options) {
+    return this.all.flushAll(options);
+  }
+  unsynced() {
+    return this.all.unsynced();
+  }
+  outbox() {
+    return this.all.outbox();
+  }
+  pending() {
+    return this.all.pending();
+  }
+  onChange(fn) {
+    return this.all.onChange(fn);
+  }
+  onError(fn) {
+    return this.all.onError(fn);
+  }
+  scope(network) {
+    return this.all.scope(network);
   }
 }
