@@ -159,8 +159,15 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), `${JSON.stringify(manifest(config), null, 2)}\n`);
   // hub.json: the hub as built, for catalogs, modules and people; hub.local.json beside it is the host's (shared/hubconfig.js)
   const versionOf = (dir) => {
+    // package.json's version, else the kiwi.manifest's (a distribution often has only the manifest)
     try {
-      return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version || '';
+      const v = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version;
+      if (v) return v;
+    } catch {
+      /* no package.json */
+    }
+    try {
+      return fs.readFileSync(path.join(dir, 'kiwi.manifest'), 'utf8').match(/^VERSION=(.+)$/m)?.[1]?.trim() || '';
     } catch {
       return '';
     }
