@@ -90,5 +90,6 @@
   "media.result.denied": "Rechazado: {reason}",
   "media.result.unreachable": "Inaccesible, o bloquea este sitio",
   "hub.public": "Público",
-  "hub.publicArea": "Abierto a personas de fuera de este hub"
+  "hub.publicArea": "Abierto a personas de fuera de este hub",
+  "hub.signedOutElsewhere": "La sesión de este dispositivo se cerró desde otro dispositivo."
 }

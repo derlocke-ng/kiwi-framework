@@ -311,5 +311,22 @@
   "gate.title": "{hub} non è raggiungibile",
   "gate.text": "I suoi relay sono nella sua rete. Collegati a quella rete (la VPN) e questa pagina riprende da sola.",
   "gate.retry": "Riprova",
-  "sync.public": "area pubblica"
+  "sync.public": "area pubblica",
+  "account.changePassword": "Cambia password",
+  "account.changePasswordText": "La tua chiave resta la stessa. La vecchia password smette di aprire l’account ovunque, non appena la modifica raggiunge i relay.",
+  "account.currentPassword": "Password attuale",
+  "account.newPassword": "Nuova password",
+  "account.passwordChanged": "Password cambiata. La vecchia non apre più l’account.",
+  "account.error.samePassword": "È la password che hai già.",
+  "account.error.needOld": "Inserisci anche la password attuale: questo account ha ancora la sua prima forma, e solo la sua password può ritirarla.",
+  "account.error.wrongOld": "Non è la password attuale.",
+  "account.devices": "Dispositivi",
+  "account.devicesText": "Tutti i dispositivi connessi con questa chiave, per quanto si siano fatti vivi. Disconnetterne uno gli fa dimenticare la chiave alla prossima connessione; un dispositivo che non si connette più la conserva, ed è a questo che serve una nuova password.",
+  "account.aDevice": "Un dispositivo",
+  "account.thisDevice": "questo dispositivo",
+  "account.seen": "visto {when}",
+  "account.signOutOthers": "Disconnetti gli altri dispositivi",
+  "account.signOutOthersConfirm": "Ogni altro dispositivo si disconnette alla prossima connessione. Questo resta connesso.",
+  "account.signOutOthersDone": "Gli altri dispositivi si disconnetteranno alla prossima connessione.",
+  "account.signOutDevice": "Disconnetti"
 }

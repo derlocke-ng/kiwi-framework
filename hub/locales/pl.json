@@ -91,5 +91,6 @@
   "media.result.denied": "Odmowa: {reason}",
   "media.result.unreachable": "Nieosiągalny albo blokuje tę stronę",
   "hub.public": "Publiczne",
-  "hub.publicArea": "Otwarte dla osób spoza tego huba"
+  "hub.publicArea": "Otwarte dla osób spoza tego huba",
+  "hub.signedOutElsewhere": "To urządzenie zostało wylogowane z innego urządzenia."
 }

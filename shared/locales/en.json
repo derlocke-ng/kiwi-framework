@@ -302,5 +302,22 @@
   "gate.title": "{hub} is not reachable",
   "gate.text": "Its relays are inside its own network. Connect to that network (the VPN) and this page continues by itself.",
   "gate.retry": "Try again",
-  "sync.public": "public area"
+  "sync.public": "public area",
+  "account.changePassword": "Change password",
+  "account.changePasswordText": "Your key stays the same. The old password stops opening the account everywhere, as soon as the change reaches the relays.",
+  "account.currentPassword": "Current password",
+  "account.newPassword": "New password",
+  "account.passwordChanged": "Password changed. The old one no longer opens the account.",
+  "account.error.samePassword": "That is the password you have.",
+  "account.error.needOld": "Enter your current password too: this account still has its first form, and only its password can retire it.",
+  "account.error.wrongOld": "That is not the current password.",
+  "account.devices": "Devices",
+  "account.devicesText": "Every device signed in with this key, as far as they have reported in. Signing one out forgets the key there the next time it connects; a device that never connects again keeps the key, which is what a new password is for.",
+  "account.aDevice": "A device",
+  "account.thisDevice": "this device",
+  "account.seen": "seen {when}",
+  "account.signOutOthers": "Sign out other devices",
+  "account.signOutOthersConfirm": "Every other device signs out the next time it connects. This one stays signed in.",
+  "account.signOutOthersDone": "The other devices sign out when they next connect.",
+  "account.signOutDevice": "Sign out"
 }

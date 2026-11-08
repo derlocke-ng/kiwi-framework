@@ -311,5 +311,22 @@
   "gate.title": "{hub} no está accesible",
   "gate.text": "Sus relés están dentro de su propia red. Conéctate a esa red (la VPN) y esta página continúa por sí sola.",
   "gate.retry": "Reintentar",
-  "sync.public": "zona pública"
+  "sync.public": "zona pública",
+  "account.changePassword": "Cambiar la contraseña",
+  "account.changePasswordText": "Tu clave sigue siendo la misma. La contraseña antigua deja de abrir la cuenta en todas partes en cuanto el cambio llega a los relés.",
+  "account.currentPassword": "Contraseña actual",
+  "account.newPassword": "Nueva contraseña",
+  "account.passwordChanged": "Contraseña cambiada. La antigua ya no abre la cuenta.",
+  "account.error.samePassword": "Esa es la contraseña que ya tienes.",
+  "account.error.needOld": "Escribe también tu contraseña actual: esta cuenta aún tiene su primera forma, y solo su contraseña puede retirarla.",
+  "account.error.wrongOld": "Esa no es la contraseña actual.",
+  "account.devices": "Dispositivos",
+  "account.devicesText": "Todos los dispositivos con sesión iniciada con esta clave, en la medida en que se han anunciado. Cerrar la sesión de uno hace que olvide la clave la próxima vez que se conecte; un dispositivo que no vuelva a conectarse la conserva, y para eso está una contraseña nueva.",
+  "account.aDevice": "Un dispositivo",
+  "account.thisDevice": "este dispositivo",
+  "account.seen": "visto {when}",
+  "account.signOutOthers": "Cerrar sesión en los otros dispositivos",
+  "account.signOutOthersConfirm": "Todos los demás dispositivos cierran sesión la próxima vez que se conecten. Este sigue conectado.",
+  "account.signOutOthersDone": "Los otros dispositivos cerrarán sesión cuando vuelvan a conectarse.",
+  "account.signOutDevice": "Cerrar sesión"
 }

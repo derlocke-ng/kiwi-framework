@@ -129,11 +129,11 @@ seed      = scrypt(password, salt, N = 2^16, r = 8, p = 1, dkLen = 64)
 lookupSk  = seed[0..32]        → a nostr key pair that only this username+password can derive
 wrapKey   = seed[32..64]       → encrypts the real key
 
-account event: kind 30790, d = 'account', signed by lookupSk,
-               content = seal(wrapKey, { v: 1, sk: <device secret key>, alias })
+account event: kind 30790, signed by YOUR key, d = lookupPk,
+               content = seal(wrapKey, { v: 2, sk: <your secret key>, alias })
 ```
 
-Sign-in derives the same lookup key, asks the relays for `{ kinds: [30790], authors: [lookupPk] }` and decrypts. Properties:
+Sign-in derives the same lookup key, asks the relays for `{ kinds: [30790], "#d": [lookupPk] }` (and the first form, `authors: [lookupPk], "#d": ["account"]`, which 0.16 still reads and, on sign-in, republishes in today's form and retires) and decrypts; in today's form the entry must be authored by the key it holds. Because your key authors the entry, your key can retire it: **a password change** (settings, Your account) publishes the entry for the new password and an empty one at the old address (newest wins), with a kind 5 deletion for good measure, so the old password stops opening the account everywhere the change reaches; an account still in its first form needs the current password for that once. **Devices**: every device signed in with the key writes itself (an id, "Chrome on Android", last seen) into the key's settings; the settings page lists them, and *Sign out other devices* (or one device) sets a moment or an id that every device obeys when it next connects, forgetting the key there. A device that never connects again keeps the key, which is what the new password is for; the two are offered together. There is no key rotation by design: a key is the identity. Properties:
 
 - **Nobody can find, squat, spam or overwrite an account without the password.** The lookup pubkey is unguessable, and relays only accept the event from its own key. Two people choosing the same username get two unrelated events — no uniqueness to fight over, nothing to DoS.
 - **Offline brute force** is possible for anyone who already has the event (they'd have to find it first): scrypt 2^16 makes guesses slow; passwords are at least 10 characters; there is no reset.

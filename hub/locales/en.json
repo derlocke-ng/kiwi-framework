@@ -89,5 +89,6 @@
   "media.result.denied": "Refused: {reason}",
   "media.result.unreachable": "Unreachable, or it blocks this site",
   "hub.public": "Public",
-  "hub.publicArea": "Open to people outside this hub"
+  "hub.publicArea": "Open to people outside this hub",
+  "hub.signedOutElsewhere": "This device was signed out from another device."
 }

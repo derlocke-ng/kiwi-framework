@@ -76,9 +76,10 @@ test('account event round-trips the key and hides it from others', async () => {
   const ev = await buildAccountEvent(lookup, sk);
   assert.ok(verifyEvent(ev));
   assert.equal(ev.kind, KINDS.ACCOUNT);
-  assert.equal(ev.pubkey, lookup.lookupPk);
+  assert.equal(ev.pubkey, pk, 'authored by the key it holds, so that key can retire it');
+  assert.equal(ev.tags.find((t) => t[0] === 'd')[1], lookup.lookupPk, 'at the address only the password finds');
   assert.ok(!JSON.stringify(ev).includes(sk), 'secret key is not in the clear');
-  assert.deepEqual(await openAccountEvent(ev, lookup.wrapKey), { sk, alias: 'ann' });
+  assert.deepEqual(await openAccountEvent(ev, lookup.wrapKey), { sk, alias: 'ann', version: 2 });
   const other = await deriveLookup('ann', 'wrong password here');
   assert.equal(await openAccountEvent(ev, other.wrapKey), null);
 });

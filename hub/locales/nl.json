@@ -89,5 +89,6 @@
   "media.result.denied": "Geweigerd: {reason}",
   "media.result.unreachable": "Onbereikbaar, of blokkeert deze site",
   "hub.public": "Openbaar",
-  "hub.publicArea": "Open voor mensen buiten deze hub"
+  "hub.publicArea": "Open voor mensen buiten deze hub",
+  "hub.signedOutElsewhere": "Dit apparaat is vanaf een ander apparaat afgemeld."
 }

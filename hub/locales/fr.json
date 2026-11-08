@@ -90,5 +90,6 @@
   "media.result.denied": "Refusé : {reason}",
   "media.result.unreachable": "Injoignable, ou bloque ce site",
   "hub.public": "Public",
-  "hub.publicArea": "Ouvert aux personnes extérieures à ce hub"
+  "hub.publicArea": "Ouvert aux personnes extérieures à ce hub",
+  "hub.signedOutElsewhere": "Cet appareil a été déconnecté depuis un autre appareil."
 }

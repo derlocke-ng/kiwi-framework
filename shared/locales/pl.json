@@ -320,5 +320,22 @@
   "gate.title": "{hub} jest nieosiągalny",
   "gate.text": "Jego przekaźniki są w jego własnej sieci. Połącz się z tą siecią (VPN), a ta strona sama będzie działać dalej.",
   "gate.retry": "Spróbuj ponownie",
-  "sync.public": "strefa publiczna"
+  "sync.public": "strefa publiczna",
+  "account.changePassword": "Zmień hasło",
+  "account.changePasswordText": "Twój klucz pozostaje ten sam. Stare hasło przestaje otwierać konto wszędzie, gdy tylko zmiana dotrze do przekaźników.",
+  "account.currentPassword": "Obecne hasło",
+  "account.newPassword": "Nowe hasło",
+  "account.passwordChanged": "Hasło zmienione. Stare już nie otwiera konta.",
+  "account.error.samePassword": "To jest hasło, które już masz.",
+  "account.error.needOld": "Wpisz też obecne hasło: to konto ma jeszcze swoją pierwszą postać, a wycofać ją może tylko jego hasło.",
+  "account.error.wrongOld": "To nie jest obecne hasło.",
+  "account.devices": "Urządzenia",
+  "account.devicesText": "Wszystkie urządzenia zalogowane tym kluczem, o ile się zgłosiły. Wylogowanie jednego sprawia, że zapomina klucz przy następnym połączeniu; urządzenie, które nigdy więcej się nie połączy, zachowuje go, i po to jest nowe hasło.",
+  "account.aDevice": "Urządzenie",
+  "account.thisDevice": "to urządzenie",
+  "account.seen": "widziane {when}",
+  "account.signOutOthers": "Wyloguj inne urządzenia",
+  "account.signOutOthersConfirm": "Każde inne urządzenie wyloguje się przy następnym połączeniu. To pozostaje zalogowane.",
+  "account.signOutOthersDone": "Inne urządzenia wylogują się przy następnym połączeniu.",
+  "account.signOutDevice": "Wyloguj"
 }

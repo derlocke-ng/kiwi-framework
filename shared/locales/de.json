@@ -302,5 +302,22 @@
   "gate.title": "{hub} ist nicht erreichbar",
   "gate.text": "Seine Relays liegen in seinem eigenen Netz. Verbinde dich mit diesem Netz (dem VPN), dann geht es hier von selbst weiter.",
   "gate.retry": "Erneut versuchen",
-  "sync.public": "öffentlicher Bereich"
+  "sync.public": "öffentlicher Bereich",
+  "account.changePassword": "Passwort ändern",
+  "account.changePasswordText": "Dein Schlüssel bleibt derselbe. Das alte Passwort öffnet das Konto nirgends mehr, sobald die Änderung die Relays erreicht.",
+  "account.currentPassword": "Aktuelles Passwort",
+  "account.newPassword": "Neues Passwort",
+  "account.passwordChanged": "Passwort geändert. Das alte öffnet das Konto nicht mehr.",
+  "account.error.samePassword": "Das ist dein jetziges Passwort.",
+  "account.error.needOld": "Gib auch dein aktuelles Passwort ein: dieses Konto hat noch seine erste Form, und nur sein Passwort kann sie zurückziehen.",
+  "account.error.wrongOld": "Das ist nicht das aktuelle Passwort.",
+  "account.devices": "Geräte",
+  "account.devicesText": "Alle Geräte, die mit diesem Schlüssel angemeldet sind, soweit sie sich gemeldet haben. Wird eines abgemeldet, vergisst es den Schlüssel bei seiner nächsten Verbindung; ein Gerät, das sich nie wieder verbindet, behält ihn – dafür ist ein neues Passwort da.",
+  "account.aDevice": "Ein Gerät",
+  "account.thisDevice": "dieses Gerät",
+  "account.seen": "gesehen {when}",
+  "account.signOutOthers": "Andere Geräte abmelden",
+  "account.signOutOthersConfirm": "Jedes andere Gerät meldet sich bei seiner nächsten Verbindung ab. Dieses bleibt angemeldet.",
+  "account.signOutOthersDone": "Die anderen Geräte melden sich bei ihrer nächsten Verbindung ab.",
+  "account.signOutDevice": "Abmelden"
 }

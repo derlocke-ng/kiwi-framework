@@ -302,5 +302,22 @@
   "gate.title": "{hub} is niet bereikbaar",
   "gate.text": "De relays staan in het eigen netwerk. Maak verbinding met dat netwerk (de VPN) en deze pagina gaat vanzelf verder.",
   "gate.retry": "Opnieuw proberen",
-  "sync.public": "openbaar deel"
+  "sync.public": "openbaar deel",
+  "account.changePassword": "Wachtwoord wijzigen",
+  "account.changePasswordText": "Je sleutel blijft dezelfde. Het oude wachtwoord opent het account nergens meer zodra de wijziging de relays bereikt.",
+  "account.currentPassword": "Huidig wachtwoord",
+  "account.newPassword": "Nieuw wachtwoord",
+  "account.passwordChanged": "Wachtwoord gewijzigd. Het oude opent het account niet meer.",
+  "account.error.samePassword": "Dat is het wachtwoord dat je al hebt.",
+  "account.error.needOld": "Vul ook je huidige wachtwoord in: dit account heeft nog zijn eerste vorm, en alleen zijn wachtwoord kan die intrekken.",
+  "account.error.wrongOld": "Dat is niet het huidige wachtwoord.",
+  "account.devices": "Apparaten",
+  "account.devicesText": "Alle apparaten die met deze sleutel zijn aangemeld, voor zover ze zich gemeld hebben. Een apparaat afmelden laat het de sleutel vergeten bij zijn volgende verbinding; een apparaat dat nooit meer verbindt houdt hem, en daar is een nieuw wachtwoord voor.",
+  "account.aDevice": "Een apparaat",
+  "account.thisDevice": "dit apparaat",
+  "account.seen": "gezien {when}",
+  "account.signOutOthers": "Andere apparaten afmelden",
+  "account.signOutOthersConfirm": "Elk ander apparaat meldt zich af bij zijn volgende verbinding. Dit apparaat blijft aangemeld.",
+  "account.signOutOthersDone": "De andere apparaten melden zich af bij hun volgende verbinding.",
+  "account.signOutDevice": "Afmelden"
 }

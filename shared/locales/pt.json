@@ -311,5 +311,22 @@
   "gate.title": "{hub} não está acessível",
   "gate.text": "Os seus relays estão dentro da sua própria rede. Liga-te a essa rede (a VPN) e esta página continua por si.",
   "gate.retry": "Tentar novamente",
-  "sync.public": "área pública"
+  "sync.public": "área pública",
+  "account.changePassword": "Mudar a palavra-passe",
+  "account.changePasswordText": "A tua chave continua a mesma. A palavra-passe antiga deixa de abrir a conta em todo o lado assim que a alteração chega aos relays.",
+  "account.currentPassword": "Palavra-passe atual",
+  "account.newPassword": "Nova palavra-passe",
+  "account.passwordChanged": "Palavra-passe mudada. A antiga já não abre a conta.",
+  "account.error.samePassword": "Essa é a palavra-passe que já tens.",
+  "account.error.needOld": "Escreve também a tua palavra-passe atual: esta conta ainda tem a sua primeira forma, e só a sua palavra-passe a pode retirar.",
+  "account.error.wrongOld": "Essa não é a palavra-passe atual.",
+  "account.devices": "Dispositivos",
+  "account.devicesText": "Todos os dispositivos com sessão iniciada com esta chave, na medida em que se anunciaram. Terminar a sessão de um faz com que esqueça a chave na próxima ligação; um dispositivo que nunca mais se liga mantém-na, e é para isso que serve uma nova palavra-passe.",
+  "account.aDevice": "Um dispositivo",
+  "account.thisDevice": "este dispositivo",
+  "account.seen": "visto {when}",
+  "account.signOutOthers": "Terminar sessão nos outros dispositivos",
+  "account.signOutOthersConfirm": "Todos os outros dispositivos terminam a sessão na próxima ligação. Este continua com sessão iniciada.",
+  "account.signOutOthersDone": "Os outros dispositivos terminam a sessão quando se voltarem a ligar.",
+  "account.signOutDevice": "Terminar sessão"
 }

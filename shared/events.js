@@ -11,7 +11,8 @@ export const KINDS = {
   LOADOUT_INFO: 30701, // signed by the board key: title, type, mode
   LOADOUT_ITEM: 30702, // signed by the board key: one list item
   LOADOUT_DOC: 30703, // signed by the board key: the note body
-  ACCOUNT: 30790, // username + password login, signed by a key derived from both
+  DELETE: 5, // NIP-09: a retired account entry is asked to be deleted too
+  ACCOUNT: 30790, // username + password login: the user's key, sealed under a password, at an address only the password finds
   SETTINGS: 30791, // per-account settings, encrypted to yourself
   GROUP_INFO: 30720, // chat group: name, host, closed; signed by the group's key, sealed, host-signed inside
   // Ephemeral (20000–29999): relays pass them on and forget them.

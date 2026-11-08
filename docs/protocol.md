@@ -30,11 +30,13 @@ wrapKey   = dk[32..64)
 | | |
 |---|---|
 | kind | **30790** (addressable) |
-| author | `lookupPk` |
-| tags | `["d","account"]`, `["v","1"]` |
-| content | `seal(wrapKey, { "v": 1, "sk": <user secret key hex>, "alias": <name> })` |
+| author | the user's key (`sk`'s pubkey) |
+| tags | `["d", lookupPk]`, `["v","2"]` |
+| content | `seal(wrapKey, { "v": 2, "sk": <user secret key hex>, "alias": <name> })` |
 
-Login is one request: `{ kinds: [30790], authors: [lookupPk], "#d": ["account"] }`, newest first, the first event that opens with `wrapKey` wins. Nobody who lacks both username and password can compute `lookupPk`, so the event cannot be found, spammed or overwritten; names need not be unique, since a different password is a different lookup key. Creating an account first fetches that address and refuses if an event opens to a different key.
+Login is one request for two addresses: `{ kinds: [30790], "#d": [lookupPk] }` and the first form's `{ kinds: [30790], authors: [lookupPk], "#d": ["account"] }` (v1: authored by the lookup key, content `{ "v": 1, … }`), newest first; the first event that opens with `wrapKey` wins, and in today's form it must be authored by the key it holds. Nobody who lacks both username and password can compute `lookupPk`, so the event cannot be found, spammed or overwritten; names need not be unique, since a different password is a different lookup key. Creating an account first fetches both addresses and refuses if an event opens to a different key.
+
+**Retiring a password.** The user's key authors today's entry, so it can replace it: an empty event at the same address with `["retired","1"]` (newest wins on every relay), followed by a kind **5** deletion with `["a", "30790:<user pubkey>:<lookupPk>"]`. A password change publishes the new password's entry and retires the old; a sign-in with a first-form entry republishes it in today's form and retires the first form (an empty event and a kind 5 signed by the lookup key, which only that sign-in holds). An empty entry opens nothing.
 
 Keys travel in other forms: `nsec`, 64 hex characters, or an `ncryptsec` ([NIP-49](https://github.com/nostr-protocol/nips/blob/master/49.md), log n = 16) for an encrypted export.
 
@@ -187,6 +189,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
 | 21701–21702 | live rooms for Payload and pong (§8); 21700 presence and 21710 chat-room messages are in use |
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
+| 5 | deletion (NIP-09) of a retired account entry (§2) |
 | market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
 
 ## Changes

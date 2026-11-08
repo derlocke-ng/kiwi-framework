@@ -210,7 +210,7 @@ export async function boardsSuite(env, { app, settings, name }) {
 
   step('A creates an account; E signs in and gets every board');
   const alias = `e2e${Date.now().toString(36)}`;
-  const pass = 'correct horse battery staple';
+  let pass = 'correct horse battery staple';
   const signIn = async (page, expectOk = true) => {
     await page.goto(SETTINGS);
     await page.waitForSelector('#authForm');
@@ -607,6 +607,55 @@ export async function boardsSuite(env, { app, settings, name }) {
   await open(R);
   await until(async () => (await cards()).join('|') === 'Fresh|Errands|Order|Ideas', 'a new board starts on top; the sorted ones keep their order');
   await R2.ctx.close();
+
+  step('the password is changed, no old one asked: a fresh device signs in with the new password, the old one finds no account');
+  const PA = await dev('PA');
+  await signIn(PA);
+  const PE = await dev('PE');
+  await signIn(PE);
+  await PA.goto(SETTINGS);
+  await PA.waitForSelector('#passwordForm');
+  assert.equal(await PA.$('#passwordForm [name=oldPass]'), null, 'an account made today needs no old password: its key authors the entry');
+  const newPass = 'correct horse battery staple two';
+  await PA.fill('#passwordForm [name=newPass]', newPass);
+  await PA.fill('#passwordForm [name=newPass2]', newPass);
+  await PA.click('#passwordBtn');
+  await until(async () => (await texts(PA, '.toast')).some((x) => /Password changed/.test(x)), 'the password is changed', 60000);
+  const oldPass = pass;
+  pass = newPass;
+  const N = await dev('N');
+  await signIn(N);
+  await until(async () => (await texts(N, '.board-title')).length === 3, 'the new password signs in with every board', 20000);
+  await N.ctx.close();
+  const O = await dev('O');
+  await O.goto(SETTINGS);
+  await O.waitForSelector('#authForm');
+  await O.fill('#authForm [name=alias]', alias);
+  await O.fill('#authForm [name=pass]', oldPass);
+  await O.click('#authBtn');
+  assert.match(await O.waitForSelector('#authError:not([hidden])', { timeout: 60000 }).then((el) => el.textContent()), /wrong username or password/i, 'the old password opens nothing');
+  await O.ctx.close();
+
+  step('one device signs out the others: the other is out and told the moment it hears; this one stays');
+  await PE.goto(APP);
+  await PE.waitForSelector('.home');
+  const pkBefore = await PE.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
+  await PA.goto(SETTINGS);
+  await PA.waitForSelector('#devices');
+  await until(async () => (await PA.$$('#devices li')).length >= 2, 'the other device is in the list', 20000);
+  await PA.evaluate(() => {
+    window.confirm = () => true;
+  });
+  await PA.click('#signOutOthers');
+  await until(async () => (await texts(PE, '.toast')).some((x) => /signed out from another device/.test(x)), 'the other device is told', 30000);
+  assert.notEqual(await PE.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk), pkBefore, 'it goes on with a key of its own');
+  await PA.reload();
+  await PA.waitForSelector('#accountBody');
+  assert.ok((await PA.textContent('#accountBody')).includes(alias), 'this device is still signed in');
+  await signIn(PE);
+  await until(async () => (await texts(PE, '.board-title')).length === 3, 'signed in again, it is a device again', 20000);
+  await PA.ctx.close();
+  await PE.ctx.close();
 
   step('a German browser is asked in German and gets a German app; English stays English');
   const DE = await dev('DE', { locale: 'de-DE' });

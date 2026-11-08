@@ -311,5 +311,22 @@
   "gate.title": "{hub} n’est pas joignable",
   "gate.text": "Ses relais sont dans son propre réseau. Connectez-vous à ce réseau (le VPN) et cette page reprend d’elle-même.",
   "gate.retry": "Réessayer",
-  "sync.public": "espace public"
+  "sync.public": "espace public",
+  "account.changePassword": "Changer le mot de passe",
+  "account.changePasswordText": "Votre clé reste la même. L’ancien mot de passe n’ouvre plus le compte nulle part dès que le changement atteint les relais.",
+  "account.currentPassword": "Mot de passe actuel",
+  "account.newPassword": "Nouveau mot de passe",
+  "account.passwordChanged": "Mot de passe changé. L’ancien n’ouvre plus le compte.",
+  "account.error.samePassword": "C’est le mot de passe que vous avez déjà.",
+  "account.error.wrongOld": "Ce n’est pas le mot de passe actuel.",
+  "account.error.needOld": "Saisissez aussi votre mot de passe actuel : ce compte a encore sa première forme, et seul son mot de passe peut la retirer.",
+  "account.devices": "Appareils",
+  "account.devicesText": "Tous les appareils connectés avec cette clé, pour autant qu’ils se soient signalés. En déconnecter un lui fait oublier la clé à sa prochaine connexion ; un appareil qui ne se reconnecte jamais la garde, et c’est à cela que sert un nouveau mot de passe.",
+  "account.aDevice": "Un appareil",
+  "account.thisDevice": "cet appareil",
+  "account.seen": "vu {when}",
+  "account.signOutOthers": "Déconnecter les autres appareils",
+  "account.signOutOthersConfirm": "Chaque autre appareil se déconnecte à sa prochaine connexion. Celui-ci reste connecté.",
+  "account.signOutOthersDone": "Les autres appareils se déconnecteront à leur prochaine connexion.",
+  "account.signOutDevice": "Déconnecter"
 }

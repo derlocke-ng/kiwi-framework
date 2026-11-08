@@ -1,13 +1,26 @@
 // The account card: who you are on this device, and the sign-in / create /
 // import form. `full` adds the key export and leaves out the "open the app" button.
 import { type FormEvent, useState } from 'react';
-import { adoptIdentity, checkPassword, createAccount, exportEncrypted, forgetIdentity, importKey, login, npub, nsec, pubkeyOf } from '../../shared/account.js';
+import {
+  adoptIdentity,
+  checkPassword,
+  createAccount,
+  exportEncrypted,
+  forgetIdentity,
+  importKey,
+  login,
+  npub,
+  nsec,
+  pubkeyOf,
+  upgradeAccount,
+} from '../../shared/account.js';
 import { MOUNTS } from '../../shared/apps.js';
+import { deviceId } from '../../shared/device.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { fingerprint } from '../../shared/events.js';
-import { has, tErr } from '../../shared/i18n.js';
+import { has, relTime, tErr } from '../../shared/i18n.js';
 import { Icon } from '../../ui/components';
-import { useIdentity, useKiwi, useT } from '../../ui/hooks';
+import { useIdentity, useKiwi, useKiwiTick, useT } from '../../ui/hooks';
 import { copyText, download, toast, toastError } from '../../ui/toast';
 
 type Mode = 'signin' | 'create' | 'import';
@@ -61,6 +74,114 @@ function ExportBox() {
   );
 }
 
+/** A new password for the account: the old one stops opening it everywhere the change reaches. */
+function PasswordBox() {
+  const kiwi = useKiwi();
+  const t = useT();
+  const id = useIdentity();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [progress, setProgress] = useState('');
+  const needsOld = (id.accountVersion || 1) !== 2; // the first form: only its password can retire it
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const f = new FormData(form);
+    const next = String(f.get('newPass') || '');
+    setError('');
+    if (next !== String(f.get('newPass2') || '')) return setError(t('account.passwordsMismatch'));
+    setBusy(true);
+    try {
+      await kiwi.changePassword(next, String(f.get('oldPass') || '') || null, (msg, params) => setProgress(has(msg) ? t(msg, params) : msg));
+      form.reset();
+      toast(t('account.passwordChanged'), 'success');
+    } catch (err) {
+      setError(tErr(err));
+    } finally {
+      setBusy(false);
+      setProgress('');
+    }
+  };
+  return (
+    <form className="form password-form" id="passwordForm" autoComplete="on" onSubmit={submit}>
+      <h3>{t('account.changePassword')}</h3>
+      <p className="muted small">{t('account.changePasswordText')}</p>
+      <input name="username" autoComplete="username" value={id.alias || ''} readOnly hidden />
+      {needsOld ? (
+        <label className="field">
+          {t('account.currentPassword')}
+          <input name="oldPass" type="password" autoComplete="current-password" required />
+        </label>
+      ) : null}
+      <label className="field">
+        {t('account.newPassword')}
+        <input name="newPass" type="password" autoComplete="new-password" required minLength={10} />
+      </label>
+      <label className="field">
+        {t('account.repeatPassword')}
+        <input name="newPass2" type="password" autoComplete="new-password" required minLength={10} />
+      </label>
+      <div className="form-actions">
+        <button type="submit" className="btn btn-sm" id="passwordBtn" disabled={busy}>
+          {t('account.changePassword')}
+        </button>
+        <span className="progress-text">{progress}</span>
+      </div>
+      <p className="form-error" id="passwordError" role="alert" hidden={!error}>
+        {error}
+      </p>
+    </form>
+  );
+}
+
+/** The devices this key is signed in on, and the way to sign the others out. */
+function DevicesBox() {
+  const kiwi = useKiwi();
+  const t = useT();
+  useKiwiTick();
+  const devices = kiwi.devices();
+  const [busy, setBusy] = useState(false);
+  const others = devices.filter((d) => !d.me);
+  const signOutOthers = async () => {
+    if (!confirm(t('account.signOutOthersConfirm'))) return;
+    setBusy(true);
+    try {
+      await kiwi.signOutOtherDevices();
+      toast(t('account.signOutOthersDone'), 'success');
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="devices" id="devices">
+      <h3>{t('account.devices')}</h3>
+      <p className="muted small">{t('account.devicesText')}</p>
+      <ul className="device-list">
+        {devices.map((d) => (
+          <li key={d.id} data-device={d.id} data-me={d.me ? '1' : undefined}>
+            <span className="device-name">
+              {d.name || t('account.aDevice')}
+              {d.me ? <small className="muted"> · {t('account.thisDevice')}</small> : null}
+            </span>
+            <span className="muted small">{d.seen ? t('account.seen', { when: relTime(d.seen) }) : ''}</span>
+            {d.me ? null : (
+              <button type="button" className="btn btn-sm btn-ghost" data-revoke={d.id} onClick={() => kiwi.revokeDevice(d.id).catch(toastError)}>
+                {t('account.signOutDevice')}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="btn btn-sm" id="signOutOthers" disabled={busy || !others.length} onClick={signOutOthers}>
+        <Icon name="log-out" />
+        <span>{t('account.signOutOthers')}</span>
+      </button>
+    </div>
+  );
+}
+
 export function Account({ full = false }: { full?: boolean }) {
   const kiwi = useKiwi();
   const t = useT();
@@ -88,21 +209,33 @@ export function Account({ full = false }: { full?: boolean }) {
     setBusy(true);
     try {
       const current = kiwi.identity();
+      const since = Date.now(); // this device takes the key now: a sign-out of other devices asked before leaves it be
+      deviceId({ fresh: true }); // and is a new device, not one that was signed out
       let next: Record<string, unknown>;
       if (mode === 'create') {
         checkPassword(pass);
         if (pass !== String(f.get('pass2') || '')) throw new Error(t('account.passwordsMismatch'));
         setProgress(t('account.progress.create'));
-        const { event, alias } = await createAccount(kiwi.net, String(f.get('alias') || ''), pass, current.sk, onProgress);
-        next = { ...current, alias, accountPk: event.pubkey };
+        const { alias, lookupPk } = await createAccount(kiwi.net, String(f.get('alias') || ''), pass, current.sk, onProgress);
+        next = { ...current, alias, accountPk: lookupPk, accountVersion: 2, since };
       } else if (mode === 'signin') {
         setProgress(t('account.progress.signIn'));
-        const { sk, pk, alias, event } = await login(kiwi.net.pool, String(f.get('alias') || ''), pass, onProgress);
+        const { sk, pk, alias, event, version, lookup } = await login(kiwi.net.pool, String(f.get('alias') || ''), pass, onProgress);
         await kiwi.net.db.put(event);
-        next = { sk, pk, alias, accountPk: event.pubkey, created: Date.now() };
+        let accountVersion = version;
+        if (version === 1) {
+          // the first form, which only its password can retire: now, while we hold it, the entry moves to today's form
+          try {
+            await upgradeAccount(kiwi.net, lookup, sk);
+            accountVersion = 2;
+          } catch {
+            /* the relays did not take it: the first form stays, and a password change asks for the current one */
+          }
+        }
+        next = { sk, pk, alias, accountPk: lookup.lookupPk, accountVersion, created: Date.now(), since };
       } else {
         const sk = importKey(String(f.get('key') || ''), pass);
-        next = { sk, pk: pubkeyOf(sk), alias: null, accountPk: null, imported: true, created: Date.now() };
+        next = { sk, pk: pubkeyOf(sk), alias: null, accountPk: null, imported: true, created: Date.now(), since };
       }
       adoptIdentity(next);
       await kiwi.restart();
@@ -220,6 +353,8 @@ export function Account({ full = false }: { full?: boolean }) {
             {authForm}
           </div>
         ) : null}
+        {full && id.accountPk ? <PasswordBox /> : null}
+        {full ? <DevicesBox /> : null}
       </>
     );
   }

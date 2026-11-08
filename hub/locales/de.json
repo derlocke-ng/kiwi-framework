@@ -89,5 +89,6 @@
   "media.result.denied": "Abgelehnt: {reason}",
   "media.result.unreachable": "Nicht erreichbar, oder sperrt diese Seite",
   "hub.public": "Öffentlich",
-  "hub.publicArea": "Offen für Menschen außerhalb dieses Hubs"
+  "hub.publicArea": "Offen für Menschen außerhalb dieses Hubs",
+  "hub.signedOutElsewhere": "Dieses Gerät wurde von einem anderen Gerät aus abgemeldet."
 }
