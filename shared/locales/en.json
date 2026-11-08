@@ -319,5 +319,6 @@
   "account.signOutOthers": "Sign out other devices",
   "account.signOutOthersConfirm": "Every other device signs out the next time it connects. This one stays signed in.",
   "account.signOutOthersDone": "The other devices sign out when they next connect.",
-  "account.signOutDevice": "Sign out"
+  "account.signOutDevice": "Sign out",
+  "how.spaces": "Every board, feed or market here serves one space: a named community with rules, moderators and, when it has them, relays of its own. Posts name their space, so one space’s posts never mix with another’s, and two hubs that name the same space share it."
 }

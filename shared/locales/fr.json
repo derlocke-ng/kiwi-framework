@@ -328,5 +328,6 @@
   "account.signOutOthers": "Déconnecter les autres appareils",
   "account.signOutOthersConfirm": "Chaque autre appareil se déconnecte à sa prochaine connexion. Celui-ci reste connecté.",
   "account.signOutOthersDone": "Les autres appareils se déconnecteront à leur prochaine connexion.",
-  "account.signOutDevice": "Déconnecter"
+  "account.signOutDevice": "Déconnecter",
+  "how.spaces": "Chaque tableau, fil ou marché ici sert un espace : une communauté nommée, avec des règles, des modérateurs et, quand elle en a, ses propres relais. Les publications nomment leur espace, si bien que celles d’un espace ne se mêlent jamais à celles d’un autre, et deux hubs qui nomment le même espace le partagent."
 }

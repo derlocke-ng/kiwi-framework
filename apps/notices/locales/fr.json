@@ -93,5 +93,12 @@
   "db.settings.defaultsText": "Pré-rempli quand vous épinglez une note ; tout reste modifiable là-bas. Enregistré dans votre compte.",
   "db.settings.board": "Tableau",
   "db.settings.showCollapsed": "Afficher les notes repliées dépliées",
-  "db.settings.saved": "Enregistré."
+  "db.settings.saved": "Enregistré.",
+  "db.copyLink": "Copier le lien",
+  "db.link": "Lien vers la note",
+  "db.foreignSpace": "Ce lien mène à l’espace « {space} », que ce hub ne sert pas.",
+  "db.openElsewhere": "L’ouvrir là d’où il vient",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Réservé aux adultes",
+  "db.space.rules": "Règles de cet espace"
 }

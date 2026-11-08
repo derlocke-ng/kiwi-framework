@@ -1,17 +1,19 @@
-// The board: search, filters (all, hiring, available, saved, friends), skill
-// chips, and the live notes, best first; collapsed ones last. Posting mines
-// proof of work in the shared workers and can be cancelled by closing.
-import { type FormEvent, useRef, useState } from 'react';
+// The board: the space it serves, search, filters (all, hiring, available,
+// saved, friends), skill chips, and the live notes, best first; collapsed ones
+// last. Posting mines proof of work in the shared workers and can be
+// cancelled by closing. A note's link (#/n/…) opens the board on that note.
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
 import { REPORT_TYPES } from '../../../shared/moderation.js';
 import { randomId } from '../../../shared/util.js';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
-import { useBlocks, useIdentity, usePeople, useT } from '../../../ui/hooks';
-import { toast } from '../../../ui/toast';
+import { useBlocks, useIdentity, useKiwi, usePeople, useSpace, useT } from '../../../ui/hooks';
+import { spaceLinkQuery } from '../../../ui/spaces';
+import { copyText, toast } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';
-import { DURATIONS, LIMITS, type Notices } from '../data/notices.js';
+import { DURATIONS, LIMITS, type Notices, noteHash } from '../data/notices.js';
 import { defaults, usePrefs } from '../state';
 
 type Post = any;
@@ -202,10 +204,38 @@ function ReportDialog({ notices, post, onClose }: { notices: Notices; post: Post
   );
 }
 
+/** The space this board serves: its name, what it is for, whether it is for adults, its rules. */
+function SpaceHead() {
+  const t = useT();
+  const space = useSpace();
+  if (!space) return null;
+  return (
+    <section className="space-head" id="spaceHead" data-space={space.address}>
+      <h2>
+        <Icon name="users-round" />
+        <span className="space-name">{space.name}</span>
+        {space.adult ? (
+          <span className="badge adult" title={t('db.space.adultTitle')}>
+            {t('db.space.adult')}
+          </span>
+        ) : null}
+      </h2>
+      {space.description ? <p className="space-text">{space.description}</p> : null}
+      {space.rules ? (
+        <details className="space-rules">
+          <summary>{t('db.space.rules')}</summary>
+          <p>{space.rules}</p>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
 function NoteCard({
   notices,
   post,
   revealed,
+  focused,
   onReveal,
   onMenu,
   onContact,
@@ -213,6 +243,7 @@ function NoteCard({
   notices: Notices;
   post: Post;
   revealed: boolean;
+  focused: boolean;
   onReveal: () => void;
   onMenu: (el: HTMLElement) => void;
   onContact: () => void;
@@ -222,6 +253,10 @@ function NoteCard({
   const people = usePeople();
   const prefs = usePrefs();
   const mine = post.pubkey === id.pk;
+  const el = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (focused) el.current?.scrollIntoView({ block: 'center' });
+  }, [focused]);
   const my = notices.myVote(post.address);
   const saved = new Set(prefs.get('saved', []) || []).has(post.address);
   const collapsed = post.collapsed && !revealed && !defaults(prefs).showCollapsed;
@@ -234,7 +269,11 @@ function NoteCard({
     prefs.set({ saved: [...list] }).catch(fail);
   };
   return (
-    <article className={`note ${post.data.type}${mine ? ' mine' : ''}${collapsed ? ' collapsed' : ''}`} data-a={post.address}>
+    <article
+      ref={el}
+      className={`note ${post.data.type}${mine ? ' mine' : ''}${collapsed ? ' collapsed' : ''}${focused ? ' focus' : ''}`}
+      data-a={post.address}
+    >
       {post.collapsed ? (
         <div className="note-collapsed">
           <Icon name="eye" />
@@ -320,8 +359,21 @@ function NoteCard({
   );
 }
 
-export function BoardView({ notices }: { notices: Notices }) {
+/**
+ * @param focus  the address of the note a link opened, highlighted and scrolled to
+ * @param foreign  a link into a space this hub does not serve: said instead of silently showing this board
+ */
+export function BoardView({
+  notices,
+  focus = null,
+  foreign = null,
+}: {
+  notices: Notices;
+  focus?: string | null;
+  foreign?: { address: string; from: string | null } | null;
+}) {
   const t = useT();
+  const kiwi = useKiwi();
   const id = useIdentity();
   const blocks = useBlocks();
   const people = usePeople();
@@ -364,12 +416,16 @@ export function BoardView({ notices }: { notices: Notices }) {
     if (mineCount >= LIMITS.perKey) return toast(t('db.limit'), 'error', 5000);
     setCompose({ existing: null });
   };
+  // the note's link: this page without its hash, the note's route, the space and where its events are
+  const linkTo = (p: Post) => `${location.href.split('#')[0]}${noteHash(p, spaceLinkQuery(kiwi))}`;
   const menu = (el: HTMLElement, p: Post) => {
     const mine = p.pubkey === id.pk;
+    const link = { label: t('db.copyLink'), icon: 'link', run: () => copyText(linkTo(p), t('db.link')) };
     openMenu(
       el,
       mine
         ? [
+            link,
             { label: t('db.edit'), icon: 'pencil', run: () => setCompose({ existing: p }) },
             {
               label: t('db.delete'),
@@ -382,6 +438,7 @@ export function BoardView({ notices }: { notices: Notices }) {
             },
           ]
         : [
+            link,
             ...(people?.isFriend(p.pubkey)
               ? []
               : [
@@ -408,6 +465,23 @@ export function BoardView({ notices }: { notices: Notices }) {
         if (chip?.dataset.tag) toggleTag(chip.dataset.tag);
       }}
     >
+      <SpaceHead />
+      {foreign ? (
+        <div className="banner foreign-space" id="foreignSpace">
+          <Icon name="globe" />
+          <p>
+            {t('db.foreignSpace', { space: foreign.address.split(':')[2] })}
+            {foreign.from ? (
+              <>
+                {' '}
+                <a href={`${foreign.from}${location.hash}`} rel="noopener">
+                  {t('db.openElsewhere')}
+                </a>
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
       <div className="toolbar">
         <input
           className="search"
@@ -449,6 +523,7 @@ export function BoardView({ notices }: { notices: Notices }) {
               notices={notices}
               post={p}
               revealed={revealed.has(p.address)}
+              focused={p.address === focus}
               onReveal={() => setRevealed((r) => new Set(r).add(p.address))}
               onMenu={(el) => menu(el, p)}
               onContact={() => setContact(p)}

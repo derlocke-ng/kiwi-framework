@@ -328,5 +328,6 @@
   "account.signOutOthers": "Cerrar sesión en los otros dispositivos",
   "account.signOutOthersConfirm": "Todos los demás dispositivos cierran sesión la próxima vez que se conecten. Este sigue conectado.",
   "account.signOutOthersDone": "Los otros dispositivos cerrarán sesión cuando vuelvan a conectarse.",
-  "account.signOutDevice": "Cerrar sesión"
+  "account.signOutDevice": "Cerrar sesión",
+  "how.spaces": "Cada tablón, feed o mercado de aquí sirve a un espacio: una comunidad con nombre, con reglas, moderadores y, cuando los tiene, relés propios. Las publicaciones nombran su espacio, así que las de un espacio nunca se mezclan con las de otro, y dos hubs que nombran el mismo espacio lo comparten."
 }

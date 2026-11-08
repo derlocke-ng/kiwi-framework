@@ -91,5 +91,24 @@
   "media.result.unreachable": "Irraggiungibile, o blocca questo sito",
   "hub.public": "Pubblico",
   "hub.publicArea": "Aperto a persone fuori da questo hub",
-  "hub.signedOutElsewhere": "Questo dispositivo è stato disconnesso da un altro dispositivo."
+  "hub.signedOutElsewhere": "Questo dispositivo è stato disconnesso da un altro dispositivo.",
+  "settings.spaces": "Spazi",
+  "settings.spacesText": "Le comunità che le bacheche, i feed e i mercati di questo hub servono. Ognuna ha un indirizzo che altri hub possono nominare per servire lo stesso spazio, moderatori e relay propri o quelli dell’hub. La definizione di uno spazio vive sui relay; il suo proprietario la pubblica da qui, e uno spazio senza proprietario riceve quella dell’hub.",
+  "settings.spaceAddress": "Indirizzo",
+  "settings.spaceMounts": "Servito da {mounts}",
+  "settings.spaceRelaysOwn": "Relay propri: {relays}",
+  "settings.spaceRelaysHub": "Sui relay dell’hub",
+  "settings.spaceOwned": "Tuo: questo spazio è tuo.",
+  "settings.spaceOwnedBy": "Di {owner}.",
+  "settings.spaceUnowned": "Di nessuno: la configurazione dell’hub è la sua definizione.",
+  "settings.spaceDefined": "Definizione sui relay, del {when}.",
+  "settings.spaceUndefined": "Ancora nessuna definizione sui relay.",
+  "settings.spaceModerators": {
+    "one": "{n} moderatore",
+    "many": "{n} moderatori",
+    "other": "{n} moderatori"
+  },
+  "settings.spacePublish": "Pubblica la definizione",
+  "settings.spacePublished": "Definizione pubblicata.",
+  "settings.spaceAdult": "18+"
 }

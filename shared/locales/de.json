@@ -319,5 +319,6 @@
   "account.signOutOthers": "Andere Geräte abmelden",
   "account.signOutOthersConfirm": "Jedes andere Gerät meldet sich bei seiner nächsten Verbindung ab. Dieses bleibt angemeldet.",
   "account.signOutOthersDone": "Die anderen Geräte melden sich bei ihrer nächsten Verbindung ab.",
-  "account.signOutDevice": "Abmelden"
+  "account.signOutDevice": "Abmelden",
+  "how.spaces": "Jedes Brett, jeder Feed und jeder Markt hier dient einem Space: einer benannten Gemeinschaft mit Regeln, Moderatoren und, wenn sie welche hat, eigenen Relays. Beiträge nennen ihren Space, darum vermischen sich die Beiträge eines Space nie mit denen eines anderen, und zwei Hubs, die denselben Space nennen, teilen ihn."
 }

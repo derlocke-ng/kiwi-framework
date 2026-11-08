@@ -29,15 +29,16 @@ export const HOW_TOPICS = [
   'friends', // mutual friends, gift-wrapped requests and shares (people.js)
   'blocks', // private block list, public reports (moderation.js)
   'privateMessages', // NIP-17 messages (the chat)
+  'spaces', // a mount serves one space: posts name it, a space's relays carry only its posts (spaces.js)
 ];
 
 /** Starting lists for each kind of app. */
 export const HOW = {
   hub: ['encrypted', 'account', 'settings', 'relays', 'offline', 'media', 'backup'],
   boards: ['linkKeys', 'offline', 'relays', 'backup'], // shared lists and notes
-  notices: ['signed', 'pow', 'expiry', 'blocks'], // a public noticeboard
-  feed: ['encrypted', 'friends', 'media', 'blocks', 'offline'],
-  market: ['signed', 'media', 'pow', 'expiry', 'blocks'],
+  notices: ['signed', 'pow', 'expiry', 'blocks', 'spaces'], // a public noticeboard
+  feed: ['encrypted', 'friends', 'media', 'blocks', 'offline', 'spaces'],
+  market: ['signed', 'media', 'pow', 'expiry', 'blocks', 'spaces'],
   chat: ['privateMessages', 'friends', 'blocks', 'media', 'offline'],
   blog: ['signed', 'media', 'offline'],
   rooms: ['direct', 'linkKeys'], // live rooms: file drops, games

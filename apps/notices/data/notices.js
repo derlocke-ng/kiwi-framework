@@ -3,9 +3,15 @@
 // NIP-25 reactions; reports NIP-56. Readers check every rule themselves: a
 // note without the proof of work, or that lives too long, does not exist.
 // The wire ids stay DevBoard's (kind 30810, settings namespace 'devboard').
+//
+// A board serves one space (shared/spaces.js) or none: on a space, every note
+// names it in an `a` tag and the board reads only those; a report by one of
+// the space's moderators collapses a note by itself. A board on no space
+// shows the notes that name none.
 
 import { KINDS, now, sign, stamp, addressOf } from '../../../shared/events.js';
 import { minePow, hasPow } from '../../../shared/pow.js';
+import { isModerator, spaceOf, spaceTag } from '../../../shared/spaces.js';
 import { store, randomId } from '../../../shared/util.js';
 import { t } from '../../../shared/i18n.js';
 
@@ -19,6 +25,16 @@ const COLLAPSE_REPORTS = 3;
 const VOTE_WINDOW = 30_000;
 const VOTE_MAX = 10;
 export const NAMESPACE = 'devboard';
+
+/** A note's route: `#/n/<author>/<d>`, with the space and hints in the query (ui/spaces.ts). */
+export const noteHash = (post, query = '') => `#/n/${post.pubkey}/${post.address.split(':')[2]}${query ? `?${query}` : ''}`;
+
+/** A note's route read back: its address, or null when the hash is not one. */
+export function parseNoteHash(hash) {
+  const m = /^#\/n\/([0-9a-f]{64})\/([^/?]+)(?:\?(.*))?$/.exec(String(hash || ''));
+  if (!m) return null;
+  return { address: `${KINDS.DEVBOARD_POST}:${m[1]}:${decodeURIComponent(m[2])}`, params: new URLSearchParams(m[3] || '') };
+}
 
 /** A note's event, checked against every rule; null when it breaks one. */
 export function parsePost(ev) {
@@ -53,12 +69,14 @@ export function parsePost(ev) {
 
 export class Notices {
   /**
-   * @param {{ pool: any, db: any, sync: any }} net
+   * @param {{ pool: any, db: any, sync: any }} net  the board's content network (a space's relays, or the mount's)
    * @param {{ sk: string, pk: string }} identity
+   * @param {{ space?: any }} [options]  space: the one this board serves (shared/spaces.js), none for a board on no space
    */
-  constructor(net, identity) {
+  constructor(net, identity, { space = null } = {}) {
     this.net = net;
     this.identity = identity;
+    this.space = space;
     /** address -> { address, event, pubkey, id, data, created_at, expires, deleted? } */
     this.posts = new Map();
     /** address -> Map(voter -> { v, at }) */
@@ -73,7 +91,8 @@ export class Notices {
 
   async start() {
     const since = now() - LIMITS.maxDays * 86_400;
-    const filters = [{ kinds: [KINDS.DEVBOARD_POST], since }, { kinds: [KINDS.REACTION, KINDS.REPORT], '#k': [String(KINDS.DEVBOARD_POST)], since }];
+    const posts = this.space ? { kinds: [KINDS.DEVBOARD_POST], '#a': [this.space.address], since } : { kinds: [KINDS.DEVBOARD_POST], since };
+    const filters = [posts, { kinds: [KINDS.REACTION, KINDS.REPORT], '#k': [String(KINDS.DEVBOARD_POST)], since }];
     this.offStore = this.net.db.subscribe((ev) => this.receive(ev)); // listen first, then read: nothing lands unseen in between
     for (const ev of await this.net.db.query(filters)) this.receive(ev);
     this.sub = this.net.pool.subscribe(filters, { onevent: (ev) => this.net.db.put(ev) });
@@ -101,8 +120,14 @@ export class Notices {
     }, 60);
   }
 
+  /** Does a note belong on this board: in its space, or in none for a board on no space? */
+  inSpace(ev) {
+    return spaceOf(ev) === (this.space?.address || null);
+  }
+
   receive(ev) {
     if (ev.kind === KINDS.DEVBOARD_POST) {
+      if (!this.inSpace(ev)) return;
       const post = parsePost(ev);
       if (!post) return;
       const cur = this.posts.get(post.address);
@@ -134,11 +159,20 @@ export class Notices {
     return s;
   }
 
+  /** Reports on a note by people not blocked; one from a moderator of the space counts as enough to collapse it. */
   reportCount(address, isBlocked) {
     const all = this.reports.get(address) || new Map();
     let n = 0;
-    for (const reporter of all.keys()) if (!isBlocked(reporter) && reporter !== this.identity.pk) n++;
-    return n + (all.has(this.identity.pk) ? 1 : 0);
+    for (const reporter of all.keys()) {
+      if (reporter !== this.identity.pk && isBlocked(reporter)) continue;
+      n += isModerator(this.space, reporter) ? COLLAPSE_REPORTS : 1;
+    }
+    return n;
+  }
+
+  /** The `a` tag a note on this board carries: its space, and a relay where the note lives (none on a board on no space). */
+  spaceTags() {
+    return this.space ? [spaceTag(this.space, this.net.pool.urls?.[0] || null)] : [];
   }
 
   myVote(address) {
@@ -186,7 +220,13 @@ export class Notices {
     if (!this.net.pool.online) throw new Error(t('db.compose.needRelay'));
     const { pk, sk } = this.identity;
     const created = stamp(`${KINDS.DEVBOARD_POST}:${pk}:${d}`); // strictly increasing per note: an edit in the same second still wins
-    const template = { kind: KINDS.DEVBOARD_POST, pubkey: pk, created_at: created, tags: [['d', d], ['expiration', String(created + days * 86_400)], ...data.tags.map((x) => ['t', x.toLowerCase()])], content: JSON.stringify(data) };
+    const template = {
+      kind: KINDS.DEVBOARD_POST,
+      pubkey: pk,
+      created_at: created,
+      tags: [['d', d], ['expiration', String(created + days * 86_400)], ...this.spaceTags(), ...data.tags.map((x) => ['t', x.toLowerCase()])],
+      content: JSON.stringify(data),
+    };
     const event = sign(await this.mine(template, powPost(), onProgress, signal), sk);
     await this.net.sync.publish(event, { wait: 'one' });
     return event;
@@ -195,7 +235,7 @@ export class Notices {
   async deletePost(p) {
     const { pk, sk } = this.identity;
     const created = stamp(p.address);
-    const template = { kind: KINDS.DEVBOARD_POST, pubkey: pk, created_at: created, tags: [['d', p.address.split(':')[2]], ['expiration', String(created + 86_400)]], content: JSON.stringify({ del: 1 }) };
+    const template = { kind: KINDS.DEVBOARD_POST, pubkey: pk, created_at: created, tags: [['d', p.address.split(':')[2]], ['expiration', String(created + 86_400)], ...this.spaceTags()], content: JSON.stringify({ del: 1 }) };
     await this.net.sync.publish(sign(await this.mine(template, powPost()), sk));
   }
 

@@ -319,5 +319,6 @@
   "account.signOutOthers": "Andere apparaten afmelden",
   "account.signOutOthersConfirm": "Elk ander apparaat meldt zich af bij zijn volgende verbinding. Dit apparaat blijft aangemeld.",
   "account.signOutOthersDone": "De andere apparaten melden zich af bij hun volgende verbinding.",
-  "account.signOutDevice": "Afmelden"
+  "account.signOutDevice": "Afmelden",
+  "how.spaces": "Elk bord, elke feed en elke markt hier dient één space: een benoemde gemeenschap met regels, moderatoren en, als ze die heeft, eigen relays. Berichten noemen hun space, dus de berichten van één space raken nooit vermengd met die van een andere, en twee hubs die dezelfde space noemen, delen hem."
 }

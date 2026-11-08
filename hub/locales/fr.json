@@ -91,5 +91,24 @@
   "media.result.unreachable": "Injoignable, ou bloque ce site",
   "hub.public": "Public",
   "hub.publicArea": "Ouvert aux personnes extérieures à ce hub",
-  "hub.signedOutElsewhere": "Cet appareil a été déconnecté depuis un autre appareil."
+  "hub.signedOutElsewhere": "Cet appareil a été déconnecté depuis un autre appareil.",
+  "settings.spaces": "Espaces",
+  "settings.spacesText": "Les communautés que servent les tableaux, fils et marchés de ce hub. Chacune a une adresse que d’autres hubs peuvent nommer pour servir le même espace, des modérateurs, et ses propres relais ou ceux du hub. La définition d’un espace vit sur les relais ; son propriétaire la publie d’ici, et un espace sans propriétaire reçoit celle du hub.",
+  "settings.spaceAddress": "Adresse",
+  "settings.spaceMounts": "Servi par {mounts}",
+  "settings.spaceRelaysOwn": "Relais propres : {relays}",
+  "settings.spaceRelaysHub": "Sur les relais du hub",
+  "settings.spaceOwned": "À vous : cet espace vous appartient.",
+  "settings.spaceOwnedBy": "Appartient à {owner}.",
+  "settings.spaceUnowned": "À personne : la configuration du hub en est la définition.",
+  "settings.spaceDefined": "Définition sur les relais, du {when}.",
+  "settings.spaceUndefined": "Pas encore de définition sur les relais.",
+  "settings.spaceModerators": {
+    "one": "{n} modérateur",
+    "many": "{n} modérateurs",
+    "other": "{n} modérateurs"
+  },
+  "settings.spacePublish": "Publier la définition",
+  "settings.spacePublished": "Définition publiée.",
+  "settings.spaceAdult": "18+"
 }

@@ -15,7 +15,10 @@
 //   core     part of every distribution; a fork cannot drop it
 //   legacy   built elsewhere (Vite), not precached, marked Legacy
 //   network  (a mount's) 'hub', the hub's own relays, or 'public', the public area's relays (shared/relays.js)
+//   space    (a mount's) the id of one of the distribution's spaces (shared/spaces.js): the community
+//            it serves; its posts carry the space's address and live on the space's relays when it has some
 import { DISTRIBUTION } from './distribution.js';
+import { spaceById } from './spaces.js';
 
 /** Core apps ship with the framework itself and are in every distribution. None yet: chat and notifications come here. */
 export const CORE_APPS = [];
@@ -30,10 +33,24 @@ export const appById = (id) => APPS.find((a) => a.id === id) || null;
 export const MOUNTS = DISTRIBUTION.mounts.map((m) => {
   const app = appById(m.app);
   if (!app) throw new Error(`distribution mounts unknown app "${m.app}"`);
-  return { ...app, ...m, app: app.id, id: m.id, name: m.name || app.name, icon: m.icon || app.icon, space: m.space || null, tags: m.tags || app.tags, network: m.network === 'public' ? 'public' : 'hub' };
+  const space = m.space ? spaceById(m.space) : null;
+  if (m.space && !space) throw new Error(`the mount "${m.id}" names a space "${m.space}" the distribution does not define`);
+  return { ...app, ...m, app: app.id, id: m.id, name: m.name || app.name, icon: m.icon || app.icon, space, tags: m.tags || app.tags, network: m.network === 'public' ? 'public' : 'hub' };
 });
-/** The network a page is on: a public mount's is the public area's, everything else (the hub's pages, hub mounts) the hub's own. */
+/**
+ * The network a page's people are on: a public mount's is the public area's, everything else (the hub's
+ * pages, hub mounts) the hub's own. Settings, friends and sealed notes made on the page go there.
+ */
 export const networkOfPage = (current) => (mountById(current)?.network === 'public' ? 'public' : 'hub');
+/**
+ * The network a page's content is on: a mount on a space with relays of its own reads and writes those
+ * (`space:<id>`), any other page its people's network.
+ */
+export const contentNetworkOf = (current) => mountById(current)?.space?.network || networkOfPage(current);
+/** The space a page's mount serves, or null. */
+export const spaceOfPage = (current) => mountById(current)?.space || null;
+/** The mount of `appId` that serves the space at `address`, or null: where a link into that space opens on this hub. */
+export const mountFor = (appId, address) => MOUNTS.find((m) => m.app === appId && m.space?.address === address) || null;
 /** Does this hub have a public area? */
 export const hasPublicArea = () => MOUNTS.some((m) => m.network === 'public') && Boolean(DISTRIBUTION.publicRelays?.length);
 export const MOUNT_IDS = MOUNTS.map((m) => m.id);

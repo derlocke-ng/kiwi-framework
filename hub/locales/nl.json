@@ -90,5 +90,23 @@
   "media.result.unreachable": "Onbereikbaar, of blokkeert deze site",
   "hub.public": "Openbaar",
   "hub.publicArea": "Open voor mensen buiten deze hub",
-  "hub.signedOutElsewhere": "Dit apparaat is vanaf een ander apparaat afgemeld."
+  "hub.signedOutElsewhere": "Dit apparaat is vanaf een ander apparaat afgemeld.",
+  "settings.spaces": "Spaces",
+  "settings.spacesText": "De gemeenschappen die de borden, feeds en markten van deze hub bedienen. Elke space heeft een adres dat andere hubs kunnen noemen om dezelfde space aan te bieden, moderatoren, en eigen relays of die van de hub. De definitie van een space staat op de relays; de eigenaar publiceert haar van hier, en een space zonder eigenaar krijgt die van de hub.",
+  "settings.spaceAddress": "Adres",
+  "settings.spaceMounts": "Aangeboden door {mounts}",
+  "settings.spaceRelaysOwn": "Eigen relays: {relays}",
+  "settings.spaceRelaysHub": "Op de relays van de hub",
+  "settings.spaceOwned": "Van jou: deze space is de jouwe.",
+  "settings.spaceOwnedBy": "Van {owner}.",
+  "settings.spaceUnowned": "Van niemand: de configuratie van de hub is de definitie.",
+  "settings.spaceDefined": "Definitie op de relays, van {when}.",
+  "settings.spaceUndefined": "Nog geen definitie op de relays.",
+  "settings.spaceModerators": {
+    "one": "{n} moderator",
+    "other": "{n} moderatoren"
+  },
+  "settings.spacePublish": "Definitie publiceren",
+  "settings.spacePublished": "Definitie gepubliceerd.",
+  "settings.spaceAdult": "18+"
 }

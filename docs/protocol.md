@@ -184,7 +184,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | kind | for |
 |---|---|
 | 30023 | long-form articles (NIP-23): the blog app |
-| 34550 and related | community definitions (NIP-72): spaces; posts and listings then carry `["a", <space address>]` |
+| 4550 | NIP-72 approvals by a space's moderators (not read yet; §12) |
 | 10002, 10050 | relay lists (§10) |
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
 | 21701–21702 | live rooms for Payload and pong (§8); 21700 presence and 21710 chat-room messages are in use |
@@ -192,12 +192,14 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
 | market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
+| 34550 | in use: space definitions (§12) |
 
 ## Changes
 
 - **v1** (October 2026): this document, written from the code of kiwi-framework 0.1.0 and Armory. No event format changed.
 - **v1, clarified**: `created_at` of a new version is after every version the device has seen, not only the ones it signed (fixes edits from a device with a slow clock being dropped). No format changed.
 - **v1, extended**: the media object and Blossom authorization (§9); the suite keys `appOrder` and `mediaServers`. No existing format changed.
+- **v1, extended** (0.18): spaces (§12): the definition event, the `a` tag a note carries, the `s=` and `h=` of a link. A note in no space is what it was; a board on a space shows only notes that name it.
 
 
 ## 9. Relay lists, inboxes and hints
@@ -207,3 +209,22 @@ Every person publishes, on each network a hub has (its own relays, and the publi
 Every sealed note (kind 14 messages and every other rumor a gift wrap carries: friend requests, shares, knocks, keys, room invitations) has a tag `["relays", <relay>, …]` inside the seal: the writer's relays on the network the note travels on, so the reader can answer without a lookup. A writer sends a gift wrap to the network's relays (the outbox) and to the reader's inbox relays that are not among them: those the reader named in their last sealed note, else their kind 10050 (or the read relays of their kind 10002) from the network's relays and the directory relays.
 
 A link carries hints to where its events live: `r=<relay without its scheme>`, up to three, in the fragment's query (`#/b/<pub>?w=…&r=relay.example`, `#/group/…/<name>?r=…`, `#/room/<secret>?r=…`); `wss://` is implied, `ws://` for `localhost`. Group keys (kind 7825) and room invitations (7826) carry the same as `"relays": [<relay>, …]` in their content. A hub that opens such a link reads, and writes, those relays besides its own; a hub whose own relays are locked neither puts hints in its links nor follows them.
+
+## 12. Spaces
+
+A **space** is a named, owned community that a hub's boards, feeds and markets serve ([NIP-72](https://github.com/nostr-protocol/nips/blob/master/72.md) community): its definition is an addressable event, its address is what every post in it names, and two hubs that name the same address serve the same space.
+
+| | |
+|---|---|
+| kind | **34550** (addressable) |
+| author | the space's owner |
+| tags | `["d", <id>]` (the id: `^[a-z0-9][a-z0-9-]{1,39}$`), `["name", <≤ 80>]`, `["description", <≤ 600>]`, `["relay", <url>]`… (the space's own relays), `["p", <pubkey>, "", "moderator"]`…; ours, which other clients ignore: `["adult", "1"]`, `["lang", <code>]`…, `["region", <≤ 40>]`, `["rules", <≤ 2000>]` |
+| content | empty |
+
+The space's address is `34550:<owner>:<id>`. **A space nobody owns** is one a hub ships in its configuration without an owner: its key is `sk = sha256("wjs/space/v1|" + <hub id> + "|" + <space id>)`, so every build of that hub, and any hub that copies the address, finds the same space; the hub's configuration is its definition, and the hub's devices publish that definition under the derived key when the relays lack it or hold another, so other clients see the space too (the key is public knowledge, so a definition under it is a courtesy, not a claim). **An owned space** is defined by its owner alone: the hub shows the configuration until the relays answer, then the newest definition's name, texts, moderators and flags. In both forms the relays a hub uses for a space are its configuration's (`relays` in `distribution.js`, or `spaces.<id>.relays` in `hub.local.json`), not the event's.
+
+**Posts in a space** carry `["a", <space address>, <relay>]`, the relay being one where the post lives (NIP-72); a client reads a space with `{ "#a": [<address>] }` and shows nothing in it that does not name it, and nothing on a board in no space that names one. Today the notes of §7 carry it (their deletions too); feed and market posts will. Votes and reports keep their `a` tag to the post. A **report by one of the space's moderators** (its owner or a `p … moderator`) collapses a note by itself; approvals (kind 4550) are not read yet.
+
+**A space's relays** are a network of their own on a hub (shared/relays.js, `space:<id>`): a mount on the space reads and writes them and nothing else, its people's lists, settings and sealed notes stay on the hub's or the public network, and no relay list (§9) is published on them. A space without relays lives on its mount's network.
+
+**A link into a space** carries `s=<space address>` and `h=<the page it was made on, without its hash>` in the fragment's query besides the `r=` hints (§9): `<app url>#/n/<author>/<d>?s=34550%3A…%3Ajobs&h=https%3A%2F%2Fhub.example%2Fjobs%2F&r=relay.example`. A hub that opens it on a mount of the same app that serves another space goes to its mount for that space; a hub with none says whose space it is and offers `h=` as the way back. The link names the app, the space and the item; the host in `h=` is a courtesy, not the address.

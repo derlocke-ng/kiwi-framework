@@ -3,11 +3,13 @@
 // and their networks), for tools and catalogs to read. A host may serve
 // `hub.local.json` beside it with what the deployment decides: its own
 // relays (inside a VPN), the public area's relays, the policy, which mounts
-// are public. The page reads it before it connects, so one built site (one
-// container image) serves many networks; container/entrypoint.sh writes it
-// from the container's environment. Anything malformed is ignored.
+// are public, a space's relays. The page reads it before it connects, so one
+// built site (one container image) serves many networks;
+// container/entrypoint.sh writes it from the container's environment.
+// Anything malformed is ignored.
 import { MOUNTS } from './apps.js';
 import { DISTRIBUTION } from './distribution.js';
+import { resolveSpaces, SPACES, setSpaceRelays } from './spaces.js';
 
 export const LOCAL_CONFIG = 'hub.local.json';
 const RELAY = /^wss?:\/\/\S+$/;
@@ -43,6 +45,20 @@ export function applyHubConfig(local) {
     for (const m of MOUNTS) m.network = 'hub';
     for (const m of DISTRIBUTION.mounts || []) m.network = 'hub';
   }
+  // a space's relays: `spaces: { <id>: { relays: [...] } }`; an empty list puts the space on its mount's network
+  if (local.spaces && typeof local.spaces === 'object' && !Array.isArray(local.spaces)) {
+    const spaces = {};
+    for (const [id, v] of Object.entries(local.spaces)) {
+      const space = SPACES.find((s) => s.id === id);
+      const relays = v && typeof v === 'object' ? relayList(v.relays) : null;
+      if (!space || !relays) continue;
+      setSpaceRelays(space, relays); // normalized there
+      const configured = (DISTRIBUTION.spaces || []).find((s) => s.id === id);
+      if (configured) configured.relays = [...space.relays];
+      spaces[id] = { relays: [...space.relays] };
+    }
+    if (Object.keys(spaces).length) applied.spaces = spaces;
+  }
   return applied;
 }
 
@@ -72,6 +88,8 @@ export function describeHub(config, { version = '', framework = '' } = {}) {
     publicRelays: [...(config.publicRelays || [])],
     directoryRelays: [...(config.directoryRelays || [])],
     policy: { userMounts: false, relays: 'open', requireHub: false, ...(config.policy || {}) },
-    mounts: (config.mounts || []).map((m) => ({ id: m.id, app: m.app, name: m.name || null, network: m.network === 'public' ? 'public' : 'hub' })),
+    // the spaces as built: their addresses are what another hub names to serve the same space
+    spaces: resolveSpaces(config).map((s) => ({ id: s.id, address: s.address, owner: s.owner, owned: s.owned, name: s.name, description: s.description, relays: [...s.relays], moderators: [...s.moderators], adult: s.adult })),
+    mounts: (config.mounts || []).map((m) => ({ id: m.id, app: m.app, name: m.name || null, network: m.network === 'public' ? 'public' : 'hub', space: m.space || null })),
   };
 }

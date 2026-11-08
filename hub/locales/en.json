@@ -90,5 +90,23 @@
   "media.result.unreachable": "Unreachable, or it blocks this site",
   "hub.public": "Public",
   "hub.publicArea": "Open to people outside this hub",
-  "hub.signedOutElsewhere": "This device was signed out from another device."
+  "hub.signedOutElsewhere": "This device was signed out from another device.",
+  "settings.spaces": "Spaces",
+  "settings.spacesText": "The communities this hub’s boards, feeds and markets serve. Each has an address other hubs can name to serve the same space, moderators, and relays of its own or the hub’s. A space’s definition lives on the relays; its owner publishes it from here, and a space nobody owns gets the hub’s.",
+  "settings.spaceAddress": "Address",
+  "settings.spaceMounts": "Served by {mounts}",
+  "settings.spaceRelaysOwn": "Own relays: {relays}",
+  "settings.spaceRelaysHub": "On the hub’s relays",
+  "settings.spaceOwned": "Yours: you own this space.",
+  "settings.spaceOwnedBy": "Owned by {owner}.",
+  "settings.spaceUnowned": "Nobody’s: the hub’s configuration is its definition.",
+  "settings.spaceDefined": "Definition on the relays, from {when}.",
+  "settings.spaceUndefined": "No definition on the relays yet.",
+  "settings.spaceModerators": {
+    "one": "{n} moderator",
+    "other": "{n} moderators"
+  },
+  "settings.spacePublish": "Publish definition",
+  "settings.spacePublished": "Definition published.",
+  "settings.spaceAdult": "18+"
 }

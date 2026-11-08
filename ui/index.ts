@@ -20,6 +20,7 @@ export {
   useOutboxWaiting,
   usePeople,
   useRelayInfos,
+  useSpace,
   useT,
   useTick,
   useUnsynced,
@@ -33,6 +34,7 @@ export type { Unread } from './notify';
 export { chatMount, notificationsSupported, notifyBrowser, notifyEnabled, setNotify, useUnread } from './notify';
 export { useHash } from './route';
 export { sendAsMessage } from './share';
+export { resolveSpaceLink, spaceLinkQuery } from './spaces';
 export { copyText, dismiss, download, toast, toastError } from './toast';
 export type { Events, EventsOptions, Filter, NostrEvent } from './useEvents';
 export { useEvents } from './useEvents';

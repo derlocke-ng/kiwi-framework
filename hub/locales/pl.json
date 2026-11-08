@@ -92,5 +92,25 @@
   "media.result.unreachable": "Nieosiągalny albo blokuje tę stronę",
   "hub.public": "Publiczne",
   "hub.publicArea": "Otwarte dla osób spoza tego huba",
-  "hub.signedOutElsewhere": "To urządzenie zostało wylogowane z innego urządzenia."
+  "hub.signedOutElsewhere": "To urządzenie zostało wylogowane z innego urządzenia.",
+  "settings.spaces": "Przestrzenie",
+  "settings.spacesText": "Społeczności, które obsługują tablice, kanały i rynki tego huba. Każda ma adres, który inne huby mogą wskazać, by obsługiwać tę samą przestrzeń, moderatorów oraz własne przekaźniki albo przekaźniki huba. Definicja przestrzeni leży na przekaźnikach; jej właściciel publikuje ją stąd, a przestrzeń bez właściciela otrzymuje definicję huba.",
+  "settings.spaceAddress": "Adres",
+  "settings.spaceMounts": "Obsługiwana przez {mounts}",
+  "settings.spaceRelaysOwn": "Własne przekaźniki: {relays}",
+  "settings.spaceRelaysHub": "Na przekaźnikach huba",
+  "settings.spaceOwned": "Twoja: ta przestrzeń należy do Ciebie.",
+  "settings.spaceOwnedBy": "Należy do {owner}.",
+  "settings.spaceUnowned": "Niczyja: konfiguracja huba jest jej definicją.",
+  "settings.spaceDefined": "Definicja na przekaźnikach, z {when}.",
+  "settings.spaceUndefined": "Na przekaźnikach nie ma jeszcze definicji.",
+  "settings.spaceModerators": {
+    "one": "{n} moderator",
+    "few": "{n} moderatorów",
+    "many": "{n} moderatorów",
+    "other": "{n} moderatora"
+  },
+  "settings.spacePublish": "Opublikuj definicję",
+  "settings.spacePublished": "Definicja opublikowana.",
+  "settings.spaceAdult": "18+"
 }

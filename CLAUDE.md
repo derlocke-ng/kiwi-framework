@@ -1,0 +1,87 @@
+# Working on kiwi-framework
+
+What a session needs to know to continue this repository without the conversation that built it. The product is in `README.md`; the decisions in `docs/architecture.md` (read its *Roadmap* first); what is on the wire in `docs/protocol.md`. This file is about how the work is done.
+
+## The repositories
+
+| repository | what | how changes land |
+|---|---|---|
+| `derlocke-ng/kiwi-framework` (this) | the engine, the hub pages, the framework's apps, the build, the test harness | pushed to `main` directly; CI releases every new version |
+| `derlocke-ng/armory` | the first distribution and the template; GitHub Pages at <https://derlocke-ng.github.io/armory/> | pushed to `main` directly; Pages deploys from it; pins the framework to one commit |
+| `derlocke-ng/kiwi-modules` | kiwi-node modules (`nostr-relay`, `hub`), the `hub` preset | pushed to `main`, tagged `v<VERSION>` from `kiwi.manifest` |
+| `derlocke-ng/kiwi-server` | vendors kiwi-modules by tag (`tools/vendor.sh`, `VENDORED`) | branches and pull requests (the owner merges) |
+
+Every framework change that a hub should get ends with Armory re-pinned and deployed (below). Never open a pull request unless asked; never push a tag by hand (CI does).
+
+## Commands
+
+```sh
+npm ci
+npm run typecheck && npm run lint        # tsc, biome (npm run lint:fix formats)
+npm test                                 # node --test test/unit/*.test.js (fast, no browser)
+npm run test:smoke                       # a distribution from scratch builds (test/smoke.sh)
+node test/e2e/<suite>.mjs                # one browser suite: widgets, boards, notices, payload, pong, chat, hubs, reach, spaces, scaffold
+npm run test:e2e                         # all of them, in that order
+WJS_DEBUG=1 node test/e2e/<suite>.mjs    # the sync layer logs every publish and answer; printed when a step fails
+```
+
+Run browser suites one after another, never two in parallel in one container (the widgets suite flakes under load, nothing else does). A suite that fails prints each device's console, its relay sockets, the addressable events it holds and what the relay holds: read those before guessing. CI (`.github/workflows/test.yml`) runs the same four things and, on `main`, tags `v<package.json version>` and publishes a release with the commit message as notes when that tag does not exist yet.
+
+## A release
+
+1. Bump `version` in `package.json` **and** `VERSION=` in `kiwi.manifest` (same number; the smoke test and `hub.json` read the manifest).
+2. Everything green locally: typecheck, lint, unit, smoke, the suites the change touches (all of them for a release that touches `shared/` or `ui/`).
+3. One commit on `main`: the message is the release note (below). Push. Watch the run; the release appears when it is green.
+4. Re-pin Armory (below), run its suites, commit, push, check the live site serves the new `framework` version in `hub.json`.
+
+### Pinning Armory
+
+```sh
+cd ../armory
+npm install git+https://github.com/derlocke-ng/kiwi-framework.git#<full sha of the release commit>
+# npm writes "github:derlocke-ng/kiwi-framework#<sha>"; keep the git+https form so a checkout without GitHub credentials still installs:
+sed -i 's#"kiwi-framework": "github:derlocke-ng/kiwi-framework\#\([0-9a-f]*\)"#"kiwi-framework": "git+https://github.com/derlocke-ng/kiwi-framework.git\#\1"#' package.json
+# package-lock.json: the "resolved" of node_modules/kiwi-framework the same way (git+https://…git#<sha>)
+npm ci && npm run build && npm test
+node test/e2e/hub.mjs && node test/e2e/loadout.mjs && node test/e2e/devboard.mjs && node test/e2e/payload.mjs && node test/e2e/pong.mjs && node test/e2e/uplink.mjs
+```
+
+Armory's suites import the framework's (`kiwi-framework/test/e2e/*.mjs`) and run them against Armory's built site; `test/e2e/hub.mjs` is Armory's own. Deploy is `.github/workflows/deploy.yml` on push to `main`; `curl https://derlocke-ng.github.io/armory/hub.json` shows the deployed versions after a minute or two.
+
+## Commit messages
+
+The first line is a sentence saying what changed for a person using it, ending with the version when it is a release (`…; 0.18.0`). The body explains the why and the how in plain prose or short dashes, names the files or modules that matter, and lists what the tests prove. No model names anywhere in the repository (commits, code, docs); end the message with the attribution lines the session is given (`Co-Authored-By:` and `Claude-Session:`), which CI strips from the release notes. Write the message to a file and commit with `git commit -F` (heredocs with quotes in a shell command have tripped the tooling's safety filter; the same goes for edits: write a small Python patch script to a file and run it, rather than a long heredoc).
+
+## How the code is written
+
+- Plain CSS, React in `ui/` and the pages, the data layer in `shared/` stays plain JavaScript with JSDoc types (it is served as files too). Comments explain why, in prose; every module starts with a paragraph saying what it is for.
+- Strings: every user-visible text is a key in a JSON catalog, in **all eight languages** (`shared/locales`, `hub/locales`, `apps/<app>/locales`); `test/unit/i18n.test.js` fails on a missing key, a differing placeholder or markup. Translate yourself, carefully; typographic quotes and apostrophes (’ “ ” „ “ « »).
+- "How it works" texts are topics in `shared/how.js` (`how.<topic>` in `shared/locales`); an app lists the topics it is built from.
+- Icons are lucide symbols in `hub/icons.svg`; use one that is there or add the symbol.
+- Biome formats (160 columns, single quotes); run `npm run lint:fix` before committing.
+
+## Invariants of the data layer (do not break these)
+
+- **Listen before read.** Every module subscribes to the store's change feed first, then reads the store, then subscribes to the relays; otherwise an event landing between read and subscribe is lost (`shared/settings.js`, `chat.js`, `people.js`, `groups.js`, `spaces.js`, `apps/notices/data/notices.js` all do this).
+- **Newest wins, per address.** Replaceable events are compared with `supersedes()` (created_at, then lower id); a device stamps new versions after every version it has seen (`stamp()`/`observe()`), never by its clock alone.
+- **Store first, atomically.** `store.put(event, network, { pending })` writes the event, its network and its outbox entry in one IndexedDB transaction; the UI reads the store and never waits for relays; the outbox flushes on (re)connect and on a timer; healing republishes only what a relay lacks.
+- **Networks never cross.** Every event belongs to one network (`hub`, `public`, or `space:<id>`); publishing, the outbox and healing stay inside it. The account's settings, friends, block list and sealed notes live on the hub's network (`kiwi.hubNet`); a page's content network is `kiwi.net` (`kiwi.content`), its people network `kiwi.network`.
+- **Settings are patch-over-newest.** `AccountSettings.set()` applies at once, keeps a patch in localStorage and publishes after the relays' first answer on top of the newest event (0.17.2); never write a whole settings object from a device that has not synced.
+- **Guests, not members.** A relay named by a hint or an inbox list is a guest connection carrying one subscription or event (`pool.subscribeAt/publishAt/fetchAt`); the pool's own networks never grow from links.
+- **Tests never reach real services.** The harness gives every device `wjs.directory = []` (no real directory relays) unless a suite sets `env.keepDirectories`; nothing in a test may publish to a public relay or probe a Blossom server. Do not run `scripts/blossom-probe.mjs` from a container either.
+
+## Pitfalls met before
+
+- nostr-tools' `Relay.url` ends in a slash; the pool's keys do not. Compare through `normalizeRelayUrl` or `pool.networksOf(url)`.
+- `normalizeRelayUrl('https://x')` must return null (another scheme is not a relay).
+- A test device whose browser context was closed cannot be reused: make a fresh one.
+- In the Bash tool, parallel calls share a shell: wrap every command in `( cd /abs/path && … )`.
+- Relay-delivery "flakes" in suites have always been real bugs so far (transaction interleaving, read-before-subscribe, last-decrypt-wins, settings overwrite); chase them, do not retry them away.
+
+## Where things are
+
+`shared/` data layer (events, store, sync, relays, relaylists, peers, spaces, settings, account, people, chat, groups, moderation, pow, blossom, backup, i18n, hubconfig, distribution-check) · `ui/` React layer apps import (`kiwi.ts` is the runtime, `hooks.ts`, `AppShell.tsx`, `spaces.ts`, widgets) · `hub/` the start, settings and account pages · `apps/` boards, notices, chat, payload, pong · `scripts/` build (`build-site.mjs` writes `hub.json`), dev server, scaffolder (`new-app.mjs`), the test relay and Blossom server · `container/` the image recipe and `entrypoint.sh` (`HUB_*` → `hub.local.json`) · `test/unit`, `test/e2e` (`env.mjs` is the harness: `setup`, `device`, `testHub`, `run`).
+
+## Roadmap state (keep this current)
+
+Done through 0.18: accounts and password change, people, chat (messages, groups, rooms, invitations), boards, notices, hubs private/public/semi-public, hosting (container, `hub.local.json`, kiwi modules), relay lists and link hints, spaces (definitions, the `a` tag, space relays as networks, links that resolve to a mount; notices is on spaces). Next, in order (see `docs/architecture.md`, *Roadmap*): the **feed** and the **market** apps on spaces (Outpost and Trading Post in Armory; entries and listings carry the space's `a` tag from day one; the collections widget with pinning), the chat on the same parts, the blog, then approvals (kind 4550) as moderation and `policy.userMounts`. Payload and pong still signal over gun; their move to nostr (kinds 21700–21702) is open.

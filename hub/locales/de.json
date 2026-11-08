@@ -90,5 +90,23 @@
   "media.result.unreachable": "Nicht erreichbar, oder sperrt diese Seite",
   "hub.public": "Öffentlich",
   "hub.publicArea": "Offen für Menschen außerhalb dieses Hubs",
-  "hub.signedOutElsewhere": "Dieses Gerät wurde von einem anderen Gerät aus abgemeldet."
+  "hub.signedOutElsewhere": "Dieses Gerät wurde von einem anderen Gerät aus abgemeldet.",
+  "settings.spaces": "Spaces",
+  "settings.spacesText": "Die Gemeinschaften, denen die Bretter, Feeds und Märkte dieses Hubs dienen. Jeder Space hat eine Adresse, die andere Hubs nennen können, um denselben Space anzubieten, Moderatoren und eigene Relays oder die des Hubs. Die Definition eines Space liegt auf den Relays; sein Eigentümer veröffentlicht sie von hier, und ein Space ohne Eigentümer bekommt die des Hubs.",
+  "settings.spaceAddress": "Adresse",
+  "settings.spaceMounts": "Angeboten von {mounts}",
+  "settings.spaceRelaysOwn": "Eigene Relays: {relays}",
+  "settings.spaceRelaysHub": "Auf den Relays des Hubs",
+  "settings.spaceOwned": "Deiner: dieser Space gehört dir.",
+  "settings.spaceOwnedBy": "Gehört {owner}.",
+  "settings.spaceUnowned": "Niemandes: die Konfiguration des Hubs ist seine Definition.",
+  "settings.spaceDefined": "Definition auf den Relays, vom {when}.",
+  "settings.spaceUndefined": "Noch keine Definition auf den Relays.",
+  "settings.spaceModerators": {
+    "one": "{n} Moderator",
+    "other": "{n} Moderatoren"
+  },
+  "settings.spacePublish": "Definition veröffentlichen",
+  "settings.spacePublished": "Definition veröffentlicht.",
+  "settings.spaceAdult": "18+"
 }

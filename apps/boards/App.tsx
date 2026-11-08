@@ -32,7 +32,7 @@ export function BoardsApp() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the identity
   useEffect(() => {
     const wallet = new Wallet(identity, kiwi.net);
-    const settings = new AccountSettings(identity, kiwi.net, 'loadout');
+    const settings = new AccountSettings(identity, kiwi.hubNet, 'loadout'); // the account's: on the hub's own network
     let live = true;
     // Relays that (re)connect get this device's copy of everything that is ours.
     const rewatch = () => watchAll(identity, wallet, kiwi.net);

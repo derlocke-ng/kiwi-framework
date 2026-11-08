@@ -92,5 +92,12 @@
   "db.settings.defaultsText": "Vooraf ingevuld als je een briefje prikt; daar blijft alles aanpasbaar. Opgeslagen in je account.",
   "db.settings.board": "Bord",
   "db.settings.showCollapsed": "Ingeklapte briefjes open tonen",
-  "db.settings.saved": "Opgeslagen."
+  "db.settings.saved": "Opgeslagen.",
+  "db.copyLink": "Link kopiëren",
+  "db.link": "Link naar de notitie",
+  "db.foreignSpace": "Deze link leidt naar de space “{space}”, die deze hub niet aanbiedt.",
+  "db.openElsewhere": "Openen waar hij vandaan komt",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Alleen voor volwassenen",
+  "db.space.rules": "Regels van deze space"
 }

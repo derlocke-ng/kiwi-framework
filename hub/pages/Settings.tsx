@@ -10,6 +10,7 @@ import { fingerprint, isHex64 } from '../../shared/events.js';
 import { currentLanguage, fmtDateTime, LANGUAGES, tErr } from '../../shared/i18n.js';
 import { CORES_KEY, cores, hardwareCores } from '../../shared/pow.js';
 import { defaultRelays, normalizeRelayUrl, relaysLocked, savedRelays, saveRelays } from '../../shared/relays.js';
+import { SPACES } from '../../shared/spaces.js';
 import { ACCENTS, accent, theme } from '../../shared/theme.js';
 import { store } from '../../shared/util.js';
 import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
@@ -516,6 +517,68 @@ function RelaysCard() {
   );
 }
 
+/**
+ * The spaces this hub's mounts serve (shared/spaces.js): name, address, relays, moderators, and whether the
+ * relays hold a definition. The owner publishes it from here; a space nobody owns gets the hub's.
+ */
+function SpacesCard() {
+  const kiwi = useKiwi();
+  const t = useT();
+  const id = useIdentity();
+  useKiwiTick();
+  if (!SPACES.length) return null;
+  const publish = async (space: any) => {
+    try {
+      await kiwi.spaces.publish(space, space.owned ? id.sk : space.sk);
+      toast(t('settings.spacePublished'), 'success');
+    } catch (err) {
+      fail(err);
+    }
+  };
+  return (
+    <Card id="spaces" icon="users-round" title={t('settings.spaces')}>
+      <p className="muted">{t('settings.spacesText')}</p>
+      <ul className="space-list" id="spaceList">
+        {SPACES.map((s: any) => {
+          const live = kiwi.spaces?.get(s.id) || s;
+          const def = kiwi.spaces?.definition(s.id) || null;
+          const mounts = MOUNTS.filter((m) => m.space?.id === s.id).map((m) => m.name);
+          const owner = s.owned && s.owner === id.pk;
+          return (
+            <li key={s.id} data-space={s.id} data-defined={def ? 'yes' : 'no'}>
+              <div className="space-row-head">
+                <b className="space-name">{live.name}</b>
+                {live.adult ? <span className="badge">{t('settings.spaceAdult')}</span> : null}
+                <code>{s.id}</code>
+              </div>
+              {live.description ? <p className="small">{live.description}</p> : null}
+              <p className="muted small">
+                {t('settings.spaceMounts', { mounts: mounts.join(', ') })} ·{' '}
+                {s.relays.length
+                  ? t('settings.spaceRelaysOwn', { relays: s.relays.map((r: string) => r.replace(/^wss?:\/\//, '')).join(', ') })
+                  : t('settings.spaceRelaysHub')}{' '}
+                · {t('settings.spaceModerators', { n: live.moderators.length })}
+              </p>
+              <p className="muted small space-address">
+                {t('settings.spaceAddress')}: <code>{s.address}</code>
+              </p>
+              <p className="muted small" data-defined={def ? 'yes' : 'no'}>
+                {s.owned ? (owner ? t('settings.spaceOwned') : t('settings.spaceOwnedBy', { owner: fingerprint(s.owner) })) : t('settings.spaceUnowned')} ·{' '}
+                {def ? t('settings.spaceDefined', { when: fmtDateTime(def.created_at * 1000) }) : t('settings.spaceUndefined')}
+              </p>
+              {owner || !s.owned ? (
+                <button type="button" className="btn btn-sm" data-act="space-publish" onClick={() => publish(s)}>
+                  {t('settings.spacePublish')}
+                </button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
 type Check = 'checking' | { result: string; reason?: string };
 const hostOf = (server: string) => server.replace(/^https?:\/\//, '');
 
@@ -850,7 +913,7 @@ function HowCard() {
 const TABS = {
   account: ['account', 'people', 'circles', 'blocked'],
   general: ['device', 'notify', 'apps', 'pow'],
-  network: ['relays', 'media'],
+  network: ['relays', 'spaces', 'media'],
   data: ['backup', 'thisDevice', 'how'],
 } as const;
 type Tab = keyof typeof TABS;
@@ -899,6 +962,7 @@ export function Settings() {
     network: (
       <>
         <RelaysCard />
+        <SpacesCard />
         <MediaCard />
       </>
     ),

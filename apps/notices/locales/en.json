@@ -92,5 +92,12 @@
   "db.settings.defaultsText": "Filled in when you pin a note; everything stays editable there. Saved in your account.",
   "db.settings.board": "Board",
   "db.settings.showCollapsed": "Show collapsed notes opened",
-  "db.settings.saved": "Saved."
+  "db.settings.saved": "Saved.",
+  "db.copyLink": "Copy link",
+  "db.link": "Link to the note",
+  "db.foreignSpace": "This link leads into the space “{space}”, which this hub does not serve.",
+  "db.openElsewhere": "Open it where it came from",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "For adults only",
+  "db.space.rules": "Rules of this space"
 }

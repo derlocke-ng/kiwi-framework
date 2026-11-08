@@ -328,5 +328,6 @@
   "account.signOutOthers": "Disconnetti gli altri dispositivi",
   "account.signOutOthersConfirm": "Ogni altro dispositivo si disconnette alla prossima connessione. Questo resta connesso.",
   "account.signOutOthersDone": "Gli altri dispositivi si disconnetteranno alla prossima connessione.",
-  "account.signOutDevice": "Disconnetti"
+  "account.signOutDevice": "Disconnetti",
+  "how.spaces": "Ogni bacheca, feed o mercato qui serve uno spazio: una comunità con un nome, regole, moderatori e, quando li ha, relay propri. I post nominano il loro spazio, così i post di uno spazio non si mescolano mai con quelli di un altro, e due hub che nominano lo stesso spazio lo condividono."
 }

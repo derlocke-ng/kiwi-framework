@@ -17,6 +17,7 @@
 
 import { Relay, fetchRelayInformation } from './nostr.mjs';
 import { DISTRIBUTION } from './distribution.js';
+import { spaceNetworks } from './spaces.js';
 import { store, timeout } from './util.js';
 
 export const RELAYS_KEY = 'wjs.relays';
@@ -58,10 +59,14 @@ export function savedRelays() {
 /** The relays of the public area, the distribution's (or the host's) choice; a person cannot change them. */
 export const publicRelays = () => /** @type {string[]} */ ((DISTRIBUTION.publicRelays || []).map(normalizeRelayUrl).filter(Boolean));
 
-/** Every network this hub has, with its relays: `hub` always, `public` when public relays are named. */
+/**
+ * Every network this hub has, with its relays: `hub` always, `public` when public relays are named, and
+ * `space:<id>` for each space with relays of its own (shared/spaces.js); those are fixed by the space.
+ */
 export function savedNetworks() {
   const pub = publicRelays();
-  return { hub: savedRelays(), ...(pub.length ? { public: pub } : {}) };
+  const spaces = Object.fromEntries(Object.entries(spaceNetworks()).map(([n, urls]) => [n, urls.map(normalizeRelayUrl).filter(Boolean)]));
+  return { hub: savedRelays(), ...(pub.length ? { public: pub } : {}), ...spaces };
 }
 
 export function saveRelays(list) {

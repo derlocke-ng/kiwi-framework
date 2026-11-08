@@ -337,5 +337,6 @@
   "account.signOutOthers": "Wyloguj inne urządzenia",
   "account.signOutOthersConfirm": "Każde inne urządzenie wyloguje się przy następnym połączeniu. To pozostaje zalogowane.",
   "account.signOutOthersDone": "Inne urządzenia wylogują się przy następnym połączeniu.",
-  "account.signOutDevice": "Wyloguj"
+  "account.signOutDevice": "Wyloguj",
+  "how.spaces": "Każda tablica, kanał czy rynek tutaj obsługuje jedną przestrzeń: nazwaną społeczność z zasadami, moderatorami i, gdy je ma, własnymi przekaźnikami. Wpisy wskazują swoją przestrzeń, więc wpisy jednej przestrzeni nigdy nie mieszają się z wpisami innej, a dwa huby wskazujące tę samą przestrzeń dzielą ją."
 }

@@ -328,5 +328,6 @@
   "account.signOutOthers": "Terminar sessão nos outros dispositivos",
   "account.signOutOthersConfirm": "Todos os outros dispositivos terminam a sessão na próxima ligação. Este continua com sessão iniciada.",
   "account.signOutOthersDone": "Os outros dispositivos terminam a sessão quando se voltarem a ligar.",
-  "account.signOutDevice": "Terminar sessão"
+  "account.signOutDevice": "Terminar sessão",
+  "how.spaces": "Cada quadro, feed ou mercado aqui serve um espaço: uma comunidade com nome, regras, moderadores e, quando os tem, relays próprios. As publicações nomeiam o seu espaço, por isso as de um espaço nunca se misturam com as de outro, e dois hubs que nomeiam o mesmo espaço partilham-no."
 }

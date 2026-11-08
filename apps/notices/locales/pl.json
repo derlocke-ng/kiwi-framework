@@ -94,5 +94,12 @@
   "db.settings.defaultsText": "Wypełniane przy przypinaniu notki; tam wszystko można zmienić. Zapisane w twoim koncie.",
   "db.settings.board": "Tablica",
   "db.settings.showCollapsed": "Pokazuj zwinięte notki rozwinięte",
-  "db.settings.saved": "Zapisano."
+  "db.settings.saved": "Zapisano.",
+  "db.copyLink": "Kopiuj link",
+  "db.link": "Link do notatki",
+  "db.foreignSpace": "Ten link prowadzi do przestrzeni „{space}”, której ten hub nie obsługuje.",
+  "db.openElsewhere": "Otwórz tam, skąd pochodzi",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Tylko dla dorosłych",
+  "db.space.rules": "Zasady tej przestrzeni"
 }

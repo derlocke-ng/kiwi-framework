@@ -5,7 +5,7 @@
 // that matters to the UI goes through kiwi.emit().
 
 import { changePassword as changeAccountPassword, forgetIdentity, ID_KEY, loadIdentity, saveIdentity } from '../shared/account.js';
-import { MOUNT_IDS, networkOfPage, orderedMounts } from '../shared/apps.js';
+import { contentNetworkOf, MOUNT_IDS, networkOfPage, orderedMounts, spaceOfPage } from '../shared/apps.js';
 import { normalizeServer } from '../shared/blossom.js';
 import { DirectMessages } from '../shared/chat.js';
 import { deviceId, deviceName } from '../shared/device.js';
@@ -19,6 +19,7 @@ import { People } from '../shared/people.js';
 import { hintsAllowed, RelayLists } from '../shared/relaylists.js';
 import { RelayPool, savedNetworks } from '../shared/relays.js';
 import { AccountSettings } from '../shared/settings.js';
+import { Spaces } from '../shared/spaces.js';
 import { LocalStore } from '../shared/store.js';
 import { Sync } from '../shared/sync.js';
 import { applyTheme, setAccent, setTheme, watchDeviceSettings } from '../shared/theme.js';
@@ -57,14 +58,18 @@ export interface KiwiOptions {
 }
 
 export class Kiwi {
-  /** this page's network, seen from its mount: a public mount's events go to the public relays alone */
+  /** this page's content network, seen from its mount: a public mount's events go to the public relays alone, a space's to the space's */
   readonly net: Net;
   /** the hub's own network, where the account's settings, people and inbox live */
   readonly hubNet: Net;
   /** every network at once (the inbox listens on all of them) */
   readonly whole: Net;
-  /** 'hub' or 'public': the network of this page */
+  /** 'hub' or 'public': the network this page's people are on (settings, friends, sealed notes made here) */
   readonly network: string;
+  /** the network this page's content is on: `network`, or `space:<id>` for a mount on a space with relays of its own */
+  readonly content: string;
+  /** the space this page's mount serves (shared/spaces.js), as configured; `space()` is the live view */
+  readonly mountSpace: any | null;
   readonly current: string;
   readonly base: string;
   readonly sprite: string;
@@ -79,6 +84,8 @@ export class Kiwi {
   peers!: any;
   /** relay lists: mine published per network, others' inboxes found (shared/relaylists.js) */
   reach!: any;
+  /** the hub's spaces as the relays know them (shared/spaces.js) */
+  spaces!: any;
   version = 0;
   private listeners = new Set<() => void>();
   private offSuite: (() => void) | null = null;
@@ -91,9 +98,16 @@ export class Kiwi {
     this.base = base;
     this.sprite = sprite;
     this.network = networkOfPage(current);
+    this.content = contentNetworkOf(current);
+    this.mountSpace = spaceOfPage(current);
     const scope = (network: string): Net => ({ db: net.db.scope(network), pool: net.pool.scope(network), sync: net.sync.scope(network) });
     this.hubNet = scope('hub');
-    this.net = this.network === 'hub' ? this.hubNet : scope(this.network);
+    this.net = this.content === 'hub' ? this.hubNet : scope(this.content);
+  }
+
+  /** The space this page's mount serves, as the relays describe it (the config until they do), or null. */
+  space(): any | null {
+    return this.mountSpace ? this.spaces?.get(this.mountSpace.id) || this.mountSpace : null;
   }
 
   identity(): Identity {
@@ -113,6 +127,9 @@ export class Kiwi {
   }
 
   async start(): Promise<void> {
+    this.spaces = new Spaces(this.whole);
+    this.spaces.onChange(() => this.emit());
+    this.spaces.start().catch(() => {});
     await this.startSuite();
     await this.startPeople();
     this.touchDevice();
@@ -286,10 +303,10 @@ export class Kiwi {
   }
 
   /**
-   * Hints for a link made on this page: where its events are. This network's relays and any the thing was
-   * found on (`also`), at most three; none on a locked hub's own network.
+   * Hints for a link made on this page: where its events are. This page's content network's relays and
+   * any the thing was found on (`also`), at most three; none on a locked hub's own network.
    */
-  hints(also: string[] = [], network: string = this.network): string[] {
+  hints(also: string[] = [], network: string = this.content): string[] {
     if (!hintsAllowed(network)) return [];
     return [...new Set([...this.whole.pool.urlsOf(network), ...also])].slice(0, 3);
   }

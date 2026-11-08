@@ -92,5 +92,12 @@
   "db.settings.defaultsText": "Wird beim Anpinnen vorausgefüllt; dort bleibt alles änderbar. In deinem Konto gespeichert.",
   "db.settings.board": "Brett",
   "db.settings.showCollapsed": "Eingeklappte Notizen geöffnet zeigen",
-  "db.settings.saved": "Gespeichert."
+  "db.settings.saved": "Gespeichert.",
+  "db.copyLink": "Link kopieren",
+  "db.link": "Link zur Notiz",
+  "db.foreignSpace": "Dieser Link führt in den Space „{space}“, den dieser Hub nicht anbietet.",
+  "db.openElsewhere": "Dort öffnen, wo er herkommt",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Nur für Erwachsene",
+  "db.space.rules": "Regeln dieses Space"
 }

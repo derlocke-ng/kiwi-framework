@@ -93,5 +93,12 @@
   "db.settings.defaultsText": "Precompilato quando appunti una nota; lì resta tutto modificabile. Salvato nel tuo account.",
   "db.settings.board": "Bacheca",
   "db.settings.showCollapsed": "Mostra aperte le note ripiegate",
-  "db.settings.saved": "Salvato."
+  "db.settings.saved": "Salvato.",
+  "db.copyLink": "Copia link",
+  "db.link": "Link alla nota",
+  "db.foreignSpace": "Questo link porta allo spazio “{space}”, che questo hub non serve.",
+  "db.openElsewhere": "Aprilo dove è stato creato",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Solo per adulti",
+  "db.space.rules": "Regole di questo spazio"
 }

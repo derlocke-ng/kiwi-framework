@@ -93,5 +93,12 @@
   "db.settings.defaultsText": "Se rellena al fijar una nota; allí todo sigue siendo editable. Guardado en tu cuenta.",
   "db.settings.board": "Tablón",
   "db.settings.showCollapsed": "Mostrar las notas plegadas abiertas",
-  "db.settings.saved": "Guardado."
+  "db.settings.saved": "Guardado.",
+  "db.copyLink": "Copiar enlace",
+  "db.link": "Enlace a la nota",
+  "db.foreignSpace": "Este enlace lleva al espacio «{space}», que este hub no sirve.",
+  "db.openElsewhere": "Abrirlo donde se creó",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Solo para adultos",
+  "db.space.rules": "Reglas de este espacio"
 }

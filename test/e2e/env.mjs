@@ -280,14 +280,17 @@ export async function topBar(env, url) {
 }
 
 /**
- * A hub with nothing but some of the framework's own apps, each mounted at its own name
- * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks', network?: 'public' }]); `options`
- * set the hub's name, relays, publicRelays and policy. Resolves with the site's folder.
+ * A hub with nothing but some of the framework's own apps, one mount per entry
+ * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks', network?: 'public', space?: 'jobs', id?: 'jobs' }]:
+ * `id` mounts the app under another route, so one app can be mounted twice); `options` set the hub's
+ * name, id, relays, publicRelays, directoryRelays, policy and spaces (as in distribution.js). Resolves
+ * with the site's folder.
  */
-export async function testHub(apps, { name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {} } = {}) {
+export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {}, spaces = [] } = {}) {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-hub-'));
+  const codes = [...new Map(apps.map((a) => [a.app, a])).values()]; // one app entry per app, however often it is mounted
   const config = {
-    id: 'test-hub',
+    id,
     name,
     shortName: name,
     brandHtml: name,
@@ -300,8 +303,16 @@ export async function testHub(apps, { name = 'Test hub', relays = [], publicRela
     media: [],
     how: null,
     policy: { userMounts: false, ...policy },
-    apps: apps.map((a) => ({ id: a.app, name: a.name, icon: a.icon, tags: [], framework: a.app })),
-    mounts: apps.map((a, i) => ({ id: a.app, app: a.app, featured: i === 0, ...(a.network ? { network: a.network } : {}) })),
+    spaces,
+    apps: codes.map((a) => ({ id: a.app, name: a.name, icon: a.icon, tags: [], framework: a.app })),
+    mounts: apps.map((a, i) => ({
+      id: a.id || a.app,
+      app: a.app,
+      name: a.name,
+      featured: i === 0,
+      ...(a.network ? { network: a.network } : {}),
+      ...(a.space ? { space: a.space } : {}),
+    })),
   };
   fs.writeFileSync(path.join(dist, 'distribution.js'), `export const DISTRIBUTION = ${JSON.stringify(config)};\n`);
   const { out } = await assemble({ distribution: dist, out: fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-site-')), legacy: false });

@@ -18,6 +18,7 @@
 import { DISTRIBUTION } from './distribution.js';
 import { KINDS, sign } from './events.js';
 import { normalizeRelayUrl, relaysLocked } from './relays.js';
+import { isSpaceNetwork } from './spaces.js';
 import { store } from './util.js';
 
 const MAX = 4;
@@ -81,10 +82,11 @@ export class RelayLists {
     this.inboxKey = `wjs.inbox.${this.pk.slice(0, 16)}`;
   }
 
-  /** My lists on every network, naming that network's relays; skipped while they are current. */
+  /** My lists on every network people are reached on (not a space's relays), naming that network's relays; skipped while they are current. */
   async publishOwn({ force = false } = {}) {
     const done = store.get(this.key, {}) || {};
     for (const network of Object.keys(this.pool.networks || {})) {
+      if (isSpaceNetwork(network)) continue; // a space's relays carry its posts; people are reached on the hub's or the public network
       const urls = this.pool.urlsOf(network);
       if (!urls.length || !this.pool.onlineOf(network)) continue;
       const sig = urls.join(' ');

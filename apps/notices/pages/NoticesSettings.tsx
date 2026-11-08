@@ -9,7 +9,7 @@ import { DURATIONS, LIMITS } from '../data/notices.js';
 import { defaults, usePrefs } from '../state';
 
 /** "How it works": the app's own parts and the framework's topics (shared/how.js). */
-export const HOW_NOTICES = ['db.how.1', 'pow', 'db.how.3', 'db.how.4', 'blocks'];
+export const HOW_NOTICES = ['db.how.1', 'pow', 'db.how.3', 'db.how.4', 'blocks', 'spaces'];
 
 export function NoticesSettings() {
   const t = useT();

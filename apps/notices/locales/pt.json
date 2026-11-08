@@ -93,5 +93,12 @@
   "db.settings.defaultsText": "Preenchido ao afixar uma nota; lá tudo continua editável. Guardado na sua conta.",
   "db.settings.board": "Quadro",
   "db.settings.showCollapsed": "Mostrar as notas recolhidas abertas",
-  "db.settings.saved": "Guardado."
+  "db.settings.saved": "Guardado.",
+  "db.copyLink": "Copiar ligação",
+  "db.link": "Ligação para a nota",
+  "db.foreignSpace": "Esta ligação leva ao espaço “{space}”, que este hub não serve.",
+  "db.openElsewhere": "Abrir onde foi criada",
+  "db.space.adult": "18+",
+  "db.space.adultTitle": "Só para adultos",
+  "db.space.rules": "Regras deste espaço"
 }

@@ -15,6 +15,7 @@ export const KINDS = {
   ACCOUNT: 30790, // username + password login: the user's key, sealed under a password, at an address only the password finds
   SETTINGS: 30791, // per-account settings, encrypted to yourself
   GROUP_INFO: 30720, // chat group: name, host, closed; signed by the group's key, sealed, host-signed inside
+  SPACE: 34550, // NIP-72 community definition: a space (shared/spaces.js); posts in it carry ["a", <its address>]
   // Ephemeral (20000–29999): relays pass them on and forget them.
   P2P_PRESENCE: 21700,
   P2P_SIGNAL: 21701,

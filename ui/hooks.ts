@@ -152,6 +152,13 @@ export function useGroups(): any {
   return groups;
 }
 
+/** The space this page's mount serves, as the relays describe it (shared/spaces.js); null for a mount on no space. */
+export function useSpace(): any | null {
+  const kiwi = useKiwi();
+  useKiwiTick();
+  return kiwi.space();
+}
+
 export function useBlocks(): any {
   const kiwi = useKiwi();
   useKiwiTick();
@@ -178,7 +185,7 @@ export function useAppSettings(namespace: string): any | null {
   const [settings, setSettings] = useState<any>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: they belong to the identity, by its key
   useEffect(() => {
-    const s = new AccountSettings(identity, kiwi.net, namespace);
+    const s = new AccountSettings(identity, kiwi.hubNet, namespace); // the account's, on the hub's own network, whatever network the page's content is on
     let live = true;
     s.start()
       .then(() => live && setSettings(s))
