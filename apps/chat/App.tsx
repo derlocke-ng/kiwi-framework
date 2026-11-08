@@ -27,6 +27,35 @@ export function ChatApp() {
     document.body.classList.toggle('thread', thread);
     return () => document.body.classList.remove('thread');
   }, [thread]);
+  // The keyboard: the thread is as tall as what is visible, so the composer sits above the keyboard and the list
+  // shrinks instead of hiding behind it. Chrome on Android resizes the layout for the keyboard when the viewport
+  // meta asks (interactive-widget=resizes-content); Safari does not, so the visual viewport's height is followed
+  // too. When the list shrinks, it stays at its end, where the newest message and the composer are.
+  useEffect(() => {
+    if (!thread) return;
+    const vv = window.visualViewport;
+    const root = document.documentElement;
+    const fit = () => {
+      const h = vv ? Math.round(vv.height) : window.innerHeight;
+      root.style.setProperty('--thread-h', `${h}px`);
+      if (vv && (vv.offsetTop > 0 || window.scrollY > 0)) window.scrollTo(0, 0); // the keyboard may have pushed the page up
+      const list = document.querySelector('.messages');
+      if (list && list.scrollHeight - list.scrollTop - list.clientHeight < 160) list.scrollTop = list.scrollHeight;
+    };
+    fit();
+    vv?.addEventListener('resize', fit);
+    vv?.addEventListener('scroll', fit);
+    window.addEventListener('resize', fit);
+    const onFocus = () => setTimeout(fit, 300);
+    document.addEventListener('focusin', onFocus);
+    return () => {
+      vv?.removeEventListener('resize', fit);
+      vv?.removeEventListener('scroll', fit);
+      window.removeEventListener('resize', fit);
+      document.removeEventListener('focusin', onFocus);
+      root.style.removeProperty('--thread-h');
+    };
+  }, [thread]);
 
   const page =
     route.page === 'room' ? (

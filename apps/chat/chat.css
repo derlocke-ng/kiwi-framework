@@ -158,6 +158,8 @@ body {
 
 body.thread {
   height: 100dvh;
+  height: var(--thread-h, 100dvh); /* what is visible above the keyboard (apps/chat/App.tsx) */
+  min-height: 0;
   overflow: hidden;
 }
 
