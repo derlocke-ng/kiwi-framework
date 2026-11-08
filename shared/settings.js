@@ -1,11 +1,21 @@
 // Settings that follow an account to every device: one encrypted addressable
 // event per namespace (kind 30791, d = 'suite' | 'loadout' | …) under the
 // user's own key, cached in localStorage so screens draw before relays answer.
+//
+// The event holds the whole namespace, and the newest event wins, so a device
+// must not write before it knows the newest one: it would put back what it
+// had, with a newer date, over what another device changed meanwhile. A
+// change is therefore applied here at once and kept as a patch (in
+// localStorage too, so leaving the page loses nothing), and published only
+// once the relays have answered (or after a few seconds without them), as the
+// newest known event with the patch on top.
 
 import { baseStore, whole } from './peers.js';
 import { KINDS, makeAddressable, seal, open, supersedes } from './events.js';
 import { selfKey } from './account.js';
 import { store } from './util.js';
+
+const SYNC_WAIT = 4000; // ms a change waits for the relays' first answer before it is published regardless
 
 /** The hub's own network's view of a net (shared/relays.js, shared/sync.js, shared/store.js), or the net as given when it has no networks. */
 const onHub = (net) => {
@@ -29,9 +39,13 @@ export class AccountSettings {
     this.net = onHub(net); // a person's settings live on the hub's own network, whichever mount they are changed from
     this.d = d;
     this.cacheKey = `wjs.settings.${d}.${this.pk.slice(0, 16)}`;
-    this.data = store.get(this.cacheKey, {});
+    this.patchKey = `${this.cacheKey}.patch`;
+    this.base = store.get(this.cacheKey, {}) || {}; // what the newest event said, as far as this device knows
+    this.patch = store.get(this.patchKey, {}) || {}; // changes made here that no event carries yet
+    this.data = { ...this.base, ...this.patch };
     this.listeners = new Set();
     this.newest = null; // the newest event applied: an older one arriving later is ignored
+    this.synced = Promise.resolve(); // start() replaces it: the relays' first answer
   }
 
   get filter() {
@@ -45,7 +59,19 @@ export class AccountSettings {
       if (ev.kind === KINDS.SETTINGS && ev.pubkey === this.pk) this.receive(ev);
     });
     for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
-    this.sub = pool.subscribe([this.filter], { onevent: (ev) => db.put(ev) });
+    // the relays' first answer (or a few seconds without one): from then on a change is written over the newest event
+    this.synced = new Promise((resolve) => {
+      const t = setTimeout(resolve, SYNC_WAIT);
+      this.sub = pool.subscribe([this.filter], {
+        onevent: (ev) => db.put(ev),
+        oneose: () => {
+          clearTimeout(t);
+          setTimeout(resolve, 50); // the stored events reach receive() first
+        },
+      });
+    });
+    // a change made on a page that went away before it was published: published now
+    if (Object.keys(this.patch).length) this.flush().catch(() => {});
     return this;
   }
 
@@ -66,8 +92,9 @@ export class AccountSettings {
       return;
     }
     if (this.newest?.id !== ev.id || !data || typeof data !== 'object') return;
-    if ((data.u || 0) < (this.data.u || 0)) return;
-    this.data = data;
+    if ((data.u || 0) < (this.base.u || 0)) return;
+    this.base = data;
+    this.data = { ...this.base, ...this.patch };
     this.persist();
   }
 
@@ -75,10 +102,28 @@ export class AccountSettings {
     return this.data[key] === undefined ? fallback : this.data[key];
   }
 
+  /** A change: shown here at once, published over the newest event once the relays have answered. */
   async set(patch) {
-    this.data = { ...this.data, ...patch, u: Date.now() };
+    this.patch = { ...this.patch, ...patch };
+    store.set(this.patchKey, this.patch);
+    this.data = { ...this.base, ...this.patch };
     this.persist();
-    await this.net.sync.publish(makeAddressable(KINDS.SETTINGS, this.d, await seal(this.key, this.data), this.sk));
+    await this.flush();
+  }
+
+  /** Publish what is changed here, on top of the newest event known. */
+  async flush() {
+    await this.synced;
+    if (!Object.keys(this.patch).length) return; // a change made meanwhile went out with an earlier call
+    const payload = { ...this.base, ...this.patch, u: Math.max(Date.now(), (this.base.u || 0) + 1) };
+    this.patch = {};
+    this.base = payload;
+    this.data = { ...this.base };
+    this.persist();
+    const event = makeAddressable(KINDS.SETTINGS, this.d, await seal(this.key, payload), this.sk);
+    await this.net.sync.publish(event); // stored and owed to the relays in one step: from here on nothing is lost
+    if (!Object.keys(this.patch).length) store.remove(this.patchKey);
+    else store.set(this.patchKey, this.patch);
   }
 
   onChange(fn) {
@@ -87,11 +132,12 @@ export class AccountSettings {
   }
 
   persist() {
-    store.set(this.cacheKey, this.data);
+    store.set(this.cacheKey, this.base);
     for (const fn of this.listeners) fn(this.data);
   }
 
   forgetLocal() {
     store.remove(this.cacheKey);
+    store.remove(this.patchKey);
   }
 }

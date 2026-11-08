@@ -167,6 +167,14 @@ export class Kiwi {
 
   /** This device in the key's list of devices: an id, a name, when it was last seen; written at most once an hour. */
   private touchDevice(): void {
+    const suite = this.suite;
+    // after the relays' first answer: the list is then the newest, and no other device's entry is written over
+    suite?.synced.then(() => {
+      if (this.suite === suite) this.writeDevice();
+    });
+  }
+
+  private writeDevice(): void {
     const me = this.identity();
     if (!me.alias && !me.accountPk) return;
     const id = deviceId();
