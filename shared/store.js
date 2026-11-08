@@ -303,14 +303,20 @@ export class LocalStore {
 
   /** Every conversation with its newest message, newest first. */
   conversations() {
+    // The newest message of each conversation. The index orders by the second; two messages in one
+    // second are told apart by the writer's millisecond, then by when this device took them, like
+    // messages(): the unread count depends on the right one being the newest.
+    const time = (m) => m.t || m.at * 1000;
+    const newer = (a, b) => time(a) - time(b) || (a.seq || 0) - (b.seq || 0) || (a.id > b.id ? 1 : -1);
     return new Promise((resolve, reject) => {
       const seen = new Map();
       const r = this.tx('chat').index('convAt').openCursor(null, 'prev');
       r.onerror = () => reject(r.error);
       r.onsuccess = () => {
         const c = r.result;
-        if (!c) return resolve([...seen.values()].sort((a, b) => b.at - a.at));
-        if (!seen.has(c.value.conv)) seen.set(c.value.conv, c.value);
+        if (!c) return resolve([...seen.values()].sort((a, b) => newer(b, a)));
+        const have = seen.get(c.value.conv);
+        if (!have || newer(c.value, have) > 0) seen.set(c.value.conv, c.value);
         c.continue();
       };
     });
