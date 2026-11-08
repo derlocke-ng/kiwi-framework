@@ -27,8 +27,15 @@ const INBOX_TTL = 86_400_000; // someone's inbox from their lists: asked again a
 /** May this network's links carry hints and its pages follow them? Not a locked hub's own network. */
 export const hintsAllowed = (network) => network !== 'hub' || !relaysLocked();
 
-/** The relays where people's lists are asked for and published to, besides the network's own (distribution or hub.local.json). */
-export const directoryRelays = () => (DISTRIBUTION.directoryRelays || []).map(normalizeRelayUrl).filter(Boolean);
+/**
+ * The relays where people's lists are asked for and published to, besides the network's own (distribution or
+ * hub.local.json). A device can set its own list in `wjs.directory` (an empty list: no directory at all);
+ * the browser suites do, so no test ever writes to a real directory.
+ */
+export function directoryRelays() {
+  const own = store.get('wjs.directory');
+  return (Array.isArray(own) ? own : DISTRIBUTION.directoryRelays || []).map(normalizeRelayUrl).filter(Boolean);
+}
 
 /** Relays as hints for a link: without the scheme (wss is implied, ws for localhost), at most three. */
 export const toHints = (urls) => [...new Set((urls || []).map((u) => String(u).replace(/^wss?:\/\//, '')))].slice(0, 3);

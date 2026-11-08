@@ -167,6 +167,9 @@ export async function device(env, name, init, arg, options = {}) {
   if (init) await ctx.addInitScript(init, arg);
   // WJS_DEBUG=1: the sync layer logs every publish and answer (shared/sync.js); run() prints them when a suite fails
   if (process.env.WJS_DEBUG) await ctx.addInitScript(() => localStorage.setItem('wjs.debug', '1'));
+  // No directory relays unless a suite asks for the hub's own (env.keepDirectories): a distribution may name a
+  // real directory (Armory names purplepag.es), and test keys must never be published there.
+  if (!env.keepDirectories) await ctx.addInitScript(() => localStorage.setItem('wjs.directory', '[]'));
   const page = await ctx.newPage();
   page.deviceName = name;
   (env.pages ||= []).push(page);

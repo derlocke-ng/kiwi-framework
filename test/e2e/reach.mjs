@@ -21,6 +21,7 @@ const siteX = await testHub(apps, { name: 'Xhub', relays: [X_RELAY], directoryRe
 const siteY = await testHub(apps, { name: 'Yhub', relays: [Y_RELAY], directoryRelays: [DIR] });
 
 async function main(env) {
+  env.keepDirectories = true; // this suite's hubs name a local directory, which is what it tests
   const X = env.base;
   const Y = await env.serve(siteY);
   const pkOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
