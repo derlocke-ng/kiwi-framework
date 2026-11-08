@@ -8,6 +8,12 @@
 // a semi-public hub's public area. A subscription, a fetch or a publish names
 // its network and touches only that network's relays; pool.scope(network) is
 // the pool seen from one network, which is what an app gets as its `net.pool`.
+//
+// Guests are relays outside the hub's networks, reached for one purpose only:
+// a link's hint (where a board or group from another hub lives), someone's
+// inbox (where they read sealed notes). A guest connection carries the one
+// subscription or event it was opened for, never the pool's own, and closes
+// when nothing uses it.
 
 import { Relay, fetchRelayInformation } from './nostr.mjs';
 import { DISTRIBUTION } from './distribution.js';
@@ -22,10 +28,13 @@ const RETRY_EVERY = 15_000;
 const CONNECT_TIMEOUT = 8000;
 const SEEN_MAX = 4000;
 const STALE_AFTER = 15_000; // hidden this long, a phone may have cut the sockets without telling us: renew them on return
+const GUEST_IDLE = 60_000; // a guest relay nothing uses any more is closed after this
+const GUEST_RETRY = [5_000, 15_000, 45_000]; // a guest that did not connect or answer is tried again, then given up
 
 export const normalizeRelayUrl = (input) => {
   let s = String(input || '').trim();
   if (!s) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s) && !/^wss?:\/\//i.test(s)) return null; // another scheme (https://…) is not a relay
   if (!/^wss?:\/\//i.test(s)) s = (/^(localhost|127\.0\.0\.1)(:|$)/.test(s) ? 'ws://' : 'wss://') + s;
   try {
     const u = new URL(s);
@@ -73,6 +82,7 @@ export class RelayPool {
     this.statusListeners = new Set();
     this.connectListeners = new Set();
     this.subs = new Set();
+    this.guests = new Map(); // url -> { relay, users, idle }
     for (const [network, urls] of Object.entries(Array.isArray(networks) ? { hub: networks } : networks)) {
       this.networks[network] = [];
       for (const url of urls) this.add(url, network);
@@ -408,6 +418,172 @@ export class RelayPool {
     clearInterval(this.timer);
     clearInterval(this.retryTimer);
     for (const url of this.urls) this.remove(url);
+    for (const g of this.guests.values()) {
+      clearTimeout(g.idle);
+      try {
+        g.relay.close();
+      } catch {
+        /* closed */
+      }
+    }
+    this.guests.clear();
+  }
+
+  // ---- guests: relays outside the networks, for one subscription or event at a time ----
+
+  /** The relays among `urls` that are guests: not one of the pool's own, normalized, at most `max`. */
+  guestUrls(urls, max = 4) {
+    const out = [];
+    for (const u of urls || []) {
+      const url = normalizeRelayUrl(u);
+      if (url && !this.relays.has(url) && !out.includes(url)) out.push(url);
+    }
+    return out.slice(0, max);
+  }
+
+  /** A connected guest relay, or a rejection; `users` keeps it open, `release` lets it close when idle. */
+  async useGuest(url) {
+    let g = this.guests.get(url);
+    if (!g) {
+      g = { relay: new Relay(url, { enablePing: true, enableReconnect: true }), users: 0, idle: null };
+      g.relay.onnotice = (msg) => console.info(`${url}: ${msg}`);
+      this.guests.set(url, g);
+    }
+    g.users++;
+    clearTimeout(g.idle);
+    if (!g.relay.connected) {
+      try {
+        await g.relay.connect({ timeout: CONNECT_TIMEOUT });
+      } catch (err) {
+        this.releaseGuest(url);
+        throw err;
+      }
+    }
+    return g.relay;
+  }
+
+  releaseGuest(url) {
+    const g = this.guests.get(url);
+    if (!g) return;
+    g.users = Math.max(0, g.users - 1);
+    if (g.users) return;
+    clearTimeout(g.idle);
+    g.idle = setTimeout(() => {
+      if (g.users) return;
+      this.guests.delete(url);
+      try {
+        g.relay.close();
+      } catch {
+        /* closed */
+      }
+    }, GUEST_IDLE);
+  }
+
+  /**
+   * Subscribe on guest relays (a link's hints): each gets this subscription alone, and is tried again a few
+   * times when it does not connect. Events come once, as `onevent(event, url)`.
+   */
+  subscribeAt(urls, filters, { onevent } = {}) {
+    const seen = new Set();
+    const handles = [];
+    const held = [];
+    let closed = false;
+    for (const url of this.guestUrls(urls)) {
+      const attempt = async (n) => {
+        if (closed) return;
+        try {
+          const relay = await this.useGuest(url);
+          if (closed) return this.releaseGuest(url);
+          held.push(url);
+          handles.push(
+            relay.subscribe(filters, {
+              onevent: (event) => {
+                if (seen.has(event.id)) return;
+                seen.add(event.id);
+                if (seen.size > SEEN_MAX) seen.delete(seen.values().next().value);
+                onevent?.(event, url);
+              },
+            }),
+          );
+        } catch {
+          if (n < GUEST_RETRY.length) setTimeout(() => attempt(n + 1), GUEST_RETRY[n]);
+        }
+      };
+      attempt(0);
+    }
+    return {
+      close: () => {
+        closed = true;
+        for (const h of handles) {
+          try {
+            h.close();
+          } catch {
+            /* closed */
+          }
+        }
+        for (const url of held.splice(0)) this.releaseGuest(url);
+      },
+    };
+  }
+
+  /** Publish to guest relays (someone's inbox, a link's hints), each tried again a few times; resolves with those that took it. */
+  async publishAt(urls, event) {
+    const ok = [];
+    await Promise.all(
+      this.guestUrls(urls).map(async (url) => {
+        for (let n = 0; n <= GUEST_RETRY.length; n++) {
+          try {
+            const relay = await this.useGuest(url);
+            try {
+              await timeout(relay.publish(event), 10_000, 'publish timed out');
+              ok.push(url);
+              return;
+            } finally {
+              this.releaseGuest(url);
+            }
+          } catch (err) {
+            if (isPermanent(String(err?.message || err)) || n === GUEST_RETRY.length) return;
+            await new Promise((r) => setTimeout(r, GUEST_RETRY[n]));
+          }
+        }
+      }),
+    );
+    return ok;
+  }
+
+  /** Events matching `filters` on guest relays (a directory, someone's relays), until each answers or `ms` passes. */
+  async fetchAt(urls, filters, { ms = 5000 } = {}) {
+    const events = new Map();
+    await Promise.all(
+      this.guestUrls(urls).map(async (url) => {
+        let relay;
+        try {
+          relay = await this.useGuest(url);
+        } catch {
+          return;
+        }
+        await new Promise((resolve) => {
+          let sub;
+          const done = () => {
+            clearTimeout(t);
+            try {
+              sub?.close();
+            } catch {
+              /* closed */
+            }
+            resolve();
+          };
+          const t = setTimeout(done, ms);
+          try {
+            sub = relay.subscribe(filters, { onevent: (e) => events.set(e.id, e), oneose: done, onclose: done });
+          } catch {
+            done();
+          }
+        });
+        this.releaseGuest(url);
+      }),
+    );
+    return [...events.values()];
   }
 
   /** This pool seen from one network: what an app on that network gets as its `net.pool`. */
@@ -479,6 +655,18 @@ export class ScopedPool {
   }
   scope(network) {
     return this.all.scope(network);
+  }
+  guestUrls(urls, max) {
+    return this.all.guestUrls(urls, max);
+  }
+  subscribeAt(urls, filters, options) {
+    return this.all.subscribeAt(urls, filters, options);
+  }
+  publishAt(urls, event) {
+    return this.all.publishAt(urls, event);
+  }
+  fetchAt(urls, filters, options) {
+    return this.all.fetchAt(urls, filters, options);
   }
   wake() {
     return this.all.wake();

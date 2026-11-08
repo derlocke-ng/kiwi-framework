@@ -19,13 +19,15 @@ test('parses routes', () => {
   assert.deepEqual(parseRoute('#/'), { name: 'home' });
   assert.deepEqual(parseRoute('#/account'), { name: 'account' });
   assert.deepEqual(parseRoute('#/nope'), { name: 'notfound' });
-  assert.deepEqual(parseRoute(`#/b/${PUB}`), { name: 'board', pub: PUB, w: null, k: null });
-  assert.deepEqual(parseRoute(`#/b/${PUB}?k=${KEY}`), { name: 'board', pub: PUB, w: null, k: KEY });
-  assert.deepEqual(parseRoute(`#/b/${PUB}?w=${PRIV}`), { name: 'board', pub: PUB, w: PRIV, k: null });
+  assert.deepEqual(parseRoute(`#/b/${PUB}`), { name: 'board', pub: PUB, w: null, k: null, relays: [] });
+  assert.deepEqual(parseRoute(`#/b/${PUB}?k=${KEY}`), { name: 'board', pub: PUB, w: null, k: KEY, relays: [] });
+  assert.deepEqual(parseRoute(`#/b/${PUB}?w=${PRIV}`), { name: 'board', pub: PUB, w: PRIV, k: null, relays: [] });
+  assert.deepEqual(parseRoute(`#/b/${PUB}?w=${PRIV}&r=relay.example&r=localhost%3A7777`).relays, ['wss://relay.example', 'ws://localhost:7777'], 'hints: wss implied, ws for localhost');
 });
 
 test('ignores malformed secrets', () => {
-  assert.deepEqual(parseRoute(`#/b/${PUB}?k=short&w=${PRIV}x`), { name: 'board', pub: PUB, w: null, k: null });
+  assert.deepEqual(parseRoute(`#/b/${PUB}?k=short&w=${PRIV}x`), { name: 'board', pub: PUB, w: null, k: null, relays: [] });
+  assert.deepEqual(parseRoute(`#/b/${PUB}?r=https%3A%2F%2Fnot-a-relay&r=`).relays, [], 'a hint that is not a relay is dropped');
   assert.equal(parseRoute('#/b/not-a-key').name, 'notfound');
 });
 
@@ -44,7 +46,10 @@ test('builds share links', () => {
   assert.equal(shareLink(BASE, board, 'view'), `${BASE}#/b/${PUB}?k=${KEY}`);
   assert.throws(() => shareLink(BASE, { pub: PUB, k: KEY }, 'edit'), /edit key/);
   assert.throws(() => shareLink(BASE, { pub: PUB }, 'view'), /read key/);
-  assert.deepEqual(parseRoute(boardHash(board)), { name: 'board', pub: PUB, w: PRIV, k: null });
+  assert.deepEqual(parseRoute(boardHash(board)), { name: 'board', pub: PUB, w: PRIV, k: null, relays: [] });
+  const hinted = shareLink(BASE, board, 'edit', ['wss://a.example', 'ws://localhost:7000', 'wss://b.example', 'wss://c.example']);
+  assert.equal(hinted, `${BASE}#/b/${PUB}?w=${PRIV}&r=a.example&r=localhost%3A7000&r=b.example`, 'at most three hints, without the scheme');
+  assert.deepEqual(parseBoardInput(hinted).relays, ['wss://a.example', 'ws://localhost:7000', 'wss://b.example']);
 });
 
 test('the start page order: pinned first, then boards not sorted yet (newest first), then the sorted ones', async () => {

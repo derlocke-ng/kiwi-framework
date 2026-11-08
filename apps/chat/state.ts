@@ -1,7 +1,9 @@
 // What the chat's screens share: the private-message inbox of the identity
 // (data/dm.js) and this device's nickname for rooms.
+
 import { createContext, useCallback, useContext } from 'react';
 import { parseGroupLink } from '../../shared/groups.js';
+import { hintQuery, readHints } from '../../shared/relaylists.js';
 import { store } from '../../shared/util.js';
 import { useTick } from '../../ui/hooks';
 
@@ -28,8 +30,8 @@ export const saveNick = (nick: string): void => {
 export type Route =
   | { page: 'home'; tab: 'messages' | 'groups' }
   | { page: 'dm'; pk: string }
-  | { page: 'room'; secret: string }
-  | { page: 'group'; pub: string; host: string; invite: string; name: string }
+  | { page: 'room'; secret: string; relays: string[] }
+  | { page: 'group'; pub: string; host: string; invite: string; name: string; relays: string[] }
   | { page: 'settings' };
 
 /** The route after '#': the lists (messages or groups), one conversation, one room, one group, or the settings. */
@@ -38,7 +40,8 @@ export function parseRoute(hash: string): Route {
   if (hash.startsWith('#/group/') && g) return { page: 'group', ...g };
   const m = hash.match(/^#\/(dm|room)\/([^/?]+)/);
   if (m?.[1] === 'dm' && /^[0-9a-f]{64}$/i.test(m[2])) return { page: 'dm', pk: m[2].toLowerCase() };
-  if (m?.[1] === 'room' && m[2].length >= 8) return { page: 'room', secret: decodeURIComponent(m[2]) };
+  if (m?.[1] === 'room' && m[2].length >= 8)
+    return { page: 'room', secret: decodeURIComponent(m[2]), relays: readHints(new URLSearchParams(hash.split('?')[1] || '')) };
   if (hash.startsWith('#/settings')) return { page: 'settings' };
   if (hash.startsWith('#/groups')) return { page: 'home', tab: 'groups' };
   return { page: 'home', tab: 'messages' };
@@ -48,8 +51,9 @@ export function parseRoute(hash: string): Route {
 export function parseJoinInput(text: string): string | null {
   const s = String(text || '').trim();
   const g = parseGroupLink(s);
-  if (g) return `#/group/${g.pub}/${g.host}/${g.invite}/${encodeURIComponent(g.name)}`;
+  if (g) return `#/group/${g.pub}/${g.host}/${g.invite}/${encodeURIComponent(g.name)}${g.relays.length ? `?${hintQuery(g.relays)}` : ''}`;
   const m = s.match(/#\/room\/([^/?\s]+)/);
   const secret = m ? decodeURIComponent(m[1]) : s;
-  return /^[A-Za-z0-9_-]{8,}$/.test(secret) ? `#/room/${encodeURIComponent(secret)}` : null;
+  const relays = m ? readHints(new URLSearchParams(s.split('?')[1] || '')) : [];
+  return /^[A-Za-z0-9_-]{8,}$/.test(secret) ? `#/room/${encodeURIComponent(secret)}${relays.length ? `?${hintQuery(relays)}` : ''}` : null;
 }

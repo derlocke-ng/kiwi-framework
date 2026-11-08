@@ -86,8 +86,9 @@ export async function boardsSuite(env, { app, settings, name }) {
   assert.deepEqual(await texts(A, '[data-part=done] .text'), ['butter']);
 
   const links = await shareLinks(A);
-  assert.match(links.edit, /#\/b\/[0-9a-f]{64}\?w=[0-9a-f]{64}$/);
-  assert.match(links.view, /#\/b\/[0-9a-f]{64}\?k=[0-9a-f]{64}$/);
+  assert.match(links.edit, /#\/b\/[0-9a-f]{64}\?w=[0-9a-f]{64}(&r=[^&]+)*$/);
+  assert.match(links.view, /#\/b\/[0-9a-f]{64}\?k=[0-9a-f]{64}(&r=[^&]+)*$/);
+  assert.match(links.edit, /&r=localhost%3A\d+/, 'the link names this hub’s relay as a hint');
 
   step('B opens the edit link and edits; A sees it live');
   const B = await dev('B');

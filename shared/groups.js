@@ -22,6 +22,7 @@
 import { isHex64, KINDS, makeAddressable, now, open, seal, sign } from './events.js';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes, verifyEvent } from './nostr.mjs';
 import { baseStore, whole } from './peers.js';
+import { hintQuery, hintsAllowed, readHints } from './relaylists.js';
 import { AccountSettings } from './settings.js';
 import { randomId, store } from './util.js';
 
@@ -34,8 +35,11 @@ const INFO_D = 'info';
 const SEEN_MAX = 4000;
 const MAX_REQUESTS = 50;
 
-/** The invite link: where the group lives, who hosts it, the token that opens the door, and its name to show. */
-export const groupLink = (pageUrl, { pub, host, invite, name }) => `${pageUrl}#/group/${pub}/${host}/${invite}/${encodeURIComponent(name || '')}`;
+/** The invite link: where the group lives, who hosts it, the token that opens the door, its name to show, and where its events are (hints). */
+export const groupLink = (pageUrl, { pub, host, invite, name, relays = [] }) => {
+  const q = hintQuery(relays);
+  return `${pageUrl}#/group/${pub}/${host}/${invite}/${encodeURIComponent(name || '')}${q ? `?${q}` : ''}`;
+};
 
 /** The parts of a pasted link or fragment, or null; a member's own link has no token ('-'). */
 export function parseGroupLink(text) {
@@ -45,7 +49,8 @@ export function parseGroupLink(text) {
   try {
     name = decodeURIComponent(m[4] || '');
   } catch {}
-  return { pub: m[1].toLowerCase(), host: m[2].toLowerCase(), invite: m[3] && m[3] !== '-' ? m[3] : '', name: name.slice(0, NAME) };
+  const query = String(text || '').match(/\?([^#\s]*)/)?.[1] || '';
+  return { pub: m[1].toLowerCase(), host: m[2].toLowerCase(), invite: m[3] && m[3] !== '-' ? m[3] : '', name: name.slice(0, NAME), relays: readHints(new URLSearchParams(query)) };
 }
 
 const newKey = () => bytesToHex(generateSecretKey());
@@ -159,7 +164,7 @@ export class Groups {
 
   inviteLink(pageUrl, pub) {
     const g = this.entry(pub);
-    return g?.invite ? groupLink(pageUrl, { pub, host: g.host, invite: g.invite, name: this.state.get(pub)?.name || g.name }) : null;
+    return g?.invite ? groupLink(pageUrl, { pub, host: g.host, invite: g.invite, name: this.state.get(pub)?.name || g.name, relays: this.relaysOf(g) }) : null;
   }
 
   // ---- the relay side: events under the group's key ----
@@ -171,6 +176,18 @@ export class Groups {
   /** The network a group lives on: where it was made, or where its keys reached me. */
   networkOf(pub) {
     return this.entry(pub)?.network || 'hub';
+  }
+
+  /** Where a group's events are, as hints for a link or for keys: its network's relays and those it was found on (none on a locked hub). */
+  relaysOf(g) {
+    const network = g.network || 'hub';
+    if (!hintsAllowed(network)) return [];
+    return [...new Set([...whole(this.net.pool).urlsOf(network), ...(g.relays || [])])].slice(0, 3);
+  }
+
+  /** The relays a group was found on that are not this hub's: read and written as guests. */
+  guestRelays(g) {
+    return hintsAllowed(g.network || 'hub') ? whole(this.net.pool).guestUrls(g.relays || [], 3) : [];
   }
 
   async resubscribe() {
@@ -190,11 +207,16 @@ export class Groups {
       if (!byNetwork.has(n)) byNetwork.set(n, []);
       byNetwork.get(n).push(g.pub);
     }
-    const key = [...byNetwork].map(([n, pubs]) => `${n}:${[...pubs].sort().join(',')}`).join('|');
+    const key = [...byNetwork].map(([n, pubs]) => `${n}:${[...pubs].sort().join(',')}`).join('|') + groups.map((g) => (g.relays || []).join(',')).join('|');
     if (key === this.watching) return;
     this.watching = key;
     for (const sub of this.subs || []) sub.close();
     this.subs = [...byNetwork].map(([network, pubs]) => pool.subscribe([{ kinds: GROUP_KINDS, authors: pubs }], { network, onevent: (ev) => db.put(ev, network) }));
+    // a group from another hub is also read where it lives
+    for (const g of groups) {
+      const guests = this.guestRelays(g);
+      if (guests.length) this.subs.push(pool.subscribeAt(guests, [{ kinds: GROUP_KINDS, authors: [g.pub] }], { onevent: (ev) => db.put(ev, g.network || 'hub') }));
+    }
     for (const [network, pubs] of byNetwork) sync.watch(pubs, network);
   }
 
@@ -278,6 +300,8 @@ export class Groups {
     const sealed = await seal(hexToBytes(g.k), inner);
     const event = addressable ? makeAddressable(kind, INFO_D, sealed, g.w) : sign({ kind, content: sealed, tags: [] }, g.w);
     await whole(this.net.sync).publish(event, { network: g.network || 'hub' }); // stored here first and shown; the outbox carries it to the group's relays, now or when they are back
+    const guests = this.guestRelays(g);
+    if (guests.length) whole(this.net.pool).publishAt(guests, event).catch(() => {}); // and where it lives, when that is another hub's
     return inner;
   }
 
@@ -325,7 +349,8 @@ export class Groups {
       }
       const knock = this.knocks().find((x) => x.pub === body.pub);
       // the group lives where its keys reached me: the network I knocked on, or the one the invitation came over
-      const entry = { pub: body.pub, w: body.w, k: body.k, keys: [], host: body.host, name: String(body.name || knock?.name || '').slice(0, NAME), invite: String(body.invite || ''), network: knock?.network || network || this.network };
+      const relays = readHints(new URLSearchParams((Array.isArray(body.relays) ? body.relays : []).map((r) => `r=${encodeURIComponent(r)}`).join('&')));
+      const entry = { pub: body.pub, w: body.w, k: body.k, keys: [], host: body.host, name: String(body.name || knock?.name || '').slice(0, NAME), invite: String(body.invite || ''), network: knock?.network || network || this.network, relays: relays.length ? relays : knock?.relays || [] };
       if (knock && rumor.pubkey === body.host) {
         // the host answered my knock: I asked, so I am in
         await this.settings.set({ groups: [...this.list(), { ...entry, joined: now() }], knocks: this.knocks().filter((x) => x.pub !== body.pub) });
@@ -342,7 +367,8 @@ export class Groups {
       if (!(await this.invitedBy(rumor.pubkey)) || !/^[A-Za-z0-9_-]{8,}$/.test(String(body.secret || ''))) return;
       if (rumor.created_at < now() - ROOM_INVITE_DAYS * 86_400) return;
       if (this.invites().some((i) => i.type === 'room' && i.secret === body.secret)) return;
-      await this.addInvite({ id: randomId(), type: 'room', secret: String(body.secret), name: String(body.name || '').slice(0, NAME), from: rumor.pubkey, at: rumor.created_at });
+      const relays = readHints(new URLSearchParams((Array.isArray(body.relays) ? body.relays : []).map((r) => `r=${encodeURIComponent(r)}`).join('&')));
+      await this.addInvite({ id: randomId(), type: 'room', secret: String(body.secret), name: String(body.name || '').slice(0, NAME), relays, from: rumor.pubkey, at: rumor.created_at });
     }
   }
 
@@ -368,7 +394,7 @@ export class Groups {
       return { type: 'group', pub: invite.pub };
     }
     this.emit();
-    return { type: 'room', secret: invite.secret };
+    return { type: 'room', secret: invite.secret, relays: invite.relays || [] };
   }
 
   async declineInvite(id) {
@@ -377,8 +403,8 @@ export class Groups {
   }
 
   /** Friends get a sealed invitation to a live room; they open it from the chat, no link changes hands. */
-  async inviteRoom(pks, { secret, name = '' }) {
-    for (const pk of pks) await this.inbox.sendRumor(pk, KINDS.ROOM_INVITE, { secret, name: String(name || '').slice(0, NAME) });
+  async inviteRoom(pks, { secret, name = '', relays = [] }) {
+    for (const pk of pks) await this.inbox.sendRumor(pk, KINDS.ROOM_INVITE, { secret, name: String(name || '').slice(0, NAME), relays: relays.slice(0, 3) });
   }
 
   /** Keys from someone who is not the host count when they are a member of that group as we see it later; for now, a friend. */
@@ -389,7 +415,7 @@ export class Groups {
   /** The group's keys to one person, with the invite token so they can pass the link on. */
   sendKeys(toPk, g) {
     const st = this.state.get(g.pub);
-    return this.inbox.sendRumor(toPk, KINDS.GROUP_KEYS, { pub: g.pub, w: g.w, k: g.k, host: g.host, name: st?.name || g.name || '', invite: g.invite || '' });
+    return this.inbox.sendRumor(toPk, KINDS.GROUP_KEYS, { pub: g.pub, w: g.w, k: g.k, host: g.host, name: st?.name || g.name || '', invite: g.invite || '', relays: this.relaysOf(g) });
   }
 
   // ---- actions ----
@@ -407,10 +433,12 @@ export class Groups {
   }
 
   /** From a link: ask the host to let me in; remembered until they answer. */
-  async knock({ pub, host, invite, name, myName }) {
+  async knock({ pub, host, invite, name, myName, relays = [] }) {
     if (this.entry(pub)) return;
     const me = String(myName || this.alias || '').slice(0, NAME);
-    await this.settings.set({ knocks: [...this.knocks().filter((x) => x.pub !== pub), { pub, host, invite, name: String(name || '').slice(0, NAME), myName: me, at: now(), network: this.network }] });
+    // the link's hints are where the group lives, and where its host reads: the knock goes there too
+    if (relays.length && hintsAllowed(this.network)) this.inbox.peers?.learnRelays?.(host, this.network, relays);
+    await this.settings.set({ knocks: [...this.knocks().filter((x) => x.pub !== pub), { pub, host, invite, name: String(name || '').slice(0, NAME), myName: me, at: now(), network: this.network, relays }] });
     await this.inbox.sendRumor(host, KINDS.GROUP_KNOCK, { pub, invite, name: me });
     this.emit();
   }

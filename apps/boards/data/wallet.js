@@ -12,7 +12,7 @@ import { selfKey } from '../../../shared/account.js';
 import { store } from '../../../shared/util.js';
 import { between } from '../../../shared/items.js';
 
-const SYNCED = ['pub', 'w', 'k', 'type', 'title', 'mode', 'pinned', 'added', 'o', 'u'];
+const SYNCED = ['pub', 'w', 'k', 'type', 'title', 'mode', 'pinned', 'added', 'o', 'u', 'relays']; // relays: where the board was found, when another hub's
 const sorted = (e) => typeof e.o === 'number';
 const te = new TextEncoder();
 const FILTER = (pk) => ({ kinds: [KINDS.LOADOUT_WALLET], authors: [pk] });

@@ -29,6 +29,27 @@ export class PeerNetworks {
     this.map[pk] = network;
     store.set(this.key, this.map);
   }
+
+  /** The relays `pk` named inside a sealed note that came over `network` (or over a network not known: 'any'). */
+  learnRelays(pk, network, urls) {
+    if (!pk || !urls?.length) return;
+    const all = store.get(this.relaysKey, {}) || {};
+    all[`${network || 'any'}:${pk}`] = { urls: urls.slice(0, 4), at: Date.now() };
+    const keys = Object.keys(all);
+    if (keys.length > 500) for (const k of keys.slice(0, keys.length - 500)) delete all[k];
+    store.set(this.relaysKey, all);
+  }
+
+  /** What `pk` told us about their relays on `network`, within a month. */
+  relaysOf(pk, network) {
+    const all = store.get(this.relaysKey, {}) || {};
+    const hit = all[`${network}:${pk}`] || all[`any:${pk}`];
+    return hit && Date.now() - hit.at < 30 * 86_400_000 ? hit.urls : [];
+  }
+
+  get relaysKey() {
+    return `${this.key}.relays`;
+  }
 }
 
 /** The whole pool or sync behind a scoped one (shared/relays.js, shared/sync.js), or the thing itself. */

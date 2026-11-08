@@ -56,10 +56,11 @@ export class Room {
   /**
    * @param {string} secret  from the link's fragment
    * @param {{ pool: any }} net
-   * @param {{ nick?: string, sk?: string }} [options]  sk: the visit's key from before a reload
+   * @param {{ nick?: string, sk?: string, relays?: string[] }} [options]  sk: the visit's key from before a reload; relays: guests to follow
    */
-  constructor(secret, net, { nick = '', sk = '' } = {}) {
+  constructor(secret, net, { nick = '', sk = '', relays = [] } = {}) {
     this.secret = secret;
+    this.relays = relays; // where the room is besides this hub's relays (a link's hints): followed as guests
     this.id = roomId(secret);
     this.key = deriveKey(bytesToHex(te.encode(secret)), 'wjs/room/chat');
     this.net = net;
@@ -82,7 +83,9 @@ export class Room {
   /** In: subscribe, show ourselves, keep showing ourselves. Returns at once; the first ping goes out in the background. */
   join() {
     if (this.sub) return;
-    this.sub = this.net.pool.subscribe([{ kinds: [KINDS.ROOM_MESSAGE, KINDS.P2P_PRESENCE], '#h': [this.id] }], { onevent: (ev) => this.receive(ev) });
+    const filter = [{ kinds: [KINDS.ROOM_MESSAGE, KINDS.P2P_PRESENCE], '#h': [this.id] }];
+    this.sub = this.net.pool.subscribe(filter, { onevent: (ev) => this.receive(ev) });
+    this.guests = this.relays.length && this.net.pool.subscribeAt ? this.net.pool.subscribeAt(this.relays, filter, { onevent: (ev) => this.receive(ev) }) : null;
     this.members.set(this.pk, { nick: this.nick, at: now(), me: true });
     this.hello().catch(() => {});
     this.timer = setInterval(() => this.ping().catch(() => {}), PING);
@@ -101,9 +104,14 @@ export class Room {
     session.set(this.id, null);
     const sub = this.sub;
     this.sub = null;
+    const guests = this.guests;
+    this.guests = null;
     this.publish(KINDS.P2P_PRESENCE, { nick: this.nick, bye: true })
       .catch(() => {})
-      .finally(() => sub.close());
+      .finally(() => {
+        sub.close();
+        guests?.close();
+      });
   }
 
   async setNick(nick) {
@@ -137,6 +145,7 @@ export class Room {
   async publish(kind, body) {
     const event = finalizeEvent({ kind, created_at: now(), tags: [['h', this.id]], content: await seal(this.key, body) }, this.sk);
     if (kind === KINDS.ROOM_MESSAGE) this.take(event, body); // our own at once, whatever the relays do
+    if (this.relays.length && this.net.pool.publishAt) this.net.pool.publishAt(this.relays, event).catch(() => {});
     await this.net.pool.publish(event);
   }
 

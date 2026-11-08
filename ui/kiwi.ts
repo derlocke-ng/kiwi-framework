@@ -16,6 +16,7 @@ import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage, t } f
 import { BlockList } from '../shared/moderation.js';
 import { PeerNetworks } from '../shared/peers.js';
 import { People } from '../shared/people.js';
+import { hintsAllowed, RelayLists } from '../shared/relaylists.js';
 import { RelayPool, savedNetworks } from '../shared/relays.js';
 import { AccountSettings } from '../shared/settings.js';
 import { LocalStore } from '../shared/store.js';
@@ -76,10 +77,13 @@ export class Kiwi {
   groups!: any;
   /** which network each person is reached on (shared/peers.js) */
   peers!: any;
+  /** relay lists: mine published per network, others' inboxes found (shared/relaylists.js) */
+  reach!: any;
   version = 0;
   private listeners = new Set<() => void>();
   private offSuite: (() => void) | null = null;
   private offBlocks: (() => void) | null = null;
+  private offConnect: (() => void) | null = null;
 
   constructor(net: Net, { current = 'hub', base = './', sprite = 'icons.svg' }: KiwiOptions) {
     this.whole = net;
@@ -249,18 +253,37 @@ export class Kiwi {
     this.messages?.stop();
     this.groups?.stop();
     this.offBlocks?.();
+    this.offConnect?.();
     const id = this.identity();
     this.peers = new PeerNetworks(id.pk, { fallback: this.network }); // someone first met on this page is reached on its network
+    this.reach = new RelayLists(id, this.whole.pool, { peers: this.peers });
+    // my lists on every network the moment its relays are up, then at most once a day or when they change
+    let listing: ReturnType<typeof setTimeout> | null = null;
+    const list = () => {
+      if (listing) clearTimeout(listing);
+      listing = setTimeout(() => this.reach?.publishOwn().catch(() => {}), 1500);
+    };
+    this.offConnect = this.whole.pool.onConnect(list);
+    list();
     this.blocks = await new BlockList(id, this.hubNet).start();
     const isBlocked = (pk: string) => Boolean(this.blocks.isBlocked(pk));
-    this.people = await new People(id, this.hubNet, { isBlocked, peers: this.peers }).start();
-    this.messages = new DirectMessages(id, this.hubNet, { isBlocked, peers: this.peers });
+    this.people = await new People(id, this.hubNet, { isBlocked, peers: this.peers, reach: this.reach }).start();
+    this.messages = new DirectMessages(id, this.hubNet, { isBlocked, peers: this.peers, reach: this.reach });
     this.groups = new Groups(id, this.hubNet, { isBlocked, inbox: this.messages, network: this.network }); // registers for knocks and keys before the inbox replays
     this.groups.friendCheck = (pk: string) => Boolean(this.people?.isFriend(pk));
     await this.messages.start();
     await this.groups.start();
     this.offBlocks = this.blocks.onChange(() => this.messages.purgeBlocked().catch(() => {}));
     this.emit();
+  }
+
+  /**
+   * Hints for a link made on this page: where its events are. This network's relays and any the thing was
+   * found on (`also`), at most three; none on a locked hub's own network.
+   */
+  hints(also: string[] = [], network: string = this.network): string[] {
+    if (!hintsAllowed(network)) return [];
+    return [...new Set([...this.whole.pool.urlsOf(network), ...also])].slice(0, 3);
   }
 
   /** Chosen by the person: on this device now, and in the account for every other device. */

@@ -190,6 +190,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 21701–21702 | live rooms for Payload and pong (§8); 21700 presence and 21710 chat-room messages are in use |
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
+| 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
 | market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
 
 ## Changes
@@ -197,3 +198,12 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 - **v1** (October 2026): this document, written from the code of kiwi-framework 0.1.0 and Armory. No event format changed.
 - **v1, clarified**: `created_at` of a new version is after every version the device has seen, not only the ones it signed (fixes edits from a device with a slow clock being dropped). No format changed.
 - **v1, extended**: the media object and Blossom authorization (§9); the suite keys `appOrder` and `mediaServers`. No existing format changed.
+
+
+## 9. Relay lists, inboxes and hints
+
+Every person publishes, on each network a hub has (its own relays, and the public area's when it has one), a **relay list**, kind **10002**, with `["r", <relay>]` for each of that network's relays, and an **inbox list**, kind **10050**, with `["relay", <relay>]` for the same. Both go to that network's relays and, outside a locked hub's own network, to the hub's directory relays. They are published when a network's relays connect, at most once a day, at once when the relays change.
+
+Every sealed note (kind 14 messages and every other rumor a gift wrap carries: friend requests, shares, knocks, keys, room invitations) has a tag `["relays", <relay>, …]` inside the seal: the writer's relays on the network the note travels on, so the reader can answer without a lookup. A writer sends a gift wrap to the network's relays (the outbox) and to the reader's inbox relays that are not among them: those the reader named in their last sealed note, else their kind 10050 (or the read relays of their kind 10002) from the network's relays and the directory relays.
+
+A link carries hints to where its events live: `r=<relay without its scheme>`, up to three, in the fragment's query (`#/b/<pub>?w=…&r=relay.example`, `#/group/…/<name>?r=…`, `#/room/<secret>?r=…`); `wss://` is implied, `ws://` for `localhost`. Group keys (kind 7825) and room invitations (7826) carry the same as `"relays": [<relay>, …]` in their content. A hub that opens such a link reads, and writes, those relays besides its own; a hub whose own relays are locked neither puts hints in its links nor follows them.

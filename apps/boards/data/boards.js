@@ -36,12 +36,13 @@ export async function createBoard({ type, title, mode = 'check' }, net) {
 
 export class Board {
   /**
-   * @param {{pub: string, w?: string|null, k?: string|null}} keys
+   * @param {{pub: string, w?: string|null, k?: string|null, relays?: string[]}} keys
    * @param {Net} net
    */
-  constructor({ pub, w = null, k = null }, net) {
+  constructor({ pub, w = null, k = null, relays = [] }, net) {
     this.net = net;
     this.pub = pub;
+    this.relays = relays; // where the board lives besides this hub's relays (a link's hints): read and written as guests
     this.w = w;
     this.k = k || (w ? readKeyFor(w) : null);
     this.key = this.k ? bytes(this.k) : null;
@@ -65,6 +66,7 @@ export class Board {
       if (ev.pubkey === this.pub && BOARD_KINDS.includes(ev.kind)) this.receive(ev);
     });
     for (const ev of (await db.query([filter])).reverse()) await this.receive(ev);
+    this.guests = this.relays.length && pool.subscribeAt ? pool.subscribeAt(this.relays, [filter], { onevent: (ev) => db.put(ev) }) : null;
     this.sub = pool.subscribe([filter], {
       onevent: (ev) => db.put(ev),
       oneose: () => setTimeout(() => this.state === 'loading' && !this.info && this.set({ state: 'missing' }), 1500),
@@ -78,6 +80,7 @@ export class Board {
     this.closed = true;
     clearTimeout(this.missingTimer);
     this.sub?.close();
+    this.guests?.close();
     this.offStore?.();
     this.listeners.clear();
   }
@@ -147,7 +150,9 @@ export class Board {
 
   async put(kind, d, value) {
     if (!this.w) throw fail('board.error.viewOnly', 'You can only view this board.');
-    await this.net.sync.publish(makeAddressable(kind, d, await seal(this.key, value), this.w));
+    const event = makeAddressable(kind, d, await seal(this.key, value), this.w);
+    await this.net.sync.publish(event);
+    if (this.relays.length && this.net.pool.publishAt) this.net.pool.publishAt(this.relays, event).catch(() => {}); // where the board lives, when that is another hub's
   }
 
   setInfo(info) {

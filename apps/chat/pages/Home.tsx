@@ -1,10 +1,12 @@
 // The start, in two tabs: Messages (your conversations, a new one to a
 // friend) and Groups (the groups you are in, the doors you are waiting at,
 // a new group, a live room, joining by link).
+
 import { type FormEvent, useEffect, useState } from 'react';
 import { DirectMessages } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
 import { relTime } from '../../../shared/i18n.js';
+import { hintQuery } from '../../../shared/relaylists.js';
 import { Icon } from '../../../ui/components';
 import { useGroups, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { toast, toastError } from '../../../ui/toast';
@@ -169,7 +171,7 @@ function GroupsTab({ convs }: { convs: any[] }) {
       if (r?.type === 'group') {
         const g = groups.entry(r.pub);
         go(`#/group/${r.pub}/${g.host}/${g.invite || '-'}/${encodeURIComponent(g.name || '')}`);
-      } else if (r?.type === 'room') go(`#/room/${encodeURIComponent(r.secret)}`);
+      } else if (r?.type === 'room') go(`#/room/${encodeURIComponent(r.secret)}${r.relays?.length ? `?${hintQuery(r.relays)}` : ''}`);
     } catch (err) {
       toastError(err);
     }

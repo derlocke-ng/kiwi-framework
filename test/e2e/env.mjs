@@ -52,7 +52,7 @@ export function freePort() {
  * Blossom servers, a browser. `nostrPort` fixes the hub relay's port (a distribution built with the
  * relay's URL baked in); `publicPort` starts a second nostr relay, the public one, at that port.
  */
-export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort = null, publicPort = null } = {}) {
+export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort = null, publicPort = null, extraRelays = {} } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `${name}-e2e-`));
   const [gunPort, webPort, freeNostr] = await Promise.all([freePort(), freePort(), freePort()]);
   nostrPort = nostrPort || freeNostr;
@@ -65,6 +65,9 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
   const startNostr = (dir = null) => startRelay({ port: nostrPort, dir: (nostrDir = dir || path.join(tmp, `nostr-${nostrRuns++}`)), name: 'e2e relay' });
   let nostr = await startNostr();
   const publicRelay = publicPort ? await startRelay({ port: publicPort, dir: path.join(tmp, 'nostr-public'), name: 'public relay' }) : null;
+  // more relays by name (another hub's, a directory): extraRelays { name: port }
+  const extra = {};
+  for (const [n, port] of Object.entries(extraRelays)) extra[n] = await startRelay({ port, dir: path.join(tmp, `nostr-${n}`), name: `${n} relay` });
   const servers = [];
   const blossom = await startBlossom();
   const blossomStrict = await startBlossom({ accept: (type) => type.startsWith('image/') || 'only images here' });
@@ -79,6 +82,8 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
     nostrUrl: nostr.url,
     /** the public relay's URL, when the suite asked for one */
     publicUrl: publicRelay?.url || null,
+    /** the URLs of the extra relays, by name */
+    extraUrls: Object.fromEntries(Object.entries(extra).map(([n, r]) => [n, r.url])),
     /** media servers: blobs are in .blobs (sha256 → { data, type, owner }) */
     blossom,
     blossomStrict,
@@ -110,7 +115,7 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
     },
     /** Events on the nostr relay (`which`: 'hub' or 'public'), as a reader with no keys sees them. */
     async relayEvents(filters, which = 'hub') {
-      const url = which === 'public' ? publicRelay.url : nostr.url;
+      const url = which === 'public' ? publicRelay.url : which === 'hub' ? nostr.url : extra[which].url;
       const client = await Relay.connect(url);
       const out = [];
       await new Promise((resolve) => client.subscribe(filters, { onevent: (e) => out.push(e), oneose: resolve }));
@@ -141,6 +146,7 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
       for (const s of servers) s.kill();
       await nostr?.close().catch(() => {});
       await publicRelay?.close().catch(() => {});
+      for (const r of Object.values(extra)) await r.close().catch(() => {});
       await blossom.close();
       await blossomStrict.close();
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -275,7 +281,7 @@ export async function topBar(env, url) {
  * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks', network?: 'public' }]); `options`
  * set the hub's name, relays, publicRelays and policy. Resolves with the site's folder.
  */
-export async function testHub(apps, { name = 'Test hub', relays = [], publicRelays = [], policy = {} } = {}) {
+export async function testHub(apps, { name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {} } = {}) {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-hub-'));
   const config = {
     id: 'test-hub',
@@ -287,6 +293,7 @@ export async function testHub(apps, { name = 'Test hub', relays = [], publicRela
     repo: './',
     relays,
     publicRelays,
+    directoryRelays,
     media: [],
     how: null,
     policy: { userMounts: false, ...policy },

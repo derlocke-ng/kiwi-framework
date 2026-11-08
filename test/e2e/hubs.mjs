@@ -137,6 +137,19 @@ async function main(env) {
   await until(async () => (await onPublic([{ kinds: [30720, 7821] }])).filter((e) => e.pubkey.startsWith(groupPub)).length >= 2, 'info and join on the public relay', 20000);
   assert.equal((await onHub([{ kinds: [30720, 7820, 7821] }])).filter((e) => e.pubkey.startsWith(groupPub)).length, 0, 'none of it on the hub’s relay');
 
+  step('nothing on the public relay names the hub’s own relay, and the hub’s links carry no hints (its relays are locked)');
+  const leaked = (await onPublic([{}])).filter((e) => JSON.stringify(e).includes(`localhost:${hubPort}`) || JSON.stringify(e).includes(`localhost%3A${hubPort}`));
+  assert.deepEqual(leaked.map((e) => e.kind), [], 'no list, no event names the VPN relay');
+  assert.ok((await onPublic([{ kinds: [10050], authors: [pkA] }])).length >= 1, 'the insider’s inbox list for the public area is on the public relay');
+  await A.goto(BOARDS);
+  await A.waitForSelector('.home');
+  await A.click('.board-card');
+  await A.waitForSelector('[data-act=share]');
+  await A.click('[data-act=share]');
+  await A.waitForSelector('#shareUrl');
+  assert.ok(!(await A.inputValue('#shareUrl')).includes('r='), 'a locked hub’s board link has no hints');
+  await A.click('dialog [data-close]');
+
   step('the hub’s relay goes away: the hub’s pages wait, the public area goes on; it comes back and the pages continue');
   await A.goto(BOARDS);
   await A.waitForSelector('.home');

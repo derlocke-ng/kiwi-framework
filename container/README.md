@@ -16,6 +16,7 @@ The site is built once, with the relays and policy its `distribution.js` names. 
 |---|---|
 | `HUB_RELAYS` | the hub's own relays, comma- or space-separated: `wss://relay.sh3.home` inside a VPN |
 | `HUB_PUBLIC_RELAYS` | the public area's relays; set and empty: no public area |
+| `HUB_DIRECTORY_RELAYS` | where relay lists are published and asked for, so people on hubs that share no relay find each other; never used on a locked hub's own network |
 | `HUB_RELAYS_LOCKED` | `true`: a person cannot replace the hub's relays (a private hub) |
 | `HUB_REQUIRE_HUB` | `true`: the hub's pages wait while none of its relays is reachable (inside a VPN) |
 | `HUB_PUBLIC_MOUNTS` | the mounts on the public network, by id: `uplink` |

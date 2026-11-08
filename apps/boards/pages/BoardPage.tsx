@@ -100,7 +100,7 @@ function DuplicateDialog({ board, onClose }: { board: Board; onClose: () => void
   );
 }
 
-export function BoardPage({ route }: { route: { pub: string; w: string | null; k: string | null } }) {
+export function BoardPage({ route }: { route: { pub: string; w: string | null; k: string | null; relays?: string[] } }) {
   const t = useT();
   const kiwi = useKiwi();
   const mount = useMount();
@@ -108,8 +108,13 @@ export function BoardPage({ route }: { route: { pub: string; w: string | null; k
   const saved = wallet.get(route.pub);
   const w = route.w || saved?.w || null;
   const k = route.k || saved?.k || null;
+  // Where the board lives besides this hub's relays: a link's hints, or what the wallet remembers (none on a locked hub).
+  const found: string[] = route.relays?.length ? route.relays : saved?.relays || [];
+  const guests = kiwi.hints(found).filter((r: string) => !kiwi.whole.pool.urlsOf(kiwi.network).includes(r));
+  const guestKey = guests.join(',');
   // One Board per address and keys; it reads the device first, then the relays.
-  const board = useMemo(() => new Board({ pub: route.pub, w, k }, kiwi.net), [route.pub, w, k, kiwi.net]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: guestKey stands for the guests
+  const board = useMemo(() => new Board({ pub: route.pub, w, k, relays: guests }, kiwi.net), [route.pub, w, k, kiwi.net, guestKey]);
   useEffect(() => {
     board.open();
     return () => board.close();
@@ -122,8 +127,8 @@ export function BoardPage({ route }: { route: { pub: string; w: string | null; k
 
   // Keep secrets out of the address bar and history once we have them.
   useEffect(() => {
-    if (route.w || route.k) history.replaceState(null, '', boardHash({ pub: route.pub }));
-  }, [route.pub, route.w, route.k]);
+    if (route.w || route.k) history.replaceState(null, '', boardHash({ pub: route.pub, relays: route.relays }));
+  }, [route.pub, route.w, route.k, route.relays]);
 
   const ready = board.state === 'ready';
   const info = board.info;
@@ -132,10 +137,17 @@ export function BoardPage({ route }: { route: { pub: string; w: string | null; k
     if (!ready) return;
     const entry = wallet.get(board.pub);
     const fields = { type: info.type, mode: info.mode, title: info.title };
+    const kept: string[] = board.relays || [];
+    const relays = kept.length ? kept : undefined;
     const save = !entry
-      ? wallet.upsert({ pub: board.pub, w, k, ...fields })
-      : entry.title !== fields.title || entry.type !== fields.type || entry.mode !== fields.mode || (w && !entry.w) || (k && !entry.k)
-        ? wallet.upsert({ ...entry, ...fields, w: w || entry.w, k: k || entry.k })
+      ? wallet.upsert({ pub: board.pub, w, k, ...fields, relays })
+      : entry.title !== fields.title ||
+          entry.type !== fields.type ||
+          entry.mode !== fields.mode ||
+          (w && !entry.w) ||
+          (k && !entry.k) ||
+          (kept.length > 0 && kept.join(',') !== (entry.relays || []).join(','))
+        ? wallet.upsert({ ...entry, ...fields, w: w || entry.w, k: k || entry.k, relays: relays || entry.relays })
         : null;
     Promise.resolve(save).catch(fail);
     wallet.setLocal(board.pub, { opened: Date.now() });

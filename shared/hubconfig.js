@@ -24,6 +24,8 @@ export function applyHubConfig(local) {
   if (relays) applied.relays = DISTRIBUTION.relays = relays;
   const publicRelays = relayList(local.publicRelays);
   if (publicRelays) applied.publicRelays = DISTRIBUTION.publicRelays = publicRelays;
+  const directoryRelays = relayList(local.directoryRelays);
+  if (directoryRelays) applied.directoryRelays = DISTRIBUTION.directoryRelays = directoryRelays;
   if (local.policy && typeof local.policy === 'object') {
     const policy = { ...(DISTRIBUTION.policy || {}) };
     if (['open', 'locked'].includes(local.policy.relays)) policy.relays = local.policy.relays;
@@ -68,6 +70,7 @@ export function describeHub(config, { version = '', framework = '' } = {}) {
     framework,
     relays: [...(config.relays || [])],
     publicRelays: [...(config.publicRelays || [])],
+    directoryRelays: [...(config.directoryRelays || [])],
     policy: { userMounts: false, relays: 'open', requireHub: false, ...(config.policy || {}) },
     mounts: (config.mounts || []).map((m) => ({ id: m.id, app: m.app, name: m.name || null, network: m.network === 'public' ? 'public' : 'hub' })),
   };

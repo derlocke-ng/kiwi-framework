@@ -14,6 +14,7 @@
 
 import { KINDS, isHex64, now } from './events.js';
 import { baseStore, whole } from './peers.js';
+import { myRelays, relaysTag } from './relaylists.js';
 import { hexToBytes, nip59 } from './nostr.mjs';
 import { store } from './util.js';
 
@@ -26,15 +27,17 @@ export class DirectMessages {
   /**
    * @param {{ sk: string, pk: string }} identity
    * @param {{ pool: any, db: any, sync: any }} net
-   * @param {{ isBlocked?: (pk: string) => boolean, peers?: import('./peers.js').PeerNetworks | null }} [options]
+   * @param {{ isBlocked?: (pk: string) => boolean, peers?: import('./peers.js').PeerNetworks | null, reach?: any }} [options]
    *   peers: which network each person is reached on (a hub with a public area); none: the hub's
+   *   reach: their inbox relays (shared/relaylists.js), where a sealed note goes besides the network's own
    */
-  constructor(identity, net, { isBlocked = () => false, peers = null } = {}) {
+  constructor(identity, net, { isBlocked = () => false, peers = null, reach = null } = {}) {
     this.sk = identity.sk;
     this.pk = identity.pk;
     this.alias = identity.alias || ''; // travels inside each message, so the reader can name me before we are friends
     this.net = net;
     this.peers = peers;
+    this.reach = reach;
     this.isBlocked = isBlocked;
     this.seenKey = `chat.seen.${this.pk.slice(0, 16)}`;
     this.readKey = `chat.read.${this.pk.slice(0, 16)}`;
@@ -89,6 +92,9 @@ export class DirectMessages {
       return this.markSeen(ev.id);
     }
     if (network && isHex64(rumor.pubkey) && rumor.pubkey !== this.pk) this.peers?.learn(rumor.pubkey, network);
+    // where the writer reads, as they told us inside the seal: the way back to them
+    const told = relaysTag(rumor);
+    if (told.length && isHex64(rumor.pubkey) && rumor.pubkey !== this.pk) this.peers?.learnRelays?.(rumor.pubkey, network, told);
     if (rumor.kind !== KINDS.CHAT_MESSAGE) {
       // another module's rumor: the groups' knocks and keys come through here; People's are its own
       for (const fn of this.rumorHandlers.get(rumor.kind) || []) fn(rumor, ev, network);
@@ -123,12 +129,14 @@ export class DirectMessages {
       .slice(0, TEXT);
     if (!content) return null;
     const ms = Date.now();
-    const tags = [['p', toPk], ['ms', String(ms % 1000)], ...(this.alias ? [['name', this.alias.slice(0, NAME)]] : [])];
+    const network = this.networkOf(toPk);
+    const tags = [['p', toPk], ['ms', String(ms % 1000)], ...(this.alias ? [['name', this.alias.slice(0, NAME)]] : []), ...this.relaysFor(network)];
     const rumor = { kind: KINDS.CHAT_MESSAGE, created_at: Math.floor(ms / 1000), tags, content };
     const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
     const mine = nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk);
     const { sync } = this.net;
-    await whole(sync).publish(theirs, { wait: 'one', network: this.networkOf(toPk) }); // to the reader, on their network
+    await whole(sync).publish(theirs, { wait: 'one', network }); // to the reader, on their network
+    this.reach?.deliver(toPk, network, theirs).catch(() => {}); // and where they read, when that is elsewhere
     await sync.publish(mine); // to my other devices, on the hub's; the store takes it and the message shows up through handle()
     return rumor;
   }
@@ -193,10 +201,19 @@ export class DirectMessages {
 
   /** A rumor of another kind to one person, wrapped for them (on their network) and for my other devices. */
   async sendRumor(toPk, kind, body) {
-    const rumor = { kind, created_at: now(), tags: [['p', toPk]], content: JSON.stringify(body) };
+    const network = this.networkOf(toPk);
+    const rumor = { kind, created_at: now(), tags: [['p', toPk], ...this.relaysFor(network)], content: JSON.stringify(body) };
     const { sync } = this.net;
-    await whole(sync).publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk), { wait: 'one', network: this.networkOf(toPk) });
+    const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
+    await whole(sync).publish(theirs, { wait: 'one', network });
+    this.reach?.deliver(toPk, network, theirs).catch(() => {});
     await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk));
+  }
+
+  /** The `relays` tag for a sealed note on `network`: where I read on it, so the reader can answer. */
+  relaysFor(network) {
+    const mine = myRelays(whole(this.net.pool), network);
+    return mine.length ? [['relays', ...mine]] : [];
   }
 
   /** Called with every message from someone else that arrives while the page is open (not with what was already here). */

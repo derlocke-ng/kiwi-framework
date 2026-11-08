@@ -59,13 +59,13 @@ export function ChatApp() {
 
   const page =
     route.page === 'room' ? (
-      <RoomView key={route.secret} secret={route.secret} />
+      <RoomView key={route.secret} secret={route.secret} relays={route.relays} />
     ) : !dm ? (
       <p className="empty">{t('common.loading')}</p>
     ) : route.page === 'dm' ? (
       <Conversation key={route.pk} pk={route.pk} />
     ) : route.page === 'group' ? (
-      <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} />
+      <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} relays={route.relays} />
     ) : route.page === 'settings' ? (
       <ChatSettings />
     ) : (

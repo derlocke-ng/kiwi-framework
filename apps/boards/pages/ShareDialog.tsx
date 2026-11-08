@@ -39,7 +39,7 @@ export function ShareDialog({ board, onClose }: { board: Board; onClose: () => v
   const roles = board.canEdit ? (['edit', 'view'] as const) : (['view'] as const);
   const [role, setRole] = useState<'edit' | 'view'>(roles[0]);
   const [qr, setQr] = useState(false);
-  const url = shareLink(pageBase(), { pub: board.pub, w: board.w, k: board.k }, role);
+  const url = shareLink(pageBase(), { pub: board.pub, w: board.w, k: board.k }, role, kiwi.hints(board.relays || []));
   const toFriends = async () => {
     const pks: string[] = await pickPeople(people, { base: kiwi.base });
     if (!pks.length) return;

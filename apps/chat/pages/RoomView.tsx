@@ -1,6 +1,7 @@
 // A live room: pick a nickname, enter, talk with whoever has the link.
 // Nothing is stored anywhere; leaving is the end of it for you.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { hintQuery } from '../../../shared/relaylists.js';
 import { Icon } from '../../../ui/components';
 import { pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT, useTick } from '../../../ui/hooks';
@@ -11,7 +12,7 @@ import { Composer } from './Conversation';
 
 const SHOWN = 6; // names in the header; the rest is a count, the full list on a tap
 
-export function RoomView({ secret }: { secret: string }) {
+export function RoomView({ secret, relays = [] }: { secret: string; relays?: string[] }) {
   const t = useT();
   const kiwi = useKiwi();
   const identity = useIdentity();
@@ -21,7 +22,9 @@ export function RoomView({ secret }: { secret: string }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the alias is only the first suggestion for the name
   const room = useMemo(() => {
     const before = remembered(secret); // this tab was in the room before a reload: the same name, the same voice
-    return new Room(secret, kiwi.net, { nick: before?.nick || savedNick() || identity.alias || '', sk: before?.sk });
+    // a link's hints are where the room is: followed as guests, unless this is a locked hub's own network
+    const follow = kiwi.hints(relays).filter((r) => !kiwi.whole.pool.urlsOf(kiwi.network).includes(r));
+    return new Room(secret, kiwi.net, { nick: before?.nick || savedNick() || identity.alias || '', sk: before?.sk, relays: follow });
   }, [secret, kiwi.net]);
   useTick(useCallback((fn: () => void) => room.onChange(fn), [room]));
   const [joined, setJoined] = useState(() => Boolean(remembered(secret))); // straight back in after a reload
@@ -38,7 +41,8 @@ export function RoomView({ secret }: { secret: string }) {
     end.current?.scrollIntoView({ block: 'end' });
   }, [last?.id]);
 
-  const link = `${location.origin}${location.pathname}#/room/${encodeURIComponent(secret)}`;
+  const hints = kiwi.hints(relays);
+  const link = `${location.origin}${location.pathname}#/room/${encodeURIComponent(secret)}${hints.length ? `?${hintQuery(hints)}` : ''}`;
   const enter = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nick = String(new FormData(e.currentTarget).get('nick') || '')
@@ -90,7 +94,7 @@ export function RoomView({ secret }: { secret: string }) {
     );
   }
   return (
-    <section className="room" data-room={room.id.slice(0, 12)}>
+    <section className="room" data-room={room.id.slice(0, 12)} data-invite={link}>
       <div className="page-head">
         <button type="button" className="icon-btn back" id="leaveRoom" aria-label={t('chat.room.leave')} title={t('chat.room.leave')} onClick={leave}>
           <Icon name="log-out" />
@@ -127,7 +131,7 @@ export function RoomView({ secret }: { secret: string }) {
               const pks: string[] = await pickPeople(people, { base: kiwi.base });
               if (!pks.length) return;
               groups
-                .inviteRoom(pks, { secret, name: room.nick ? t('chat.room.ofNick', { nick: room.nick }) : '' })
+                .inviteRoom(pks, { secret, name: room.nick ? t('chat.room.ofNick', { nick: room.nick }) : '', relays: hints })
                 .then(() => toast(t('chat.group.invited', { n: pks.length }), 'success'), toastError);
             }}
           >

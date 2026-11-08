@@ -6,6 +6,7 @@
 #
 #   HUB_RELAYS          the hub's own relays, e.g. wss://relay.sh3.home
 #   HUB_PUBLIC_RELAYS   the public area's relays; empty: no public area
+#   HUB_DIRECTORY_RELAYS  where relay lists are published and asked for (never on a locked hub's own network)
 #   HUB_RELAYS_LOCKED   true: a person cannot replace the hub's relays (a private hub)
 #   HUB_REQUIRE_HUB     true: the hub's pages wait while none of its relays is reachable
 #   HUB_PUBLIC_MOUNTS   the mounts on the public network, e.g. uplink
@@ -14,7 +15,7 @@ set -eu
 root=${HUB_ROOT:-/usr/share/nginx/html}
 out="$root/hub.local.json"
 
-if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}" ]; then
+if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}" ]; then
     rm -f "$out"
     exit 0
 fi
@@ -41,6 +42,7 @@ bool() { # true/yes/1/on -> true, anything else -> false
     sep=''
     if [ -n "${HUB_RELAYS:-}" ]; then printf '%s  "relays": %s' "$sep" "$(json_list "$HUB_RELAYS")"; sep=',\n'; fi
     if [ -n "${HUB_PUBLIC_RELAYS+x}" ]; then printf "$sep"'  "publicRelays": %s' "$(json_list "${HUB_PUBLIC_RELAYS:-}")"; sep=',\n'; fi
+    if [ -n "${HUB_DIRECTORY_RELAYS:-}" ]; then printf "$sep"'  "directoryRelays": %s' "$(json_list "$HUB_DIRECTORY_RELAYS")"; sep=',\n'; fi
     if [ -n "${HUB_PUBLIC_MOUNTS+x}" ]; then printf "$sep"'  "publicMounts": %s' "$(json_list "${HUB_PUBLIC_MOUNTS:-}")"; sep=',\n'; fi
     policy=''
     psep=''

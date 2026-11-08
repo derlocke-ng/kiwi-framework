@@ -18,7 +18,7 @@ const PAGE = 50;
 const pageUrl = () => `${location.origin}${location.pathname}`;
 
 /** The door: knock with a name, then wait until the host answers (the knock survives a reload: it is in the account). */
-function Door({ pub, host, invite, name }: { pub: string; host: string; invite: string; name: string }) {
+function Door({ pub, host, invite, name, relays }: { pub: string; host: string; invite: string; name: string; relays: string[] }) {
   const t = useT();
   const groups = useGroups();
   const identity = useIdentity();
@@ -33,7 +33,7 @@ function Door({ pub, host, invite, name }: { pub: string; host: string; invite: 
     setBusy(true);
     try {
       saveNick(myName);
-      await groups.knock({ pub, host, invite, name, myName });
+      await groups.knock({ pub, host, invite, name, myName, relays });
     } catch (err) {
       toastError(err);
     } finally {
@@ -107,7 +107,7 @@ function Requests({ pub }: { pub: string }) {
   );
 }
 
-export function GroupView({ pub, host, invite, name: linkName }: { pub: string; host: string; invite: string; name: string }) {
+export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { pub: string; host: string; invite: string; name: string; relays?: string[] }) {
   const t = useT();
   const kiwi = useKiwi();
   const groups = useGroups();
@@ -149,7 +149,7 @@ export function GroupView({ pub, host, invite, name: linkName }: { pub: string; 
     end.current?.scrollIntoView({ block: 'end' });
   }, [last?.id]);
 
-  if (!entry) return <Door pub={pub} host={host} invite={invite} name={linkName} />;
+  if (!entry) return <Door pub={pub} host={host} invite={invite} name={linkName} relays={kiwi.hints(relays)} />;
 
   const name = info?.name || entry.name || t('chat.group.title');
   const members = groups.members(pub);

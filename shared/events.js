@@ -21,6 +21,8 @@ export const KINDS = {
   P2P_DATA: 21702,
   ROOM_MESSAGE: 21710, // chat: a message in a live room, sealed to the room's key; gone when nobody is there
   MUTE_LIST: 10000, // NIP-51: who we block (private entries)
+  RELAY_LIST: 10002, // NIP-65: the relays a person writes to and reads from, per network (shared/relaylists.js)
+  INBOX_RELAYS: 10050, // NIP-17: the relays a person reads sealed notes on
   REPORT: 1984, // NIP-56
   REACTION: 7, // NIP-25: votes on DevBoard posts
   DELETION: 5, // NIP-09

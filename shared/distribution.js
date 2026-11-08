@@ -15,6 +15,10 @@
 //            relays inside its VPN here, so its apps work only from inside
 //   publicRelays  the public area's relays, for mounts with network: 'public':
 //            a semi-public hub lets its people talk to outsiders there
+//   directoryRelays  where people's relay lists are published and asked for,
+//            besides the network's own relays (purplepag.es and the like), so
+//            people on hubs that share no relay find each other; never used
+//            on a locked hub's own network (shared/relaylists.js)
 //   media    the default media (Blossom) servers for photos and files, first
 //            choice first, until the user picks their own; empty: no uploads
 //   how      the topics of the hub's "How it works" (shared/how.js); null: HOW.hub
@@ -33,6 +37,8 @@ export const DISTRIBUTION = {
   relays: ['wss://nos.lol', 'wss://relay.damus.io', 'wss://nostr.mom', 'wss://relay.primal.net'],
   /** @type {string[]} */
   publicRelays: [],
+  /** @type {string[]} */
+  directoryRelays: [],
   /** @type {string[]} */
   media: [],
   /** @type {string[] | null} */

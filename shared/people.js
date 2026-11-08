@@ -13,6 +13,7 @@
 import { KINDS, now, fingerprint, isHex64 } from './events.js';
 import { nip59, hexToBytes } from './nostr.mjs';
 import { baseStore, whole } from './peers.js';
+import { myRelays, relaysTag } from './relaylists.js';
 import { AccountSettings } from './settings.js';
 import { randomId, fail } from './util.js';
 
@@ -25,15 +26,17 @@ export class People {
   /**
    * @param {{ sk: string, pk: string, alias?: string|null }} identity
    * @param {{ pool: import('./relays.js').RelayPool, db: import('./store.js').LocalStore, sync: import('./sync.js').Sync }} net
-   * @param {{ isBlocked?: (pk: string) => boolean, peers?: import('./peers.js').PeerNetworks | null }} [options]
+   * @param {{ isBlocked?: (pk: string) => boolean, peers?: import('./peers.js').PeerNetworks | null, reach?: any }} [options]
    *   peers: which network each person is reached on (a hub with a public area); none: the hub's
+   *   reach: their inbox relays (shared/relaylists.js)
    */
-  constructor(identity, net, { isBlocked = () => false, peers = null } = {}) {
+  constructor(identity, net, { isBlocked = () => false, peers = null, reach = null } = {}) {
     this.sk = identity.sk;
     this.pk = identity.pk;
     this.alias = String(identity.alias || '').slice(0, NAME);
     this.net = net;
     this.peers = peers;
+    this.reach = reach;
     this.isBlocked = isBlocked;
     this.settings = new AccountSettings(identity, net, 'people');
     this.listeners = new Set();
@@ -207,9 +210,12 @@ export class People {
 
   /** A sealed note to one person, on the network they are reached on. */
   async send(toPk, kind, content, { wait = true } = {}) {
-    const rumor = { kind, created_at: now(), tags: [['p', toPk]], content: JSON.stringify(content) };
+    const network = this.peers?.of(toPk) || 'hub';
+    const mine = myRelays(whole(this.net.pool), network);
+    const rumor = { kind, created_at: now(), tags: [['p', toPk], ...(mine.length ? [['relays', ...mine]] : [])], content: JSON.stringify(content) };
     const wrap = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
-    await whole(this.net.sync).publish(wrap, { ...(wait ? { wait: 'one' } : {}), network: this.peers?.of(toPk) || 'hub' });
+    await whole(this.net.sync).publish(wrap, { ...(wait ? { wait: 'one' } : {}), network });
+    this.reach?.deliver(toPk, network, wrap).catch(() => {});
   }
 
   /** `network`: where the wrap arrived, when known. */
@@ -231,6 +237,8 @@ export class People {
     if (!OURS.includes(rumor.kind)) return; // another module's rumor (a chat message): neither handled nor marked here
     const from = rumor.pubkey;
     if (network && isHex64(from) && from !== this.pk) this.peers?.learn(from, network);
+    const told = relaysTag(rumor);
+    if (told.length && isHex64(from) && from !== this.pk) this.peers?.learnRelays?.(from, network, told);
     if (!isHex64(from) || from === this.pk || this.isBlocked(from)) return this.markSeen(ev.id);
     let body = {};
     try {

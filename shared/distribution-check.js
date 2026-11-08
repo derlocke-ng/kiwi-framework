@@ -17,6 +17,8 @@ export function checkDistribution(config) {
   const publicRelays = config.publicRelays || [];
   if (!Array.isArray(relays) || relays.some((r) => !RELAY.test(String(r)))) problems.push('relays: a list of wss:// (or ws://) URLs');
   if (!Array.isArray(publicRelays) || publicRelays.some((r) => !RELAY.test(String(r)))) problems.push('publicRelays: a list of wss:// (or ws://) URLs');
+  const directory = config.directoryRelays || [];
+  if (!Array.isArray(directory) || directory.some((r) => !RELAY.test(String(r)))) problems.push('directoryRelays: a list of wss:// (or ws://) URLs');
   const policy = config.policy || {};
   if (policy.relays !== undefined && !['open', 'locked'].includes(policy.relays)) problems.push("policy.relays: 'open' or 'locked'");
   if (policy.requireHub !== undefined && typeof policy.requireHub !== 'boolean') problems.push('policy.requireHub: true or false');
