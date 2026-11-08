@@ -38,6 +38,12 @@ Two policies make a hub private: `policy.relays: 'locked'` fixes the hub's relay
 
 Still to come here: relay hints in links (a board or group link names the relays it lives on), per-user relay lists (kinds 10002/10050) so a conversation finds a stranger's inbox without a shared relay, and spaces with relays of their own.
 
+### Hosting a hub: the container, hub.json, hub.local.json, the kiwi modules
+
+A hub is static files, so hosting it is serving a folder; what a deployment decides is *where* it runs and *which relays* it uses. `container/` (since 0.15) is the shape for a kiwi-node or any container host: a Dockerfile a distribution copies to its root (a multi-stage build, the site served by nginx), an nginx config that keeps hashed assets immutable and revalidates everything else, and an entrypoint that writes `hub.local.json` from `HUB_*` environment variables. The build writes `hub.json`, the hub as built (name, versions, relays, policy, mounts and their networks), for catalogs, modules and people; the page reads `hub.local.json` beside it before it connects (`shared/hubconfig.js`) and takes from it the hub's relays, the public area's relays, the policy and which mounts are public. One image, one build, serves a private hub inside one VPN, a semi-public one with a public chat, or a public hub, each a few environment variables apart; nothing a host writes can add code, only choose relays and policy.
+
+On the kiwi side, [kiwi-modules](https://github.com/derlocke-ng/kiwi-modules) has `nostr-relay` (strfry behind the node's reverse proxy at `relay.<host>`, TLS from the fleet CA, a mesh name the fleet's DNS resolves, so the relay is reachable through the VPN alone; a public relay is a public name, the host's 443 published and a certificate for it) and `hub` (this container behind the proxy at `hub.<host>`, its `HUB_*` from the module's settings, the node's own relay as the default). The node profile's `hub` preset is the two behind the VPN client: a private hub as it comes, semi-public with `public_relays` and `public_mounts`. kiwi-server renders the same modules for a fleet.
+
 ### Relays: lists, not sameness
 
 Two hubs need not share relays. Each user publishes a relay list (kind 10002: where they write, where they read) and a list for private wraps (kind 10050). To reach someone the framework fetches their lists and publishes to their read relays; to follow someone it subscribes to their write relays. The lists are found on a few directory relays and travel inside the first contact: a friend request and a share carry the sender's lists in the wrap, so the reply needs no lookup. A kiwi relay per instance then simply appears in that instance's users' lists. This goes in before the first fork.
@@ -267,7 +273,7 @@ The freelancer noticeboard is public by nature, so its defence is not encryption
 
 ## Roadmap
 
-Next, in this order: ~~the rename of the distribution; the repository split with `distribution.js` as the config and the catalog manifest~~ (done: kiwi-framework, Armory, kiwi-web-catalog); ~~private and semi-public hubs: networks per mount, locked relays, the gate~~ (done, 0.14, see *Hubs*); relay lists per user and relay hints in links; spaces and mounts in the event design; the widget and module extraction (markdown and lists out of Loadout first, then collections with pinning, then the feed for Outpost and DevBoard); the chat on the same parts; the blog on the markdown editor and the feed.
+Next, in this order: ~~the rename of the distribution; the repository split with `distribution.js` as the config and the catalog manifest~~ (done: kiwi-framework, Armory, kiwi-web-catalog); ~~private and semi-public hubs: networks per mount, locked relays, the gate~~ (done, 0.14, see *Hubs*); ~~hosting: the container, hub.local.json, the kiwi modules~~ (done, 0.15, see *Hosting a hub*); relay lists per user and relay hints in links; spaces and mounts in the event design; the widget and module extraction (markdown and lists out of Loadout first, then collections with pinning, then the feed for Outpost and DevBoard); the chat on the same parts; the blog on the markdown editor and the feed.
 
 
 1. ~~Shared core; Loadout on nostr~~ (done — `test/e2e/loadout.mjs` runs 17 multi-device scenarios against the dev relay, including two relay wipes).

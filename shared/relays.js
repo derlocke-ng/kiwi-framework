@@ -15,9 +15,8 @@ import { store, timeout } from './util.js';
 
 export const RELAYS_KEY = 'wjs.relays';
 
-// Public relays that accept application data; replace the first entries with
-// kiwi-network relays once the module runs. Users can edit the list.
-export const DEFAULT_RELAYS = DISTRIBUTION.relays; // the distribution's choice (shared/distribution.js)
+/** The hub's own relays as the distribution (and the host's hub.local.json, shared/hubconfig.js) name them. */
+export const defaultRelays = () => DISTRIBUTION.relays.map(normalizeRelayUrl).filter(Boolean);
 
 const RETRY_EVERY = 15_000;
 const CONNECT_TIMEOUT = 8000;
@@ -42,25 +41,23 @@ export const relaysLocked = () => DISTRIBUTION.policy?.relays === 'locked';
 
 /** The hub's relays: the person's own list, unless the hub locks its relays. */
 export function savedRelays() {
-  if (relaysLocked()) return DEFAULT_RELAYS;
+  if (relaysLocked()) return defaultRelays();
   const saved = store.get(RELAYS_KEY);
-  return Array.isArray(saved) && saved.length ? saved : DEFAULT_RELAYS;
+  return Array.isArray(saved) && saved.length ? saved : defaultRelays();
 }
 
-/** The relays of the public area, the distribution's choice; a person cannot change them. */
-export const PUBLIC_RELAYS = /** @type {string[]} */ ((DISTRIBUTION.publicRelays || []).map(normalizeRelayUrl).filter(Boolean));
+/** The relays of the public area, the distribution's (or the host's) choice; a person cannot change them. */
+export const publicRelays = () => /** @type {string[]} */ ((DISTRIBUTION.publicRelays || []).map(normalizeRelayUrl).filter(Boolean));
 
-/** Every network this hub has, with its relays: `hub` always, `public` when the distribution names public relays. */
+/** Every network this hub has, with its relays: `hub` always, `public` when public relays are named. */
 export function savedNetworks() {
-  return { hub: savedRelays(), ...(PUBLIC_RELAYS.length ? { public: PUBLIC_RELAYS } : {}) };
+  const pub = publicRelays();
+  return { hub: savedRelays(), ...(pub.length ? { public: pub } : {}) };
 }
-
-/** The names of the hub's networks. */
-export const NETWORKS = Object.keys(savedNetworks());
 
 export function saveRelays(list) {
   const clean = [...new Set(list.map(normalizeRelayUrl).filter(Boolean))];
-  if (!clean.length || clean.join() === DEFAULT_RELAYS.join()) store.remove(RELAYS_KEY);
+  if (!clean.length || clean.join() === defaultRelays().join()) store.remove(RELAYS_KEY);
   else store.set(RELAYS_KEY, clean);
   return clean;
 }

@@ -9,7 +9,7 @@ import { DISTRIBUTION } from '../../shared/distribution.js';
 import { fingerprint, isHex64 } from '../../shared/events.js';
 import { currentLanguage, fmtDateTime, LANGUAGES, tErr } from '../../shared/i18n.js';
 import { CORES_KEY, cores, hardwareCores } from '../../shared/pow.js';
-import { DEFAULT_RELAYS, normalizeRelayUrl, relaysLocked, savedRelays, saveRelays } from '../../shared/relays.js';
+import { defaultRelays, normalizeRelayUrl, relaysLocked, savedRelays, saveRelays } from '../../shared/relays.js';
 import { ACCENTS, accent, theme } from '../../shared/theme.js';
 import { store } from '../../shared/util.js';
 import { Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
@@ -502,7 +502,7 @@ function RelaysCard() {
                 className="btn btn-sm btn-ghost"
                 data-act="relay-reset"
                 onClick={() => {
-                  saveRelays(DEFAULT_RELAYS);
+                  saveRelays(defaultRelays());
                   location.reload();
                 }}
               >

@@ -10,6 +10,7 @@ import { normalizeServer } from '../shared/blossom.js';
 import { DirectMessages } from '../shared/chat.js';
 import { DISTRIBUTION } from '../shared/distribution.js';
 import { Groups } from '../shared/groups.js';
+import { loadHubConfig } from '../shared/hubconfig.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
 import { PeerNetworks } from '../shared/peers.js';
@@ -246,6 +247,7 @@ export async function bootKiwi({ current = 'hub', base = './', sprite = 'icons.s
       .catch(() => {});
   }
   const strings = initI18n({ dirs });
+  await loadHubConfig(base); // the host's say on relays, policy and the public area, before anything connects
   const db = await LocalStore.open('wjs');
   const pool = new RelayPool(savedNetworks());
   const sync = new Sync(pool, db);

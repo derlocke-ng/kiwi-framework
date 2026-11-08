@@ -21,6 +21,10 @@ import { store as local } from './util.js';
 import { addressOf, supersedes } from './events.js';
 
 const FLUSH_EVERY = 15_000;
+/** `localStorage.setItem('wjs.debug', '1')`: every publish, answer, flush and ack on the console, for a bug report or a test. */
+const debug = (...args) => {
+  if (local.get('wjs.debug')) console.debug('[sync]', ...args);
+};
 const HEAL_PACE = 150; // ms between re-published events, so relays don't rate-limit us
 const HEAL_EVERY = 10 * 60_000; // per relay and author: a gap check is one REQ, so it can run often, but not on every page hop
 const HEALED_KEY = 'wjs.healed';
@@ -82,13 +86,16 @@ export class Sync {
   async publish(event, { wait = 'none', network = 'hub' } = {}) {
     // stored and owed to its relays in one step: a page that goes away now still sends it on its next visit
     const urls = this.pool.urlsOf(network);
-    if ((await this.store.put(event, network, { pending: urls })) === 'ignored' && urls.length) await this.store.setPending(event.id, urls);
+    const stored = await this.store.put(event, network, { pending: urls });
+    if (stored === 'ignored' && urls.length) await this.store.setPending(event.id, urls);
+    debug('publish', event.kind, event.id.slice(0, 8), network, stored, urls, this.pool.status(network).relays.map((r) => `${r.url}:${r.open ? 'open' : 'closed'}`));
     this.emit();
     let first;
     const gotOne = new Promise((resolve) => (first = resolve));
     const all = this.pool.publish(event, {
       network,
       onResult: (url, r) => {
+        debug('answer', event.id.slice(0, 8), url, r);
         if (r.ok) first({ ok: [url], failed: [] });
         if (r.ok || r.permanent) this.store.ack(event.id, url, { accepted: r.ok }).then(() => this.emit());
         else if (r.error !== 'offline') this.complain(url, r.error);
@@ -129,8 +136,10 @@ export class Sync {
           await this.pool.publishTo(url, event);
           this.pool.notePublish(url, null);
           await this.store.ack(id, url);
+          debug('flushed', event.kind, id.slice(0, 8), url);
         } catch (err) {
           const error = String(err?.message || err);
+          debug('flush failed', id.slice(0, 8), url, error);
           if (isPermanent(error)) {
             this.pool.notePublish(url, error);
             await this.store.ack(id, url, { accepted: false });

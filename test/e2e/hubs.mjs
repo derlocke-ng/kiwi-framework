@@ -4,6 +4,8 @@
 // the hub's own network reaches the public relay, not even by healing; the hub's relays cannot be
 // edited; and while the hub's relay is away, the hub's pages wait and the public area goes on.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { device, freePort, run, sleep, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
@@ -18,8 +20,11 @@ const apps = [
   { app: 'chat', name: 'Chat', icon: 'message-circle', network: 'public' },
 ];
 const site = await testHub(apps, { name: 'Acme', relays: [HUB_RELAY], publicRelays: [PUBLIC_RELAY], policy: { relays: 'locked', requireHub: true } });
-// the outsider's hub: a public hub whose own network is the public relay
-const outside = await testHub([{ app: 'chat', name: 'Chat', icon: 'message-circle' }], { name: 'Elsewhere', relays: [PUBLIC_RELAY] });
+// the outsider's hub: a public hub whose own network is the public relay. It is built with a relay that
+// does not exist, and the host's hub.local.json (what a container's environment writes) names the real
+// one and locks it: the deployment decides, the build does not.
+const outside = await testHub([{ app: 'chat', name: 'Chat', icon: 'message-circle' }], { name: 'Elsewhere', relays: ['ws://localhost:1'] });
+fs.writeFileSync(path.join(outside, 'hub.local.json'), JSON.stringify({ relays: [PUBLIC_RELAY], policy: { relays: 'locked' } }));
 
 async function main(env) {
   const BOARDS = `${env.base}boards/`;
@@ -92,6 +97,11 @@ async function main(env) {
   await B.goto(`${outsideBase}settings.html#people`);
   await B.waitForSelector('#people');
   await until(async () => (await B.$$('#people [data-message]')).length === 1, 'friends on B', 30000);
+  await B.goto(`${outsideBase}settings.html#relays`);
+  await B.waitForSelector('#relays');
+  assert.ok(await B.$('#relaysLocked'), 'the outsider’s hub took its relays and the lock from hub.local.json');
+  assert.deepEqual((await texts(B, '#relayList .relay-name')).map((x) => x.split(' ')[0]), [`localhost:${publicPort}`], 'the host’s relay, not the built one');
+  assert.ok(JSON.parse(await (await fetch(`${outsideBase}hub.json`)).text()).relays.includes('ws://localhost:1'), 'hub.json still says what was built');
   await until(async () => (await onHub([{ kinds: [30791], authors: [pkA] }])).length >= 1, 'the insider’s settings (the friends list) are on the hub’s relay', 10000);
   assert.equal((await onPublic([{ kinds: [30791], authors: [pkA] }])).length, 0, 'and not on the public one');
 

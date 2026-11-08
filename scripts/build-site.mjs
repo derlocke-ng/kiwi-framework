@@ -17,6 +17,7 @@
 // precache list and version are computed from the result, so every deploy
 // busts the cache by itself. `import { assemble }` does the same for tests.
 import { checkDistribution } from '../shared/distribution-check.js';
+import { describeHub } from '../shared/hubconfig.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -156,6 +157,15 @@ export async function assemble({ distribution = process.cwd(), out = path.join(d
   // 1. the hub's static files and the manifest, named after the distribution
   for (const f of ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icons.svg']) fs.copyFileSync(path.join(framework, 'hub', f), path.join(out, f));
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), `${JSON.stringify(manifest(config), null, 2)}\n`);
+  // hub.json: the hub as built, for catalogs, modules and people; hub.local.json beside it is the host's (shared/hubconfig.js)
+  const versionOf = (dir) => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version || '';
+    } catch {
+      return '';
+    }
+  };
+  fs.writeFileSync(path.join(out, 'hub.json'), `${JSON.stringify(describeHub(config, { version: versionOf(distribution), framework: versionOf(framework) }), null, 2)}\n`);
 
   // 2. the library as plain files, with the distribution's config in place of the framework's (for the apps that import /shared/)
   fs.cpSync(path.join(framework, 'shared'), path.join(out, 'shared'), { recursive: true });
