@@ -8,7 +8,7 @@
 // Wire ids stay Loadout's (kinds 30700-30703, 'wjs/loadout/…' derivations):
 // boards made before the app moved into the framework open unchanged.
 
-import { KINDS, makeAddressable, seal, open, deriveKey, dTag, hex, bytes } from '../../../shared/events.js';
+import { KINDS, makeAddressable, seal, open, deriveKey, dTag, hex, bytes, supersedes } from '../../../shared/events.js';
 import { generateSecretKey, getPublicKey } from '../../../shared/nostr.mjs';
 import { fail, randomId } from '../../../shared/util.js';
 
@@ -60,10 +60,11 @@ export class Board {
   async open() {
     const { db, pool, sync } = this.net;
     const filter = { authors: [this.pub], kinds: BOARD_KINDS };
-    for (const ev of (await db.query([filter])).reverse()) await this.receive(ev);
+    // listen first, then read: an event stored between the two would be lost to this page otherwise
     this.offStore = db.subscribe((ev) => {
       if (ev.pubkey === this.pub && BOARD_KINDS.includes(ev.kind)) this.receive(ev);
     });
+    for (const ev of (await db.query([filter])).reverse()) await this.receive(ev);
     this.sub = pool.subscribe([filter], {
       onevent: (ev) => db.put(ev),
       oneose: () => setTimeout(() => this.state === 'loading' && !this.info && this.set({ state: 'missing' }), 1500),
@@ -81,12 +82,16 @@ export class Board {
     this.listeners.clear();
   }
 
-  /** Decode values in arrival order even though decryption is async. */
+  /**
+   * Apply an event unless a newer one for its slot (kind:d) was taken already: the newest version wins, not
+   * the last call, since a read of the store can hand over an older version after a newer one came in live.
+   */
   async receive(ev) {
     if (this.closed) return;
     const slot = `${ev.kind}:${dTag(ev)}`;
-    const n = (this.seq.get(slot) || 0) + 1;
-    this.seq.set(slot, n);
+    const have = this.seq.get(slot);
+    if (have && !supersedes(ev, have)) return;
+    this.seq.set(slot, ev);
     let value;
     if (!this.key) value = LOCKED;
     else {
@@ -96,7 +101,7 @@ export class Board {
         value = LOCKED; // wrong key for this board
       }
     }
-    if (this.closed || this.seq.get(slot) !== n) return;
+    if (this.closed || this.seq.get(slot)?.id !== ev.id) return; // a newer one took the slot while this decrypted
     if (value === LOCKED) {
       if (this.state !== 'ready') this.set({ state: 'locked' });
       return;

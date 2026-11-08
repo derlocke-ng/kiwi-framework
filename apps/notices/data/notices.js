@@ -74,8 +74,8 @@ export class Notices {
   async start() {
     const since = now() - LIMITS.maxDays * 86_400;
     const filters = [{ kinds: [KINDS.DEVBOARD_POST], since }, { kinds: [KINDS.REACTION, KINDS.REPORT], '#k': [String(KINDS.DEVBOARD_POST)], since }];
+    this.offStore = this.net.db.subscribe((ev) => this.receive(ev)); // listen first, then read: nothing lands unseen in between
     for (const ev of await this.net.db.query(filters)) this.receive(ev);
-    this.offStore = this.net.db.subscribe((ev) => this.receive(ev));
     this.sub = this.net.pool.subscribe(filters, { onevent: (ev) => this.net.db.put(ev) });
     this.net.sync.watch([this.identity.pk]);
     return this;

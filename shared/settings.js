@@ -3,7 +3,7 @@
 // user's own key, cached in localStorage so screens draw before relays answer.
 
 import { baseStore, whole } from './peers.js';
-import { KINDS, makeAddressable, seal, open } from './events.js';
+import { KINDS, makeAddressable, seal, open, supersedes } from './events.js';
 import { selfKey } from './account.js';
 import { store } from './util.js';
 
@@ -31,7 +31,7 @@ export class AccountSettings {
     this.cacheKey = `wjs.settings.${d}.${this.pk.slice(0, 16)}`;
     this.data = store.get(this.cacheKey, {});
     this.listeners = new Set();
-    this.seq = 0;
+    this.newest = null; // the newest event applied: an older one arriving later is ignored
   }
 
   get filter() {
@@ -40,10 +40,11 @@ export class AccountSettings {
 
   async start() {
     const { db, pool } = this.net;
-    for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
+    // listen first, then read: an event stored between the two would be lost to this page otherwise
     this.offStore = db.subscribe((ev) => {
       if (ev.kind === KINDS.SETTINGS && ev.pubkey === this.pk) this.receive(ev);
     });
+    for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
     this.sub = pool.subscribe([this.filter], { onevent: (ev) => db.put(ev) });
     return this;
   }
@@ -53,16 +54,18 @@ export class AccountSettings {
     this.offStore?.();
   }
 
+  /** The newest event wins, not the last call: a read of the store can hand over an older version after a newer one came in live. */
   async receive(ev) {
     if (ev.tags.find((t) => t[0] === 'd')?.[1] !== this.d) return;
-    const n = ++this.seq;
+    if (this.newest && !supersedes(ev, this.newest)) return;
+    this.newest = ev;
     let data;
     try {
       data = await open(this.key, ev.content);
     } catch {
       return;
     }
-    if (this.seq !== n || !data || typeof data !== 'object') return;
+    if (this.newest?.id !== ev.id || !data || typeof data !== 'object') return;
     if ((data.u || 0) < (this.data.u || 0)) return;
     this.data = data;
     this.persist();

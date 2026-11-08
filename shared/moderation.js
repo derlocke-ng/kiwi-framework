@@ -8,7 +8,7 @@
 // Reports: NIP-56 (kind 1984) tell relay operators and other clients about
 // spam, illegal content, impersonation…; they are public and signed by you.
 
-import { KINDS, now, sign } from './events.js';
+import { KINDS, now, sign, supersedes } from './events.js';
 import { nip44, hexToBytes, getPublicKey } from './nostr.mjs';
 
 export const REPORT_TYPES = ['spam', 'illegal', 'impersonation', 'nudity', 'malware', 'profanity', 'other'];
@@ -48,7 +48,7 @@ export class BlockList {
     this.net = net;
     this.entries = [];
     this.listeners = new Set();
-    this.seq = 0;
+    this.newest = null; // the newest event applied: an older one arriving later is ignored
   }
 
   get filter() {
@@ -57,10 +57,11 @@ export class BlockList {
 
   async start() {
     const { db, pool } = this.net;
-    for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
+    // listen first, then read: an event stored between the two would be lost to this page otherwise
     this.offStore = db.subscribe((ev) => {
       if (ev.kind === KINDS.MUTE_LIST && ev.pubkey === this.pk) this.receive(ev);
     });
+    for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
     this.sub = pool.subscribe([this.filter], { onevent: (ev) => db.put(ev) });
     return this;
   }
@@ -70,10 +71,12 @@ export class BlockList {
     this.offStore?.();
   }
 
+  /** The newest list wins, not the last call (see AccountSettings.receive). */
   async receive(ev) {
-    const n = ++this.seq;
+    if (this.newest && !supersedes(ev, this.newest)) return;
+    this.newest = ev;
     const entries = await readBlockList(ev, this.sk);
-    if (this.seq !== n) return;
+    if (this.newest?.id !== ev.id) return;
     this.entries = entries;
     for (const fn of this.listeners) fn(this.entries);
   }

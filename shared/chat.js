@@ -52,8 +52,9 @@ export class DirectMessages {
     const db = baseStore(this.net.db);
     const pool = whole(this.net.pool);
     const forMe = (ev) => ev.kind === KINDS.GIFT_WRAP && ev.tags.some((x) => x[0] === 'p' && x[1] === this.pk);
-    for (const ev of await db.query([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk] }])) this.receive(ev);
+    // listen first, then read: a wrap stored between the two would be lost to this page otherwise (`seen` keeps it to one handling)
     this.offStore = db.subscribe((ev, network) => forMe(ev) && this.receive(ev, network));
+    for (const ev of await db.query([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk] }])) this.receive(ev);
     this.offChat = db.subscribeChat(() => this.emit());
     this.sub = pool.subscribe([{ kinds: [KINDS.GIFT_WRAP], '#p': [this.pk], since: now() - INBOX_DAYS * 86_400 }], { onevent: (ev, url) => db.put(ev, pool.networkOf?.(url) || 'hub') });
     await this.queue;

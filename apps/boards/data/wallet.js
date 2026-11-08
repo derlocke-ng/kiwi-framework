@@ -6,7 +6,7 @@
 // boards not sorted yet (newest first), then the sorted ones by `o`, which
 // syncs with each board's entry like a list item's order.
 
-import { KINDS, makeAddressable, seal, open, dTag, hex } from '../../../shared/events.js';
+import { KINDS, makeAddressable, seal, open, dTag, hex, supersedes } from '../../../shared/events.js';
 import { sha256 } from '../../../shared/nostr.mjs';
 import { selfKey } from '../../../shared/account.js';
 import { store } from '../../../shared/util.js';
@@ -39,10 +39,11 @@ export class Wallet {
   async start() {
     const { db, pool, sync } = this.net;
     for (const pub of this.entries.keys()) this.slots.set(this.slot(pub), pub);
-    for (const ev of (await db.query([FILTER(this.pk)])).reverse()) await this.receive(ev);
+    // listen first, then read: an event stored between the two would be lost to this page otherwise
     this.offStore = db.subscribe((ev) => {
       if (ev.kind === KINDS.LOADOUT_WALLET && ev.pubkey === this.pk) this.receive(ev);
     });
+    for (const ev of (await db.query([FILTER(this.pk)])).reverse()) await this.receive(ev);
     this.sub = pool.subscribe([FILTER(this.pk)], { onevent: (ev) => db.put(ev) });
     sync.watch([this.pk]);
   }
@@ -56,17 +57,19 @@ export class Wallet {
     return hex(sha256(te.encode(`wjs/loadout/wallet|${pub}`))).slice(0, 32);
   }
 
+  /** The newest event per slot wins, not the last call (see Board.receive). */
   async receive(ev) {
     const slot = dTag(ev);
-    const n = (this.seq.get(slot) || 0) + 1;
-    this.seq.set(slot, n);
+    const have = this.seq.get(slot);
+    if (have && !supersedes(ev, have)) return;
+    this.seq.set(slot, ev);
     let data;
     try {
       data = await open(this.key, ev.content);
     } catch {
       return;
     }
-    if (this.seq.get(slot) !== n) return;
+    if (this.seq.get(slot)?.id !== ev.id) return;
     if (data.del) {
       const pub = this.slots.get(slot);
       if (pub && this.entries.has(pub) && (this.entries.get(pub).u || 0) <= (data.u || 0)) {

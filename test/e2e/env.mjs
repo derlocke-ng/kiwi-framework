@@ -159,12 +159,39 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
 export async function device(env, name, init, arg, options = {}) {
   const ctx = await env.browser.newContext({ viewport: { width: 420, height: 900 }, acceptDownloads: true, ...options });
   if (init) await ctx.addInitScript(init, arg);
+  // WJS_DEBUG=1: the sync layer logs every publish and answer (shared/sync.js); run() prints them when a suite fails
+  if (process.env.WJS_DEBUG) await ctx.addInitScript(() => localStorage.setItem('wjs.debug', '1'));
   const page = await ctx.newPage();
+  page.deviceName = name;
+  (env.pages ||= []).push(page);
+  // the page's relay sockets, seen from outside the page (no change to its timing): opens, closes, what went over them
+  page.wslog = [];
+  const t0 = Date.now();
+  const stamp = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
+  page.on('websocket', (ws) => {
+    const short = ws.url().replace(/^ws:\/\/localhost:/, ':');
+    page.wslog.push(`${stamp()} open ${short}`);
+    ws.on('close', () => page.wslog.push(`${stamp()} close ${short}`));
+    ws.on('socketerror', (e) => page.wslog.push(`${stamp()} error ${short} ${e}`));
+    ws.on('framesent', (f) => {
+      const m = /^\["(EVENT|REQ|CLOSE)",?\s*(?:\{"kind":(\d+)|"([^"]{0,12})")?/.exec(String(f.payload));
+      if (m) page.wslog.push(`${stamp()} > ${m[1]}${m[2] ? ` ${m[2]}` : ''}${m[3] ? ` ${m[3]}` : ''}`);
+    });
+    ws.on('framereceived', (f) => {
+      const text = String(f.payload);
+      const m = /^\["(OK|EOSE|NOTICE|CLOSED)",\s*"?([^",]{0,12})/.exec(text);
+      if (m) page.wslog.push(`${stamp()} < ${m[1]} ${m[2]}${m[1] === 'OK' ? text.slice(text.indexOf(',', 10), text.indexOf(',', 10) + 60) : ''}`);
+      else if (text.startsWith('["EVENT"')) {
+        const k = /"kind":(\d+)/.exec(text);
+        page.wslog.push(`${stamp()} < EVENT ${k ? k[1] : '?'}`);
+      }
+    });
+  });
   page.on('pageerror', (e) => env.errors.push(`${name}: ${e.stack || e.message}`));
   page.on('dialog', (d) => d.dismiss());
   page.ctx = ctx;
   page.logs = [];
-  page.on('console', (m) => page.logs.push(m.text()));
+  page.on('console', (m) => page.logs.push(m.type() === 'log' || m.type() === 'debug' || m.type() === 'info' ? m.text() : `${m.type()}: ${m.text()}`));
   return page;
 }
 
@@ -179,6 +206,36 @@ export async function run(name, body, options) {
     failed = true;
     console.error(`\n${name} FAILED:`, err.message);
     if (env.errors.length) console.error('page errors:\n  ' + env.errors.join('\n  '));
+    // what the pages said (the sync log under WJS_DEBUG, errors and warnings always) and where their network stands
+    for (const page of env.pages || []) {
+      const lines = (page.logs || []).filter((l) => l.startsWith('[sync]') || /error|warn|failed|refused|rejected/i.test(l)).slice(-25);
+      if (lines.length) console.error(`console of ${page.deviceName}:\n  ${lines.join('\n  ')}`);
+      const state = await page
+        .evaluate(async () => {
+          const k = window.kiwi;
+          if (!k) return null;
+          const relays = k.whole.pool.status().relays.map((r) => `${r.url} ${r.open ? 'open' : 'closed'}${r.error ? ` (${r.error})` : ''}${r.publishError ? ` publish: ${r.publishError}` : ''}`);
+          const box = await k.whole.sync.outbox();
+          return { url: location.href, online: navigator.onLine, relays, outbox: box };
+        })
+        .catch(() => null);
+      if (state) console.error(`network of ${page.deviceName}: ${JSON.stringify(state)}`);
+      // the addressable events this page holds (boards and settings), to compare versions with the relay's
+      const held = await page
+        .evaluate(async () => {
+          const k = window.kiwi;
+          if (!k) return null;
+          const list = await k.whole.db.query([{ kinds: [30700, 30701, 30702, 30703] }]);
+          return list.map((e) => `${e.kind}:${e.pubkey.slice(0, 8)}:${(e.tags.find((t) => t[0] === 'd') || [])[1] || ''}@${e.created_at}#${e.id.slice(0, 6)}`).sort();
+        })
+        .catch(() => null);
+      if (held?.length) console.error(`boards held by ${page.deviceName}: ${held.join(' ')}`);
+      if (page.wslog?.length) console.error(`sockets of ${page.deviceName}:\n  ${page.wslog.slice(-40).join('\n  ')}`);
+    }
+    if (env.relayEvents) {
+      const onRelay = await env.relayEvents([{ kinds: [30700, 30701, 30702, 30703] }]).catch(() => []);
+      console.error(`boards on the relay: ${onRelay.map((e) => `${e.kind}:${e.pubkey.slice(0, 8)}:${(e.tags.find((t) => t[0] === 'd') || [])[1] || ''}@${e.created_at}#${e.id.slice(0, 6)}`).sort().join(' ')}`);
+    }
   } finally {
     await env.close();
   }

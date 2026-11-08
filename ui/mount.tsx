@@ -15,6 +15,7 @@ export async function mountPage(Page: ComponentType, options: KiwiOptions = {}):
   const root = createRoot(el);
   try {
     const kiwi = await bootKiwi(options);
+    (window as unknown as { kiwi: unknown }).kiwi = kiwi; // for a look from the console, and for the browser suites
     root.render(
       <StrictMode>
         <KiwiContext.Provider value={kiwi}>
