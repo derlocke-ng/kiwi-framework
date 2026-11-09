@@ -400,7 +400,7 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   const csrFile = save('api2.csr', await block(A, 'csr'));
   tool('openssl', 'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', path.join(tmp, 'outside.key'), '-out', path.join(tmp, 'outside.pem'), '-subj', '/CN=Outside CA', '-days', '30');
   fs.writeFileSync(path.join(tmp, 'ext.cnf'), 'basicConstraints=CA:FALSE\nsubjectAltName=DNS:api2.example.org,DNS:*.api2.example.org\n');
-  tool('openssl', 'x509', '-req', '-in', csrFile, '-CA', path.join(tmp, 'outside.pem'), '-CAkey', path.join(tmp, 'outside.key'), '-CAcreateserial', '-days', '30', '-extfile', path.join(tmp, 'ext.cnf'), '-out', path.join(tmp, 'api2.pem'));
+  tool('openssl', 'x509', '-req', '-in', csrFile, '-CA', path.join(tmp, 'outside.pem'), '-CAkey', path.join(tmp, 'outside.key'), '-CAcreateserial', '-days', '90', '-extfile', path.join(tmp, 'ext.cnf'), '-out', path.join(tmp, 'api2.pem'));
   await A.fill('#pasteForm [name=certPem]', selfCert);
   await A.click('#pasteBtn');
   await A.waitForSelector('#pasteError');
