@@ -1,6 +1,6 @@
 # kiwi.manifest: this app's entry for the Kiwi Network web catalog
 NAME=vault
-DESCRIPTION=A password manager: logins, notes, cards and two-factor codes on every device you sign in on, sealed with a passphrase of their own
+DESCRIPTION=A password manager: logins, notes, cards, two-factor codes, SSH keys and certificate authorities on every device you sign in on, sealed with a passphrase of their own
 VERSION=0.1.0
 CATEGORY=App
 COMPONENTS=web

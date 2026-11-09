@@ -8,9 +8,9 @@ import { Icon } from '../../../ui/components';
 import { openMenu } from '../../../ui/dialogs';
 import { useT } from '../../../ui/hooks';
 import { useVault, type VaultItem } from '../../../ui/vault/VaultProvider';
-import { CodeLine, copySecret, NEW_TYPES, subtitle, TYPE_ICON } from './common';
+import { CodeLine, copySecret, KEY_TYPES, NEW_TYPES, subtitle, TYPE_ICON } from './common';
 
-const FILTERS = ['all', 'login', 'totp', 'note', 'card'];
+const FILTERS = ['all', 'login', 'totp', 'note', 'card', 'keys'];
 
 const matches = (item: VaultItem, q: string) =>
   [item.name, item.username, ...item.urls, item.notes, ...item.tags, item.card?.holder || ''].some((s) => s.toLowerCase().includes(q));
@@ -22,7 +22,10 @@ export function List() {
   const [filter, setFilter] = useState('all');
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return vault.items.filter((i) => (filter === 'all' || i.type === filter || (filter === 'totp' && i.totp)) && (!q || matches(i, q)));
+    return vault.items.filter(
+      (i) =>
+        (filter === 'all' || i.type === filter || (filter === 'totp' && i.totp) || (filter === 'keys' && KEY_TYPES.includes(i.type))) && (!q || matches(i, q)),
+    );
   }, [vault.items, query, filter]);
   const newMenu = (anchor: HTMLElement) =>
     openMenu(
@@ -83,7 +86,7 @@ export function List() {
                     {item.fav ? <Icon name="star" /> : null}
                     {item.name || t('pw.unnamed')}
                   </b>
-                  <span className="muted small">{subtitle(item)}</span>
+                  <span className="muted small">{subtitle(item, t)}</span>
                 </span>
               </a>
               {item.type === 'totp' && item.totp ? (

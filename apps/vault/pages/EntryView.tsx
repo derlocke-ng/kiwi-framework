@@ -10,6 +10,7 @@ import { toast } from '../../../ui/toast';
 import { useVault, type VaultItem } from '../../../ui/vault/VaultProvider';
 import { strength } from '../data/strength.js';
 import { CodeLine, copySecret, openable, TYPE_ICON } from './common';
+import { PkiView, SshView } from './Keys';
 
 function Field({ id, label, value, secret = false, mono = false }: { id: string; label: string; value: string; secret?: boolean; mono?: boolean }) {
   const t = useT();
@@ -114,6 +115,8 @@ export function EntryView({ item }: { item: VaultItem }) {
           <Field id="brand" label={t('pw.field.brand')} value={item.card.brand} />
         </>
       ) : null}
+      {item.ssh ? <SshView item={item} /> : null}
+      {item.pki ? <PkiView item={item} /> : null}
       {item.urls.map((url, i) => {
         const href = openable(url);
         return (

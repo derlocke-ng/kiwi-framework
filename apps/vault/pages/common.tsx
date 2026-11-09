@@ -8,13 +8,24 @@ import { useT } from '../../../ui/hooks';
 import { copyText } from '../../../ui/toast';
 import type { VaultItem } from '../../../ui/vault/VaultProvider';
 
-export const TYPE_ICON: Record<string, string> = { login: 'key-round', note: 'notebook', card: 'credit-card', totp: 'shield-check' };
-export const NEW_TYPES = ['login', 'note', 'card', 'totp'];
+export const TYPE_ICON: Record<string, string> = {
+  login: 'key-round',
+  note: 'notebook',
+  card: 'credit-card',
+  totp: 'shield-check',
+  ssh: 'square-terminal',
+  ca: 'award',
+  cert: 'file-badge',
+};
+export const NEW_TYPES = ['login', 'note', 'card', 'totp', 'ssh', 'ca'];
+export const KEY_TYPES = ['ssh', 'ca', 'cert'];
 
 /** The line under an entry's name: who it is for, or what it is. */
-export function subtitle(item: VaultItem): string {
+export function subtitle(item: VaultItem, t: (key: string, params?: Record<string, unknown>) => string): string {
   if (item.type === 'card') return item.card?.number ? `•••• ${item.card.number.replace(/\D/g, '').slice(-4)}` : item.card?.brand || '';
   if (item.type === 'note') return item.notes.split('\n')[0].slice(0, 80);
+  if (item.ssh) return `${item.ssh.ca ? 'CA · ' : ''}${item.ssh.fingerprint.slice(0, 22)}…`;
+  if (item.pki) return `${t(`pw.ca.kind.${item.pki.kind}`)} · ${t('pw.keys.until', { date: new Date(item.pki.notAfter).toLocaleDateString() })}`;
   return item.username || (item.urls[0] ? hostOf(item.urls[0]) : '');
 }
 

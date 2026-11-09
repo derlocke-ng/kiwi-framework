@@ -18,6 +18,7 @@ import { Editor } from './pages/Editor';
 import { EntryView } from './pages/EntryView';
 import { GeneratorPage } from './pages/Generator';
 import { Health } from './pages/Health';
+import { NewCa, NewSsh } from './pages/Keys';
 import { List } from './pages/List';
 import { VaultAppSettings } from './pages/VaultAppSettings';
 
@@ -62,7 +63,9 @@ function Open({ route }: { route: Route }) {
         </Panel>
       ) : null}
       {route.page === 'edit' && item ? <Editor key={route.id} item={item} /> : null}
-      {route.page === 'new' ? <Editor key={`new-${route.type}`} type={route.type} /> : null}
+      {route.page === 'new' && route.type === 'ssh' ? <NewSsh /> : null}
+      {route.page === 'new' && route.type === 'ca' ? <NewCa /> : null}
+      {route.page === 'new' && route.type !== 'ssh' && route.type !== 'ca' ? <Editor key={`new-${route.type}`} type={route.type} /> : null}
     </>
   );
 }

@@ -7,12 +7,21 @@
 // check, off until turned on, then asking a stand-in for Have I Been Pwned with
 // five hex characters only); an import from a browser's CSV, the same again
 // skipped; a plain export behind its warning; a second device of the key
-// opening the vault and an edit there showing here; the generator on its own
-// page; a deletion. Exported for a distribution's own run (Armory's mount).
+// opening the vault and an edit there showing here; keys and certificates (an
+// SSH key ssh-keygen reads, used as a CA whose user certificate ssh-keygen
+// accepts, an encrypted key brought in; an X.509 root CA whose server
+// certificate openssl verifies and a TLS handshake trusts, a CSR signed); the
+// generator on its own page; a deletion. Exported for a distribution's own run
+// (Armory's mount).
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import tls from 'node:tls';
 import { pathToFileURL } from 'node:url';
+import { exportPrivateKey, newSshKey } from '../../shared/ssh.js';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes } from '../../shared/nostr.mjs';
 import { cleanEntry, totp } from '../../shared/totp.js';
 import { device, run, testHub, until } from './env.mjs';
@@ -222,6 +231,108 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   await B.click('#saveEntry');
   await B.waitForSelector('#entryView[data-entry="Home wifi"]');
   await until(async () => (await names(A)).includes('Home wifi'), 'the rename on A', 15000);
+
+  step('an SSH key made here: ssh-keygen reads its private file and its fingerprint');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-keys-'));
+  const save = (name, text) => {
+    const p = path.join(tmp, name);
+    fs.writeFileSync(p, text.endsWith('\n') ? text : `${text}\n`, { mode: 0o600 });
+    return p;
+  };
+  const tool = (cmd, ...a) => execFileSync(cmd, a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const block = (page, id) => page.$eval(`[data-text=${id}]`, (el) => el.textContent);
+  await newEntry(A, 'ssh');
+  await A.fill('#entryForm [name=name]', 'Laptop');
+  await A.selectOption('#entryForm [name=keyType]', 'ed25519');
+  await A.fill('#entryForm [name=comment]', 'ada@laptop');
+  await A.click('#saveEntry');
+  await A.waitForSelector('#sshView', { timeout: 20000 });
+  const pub = (await block(A, 'public')).trim();
+  assert.match(pub, /^ssh-ed25519 AAAA\S+ ada@laptop$/);
+  await A.click('[data-act=show-private]');
+  const priv = await block(A, 'private');
+  assert.ok(pub.startsWith(tool('ssh-keygen', '-y', '-f', save('laptop', priv)).trim()), 'ssh-keygen derives the same public key');
+  const fp = await A.getAttribute('[data-field=fingerprint] .pw-value', 'data-value');
+  assert.equal(tool('ssh-keygen', '-l', '-E', 'sha256', '-f', save('laptop.pub', pub)).split(' ')[1], fp);
+
+  step('the key as an SSH CA: a user certificate ssh-keygen accepts, signed by it');
+  await A.click('#makeCa');
+  await A.waitForSelector('#signForm');
+  const bob = await newSshKey('ed25519', 'bob@desk');
+  await A.fill('#signForm [name=publicKey]', bob.publicKey);
+  await A.fill('#signForm [name=keyId]', 'bob');
+  await A.fill('#signForm [name=principals]', 'bob deploy');
+  await A.click('#signBtn');
+  await A.waitForSelector('[data-text=cert]', { timeout: 20000 });
+  const shown = tool('ssh-keygen', '-L', '-f', save('bob-cert.pub', (await block(A, 'cert')).trim()));
+  for (const x of ['user certificate', 'Key ID: "bob"', 'deploy', fp, 'permit-pty']) assert.ok(shown.includes(x), `${x} in\n${shown}`);
+  assert.match(await block(A, 'knownHosts'), /^@cert-authority \* ssh-ed25519 AAAA/);
+  await closePanel(A);
+
+  step('an encrypted SSH key brought in with its passphrase');
+  const theirs = await newSshKey('ecdsa-p256', 'old@server');
+  await newEntry(A, 'ssh');
+  await A.click('[data-mode=import]');
+  await A.fill('#entryForm [name=name]', 'Old server key');
+  await A.fill('#entryForm [name=privateKey]', await exportPrivateKey(theirs.privateKey, 'file pass'));
+  await A.fill('#entryForm [name=passphrase]', 'wrong');
+  await A.click('#saveEntry');
+  await A.waitForSelector('#editorError');
+  await A.fill('#entryForm [name=passphrase]', 'file pass');
+  await A.click('#saveEntry');
+  await A.waitForSelector('#sshView', { timeout: 20000 });
+  assert.equal(await A.getAttribute('[data-field=fingerprint] .pw-value', 'data-value'), theirs.fingerprint);
+  await closePanel(A);
+
+  step('an X.509 root CA; a server certificate openssl verifies and a TLS handshake trusts');
+  await newEntry(A, 'ca');
+  await A.fill('#entryForm [name=cn]', 'Test Root CA');
+  await A.fill('#entryForm [name=o]', 'Kiwi');
+  await A.selectOption('#entryForm [name=keyType]', 'ec-p256');
+  await A.click('#saveEntry');
+  await A.waitForSelector('#pkiView', { timeout: 20000 });
+  const caPem = await block(A, 'cert');
+  assert.match(tool('openssl', 'x509', '-in', save('ca.pem', caPem), '-noout', '-ext', 'basicConstraints'), /CA:TRUE/);
+  const caUrl = A.url();
+  await A.fill('#issueForm [name=cn]', 'localhost');
+  await A.fill('#issueForm [name=names]', 'localhost 127.0.0.1');
+  await A.click('#issueBtn');
+  await A.waitForSelector('#pkiView [data-block=chain]', { timeout: 20000 });
+  const certPem = await block(A, 'cert');
+  await A.click('[data-act=show-key]');
+  const keyPem = await block(A, 'key');
+  assert.match(tool('openssl', 'verify', '-x509_strict', '-purpose', 'sslserver', '-CAfile', save('ca2.pem', caPem), save('leaf.pem', certPem)), /: OK/);
+  const trusted = await new Promise((resolve, reject) => {
+    const server = tls.createServer({ key: keyPem, cert: certPem }, (c) => c.end('hi'));
+    server.listen(0, '127.0.0.1', () => {
+      const c = tls.connect({ port: server.address().port, host: '127.0.0.1', servername: 'localhost', ca: caPem }, () => {
+        const ok = c.authorized;
+        c.end();
+        server.close();
+        resolve(ok);
+      });
+      c.on('error', (e) => (server.close(), reject(e)));
+    });
+  });
+  assert.equal(trusted, true, 'a TLS client trusting the CA accepts the certificate');
+
+  step('a certificate signing request from openssl, signed by the CA: its key stays where it was made');
+  await A.goto(caUrl);
+  await A.waitForSelector('#issueForm');
+  tool('openssl', 'req', '-new', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', path.join(tmp, 'req.key'), '-out', path.join(tmp, 'req.csr'), '-subj', '/CN=api.example.org', '-addext', 'subjectAltName=DNS:api.example.org');
+  await A.click('#issueForm .pw-more summary');
+  await A.fill('#issueForm [name=csr]', fs.readFileSync(path.join(tmp, 'req.csr'), 'utf8'));
+  await A.click('#issueBtn');
+  await A.waitForSelector('#entryView[data-entry="api.example.org"] #pkiView', { timeout: 20000 });
+  assert.equal(await A.$$eval('[data-block=key]', (els) => els.length), 0, 'no private key: it stayed with the request');
+  assert.match(tool('openssl', 'verify', '-x509_strict', '-CAfile', save('ca3.pem', caPem), save('api.pem', await block(A, 'cert'))), /: OK/);
+  await A.goto(`${app}#/`); // the certificate opened from the CA's page: back to the list directly
+  await A.waitForSelector('#entryView', { state: 'detached' });
+  await A.click('[data-filter=keys]');
+  assert.deepEqual((await names(A)).sort(), ['Laptop', 'Old server key', 'Test Root CA', 'api.example.org', 'localhost']);
+  await A.click('[data-filter=all]');
+  const sealed = JSON.stringify(await env.relayEvents([{ authors: [identity.pk] }]));
+  for (const x of ['PRIVATE KEY', 'CERTIFICATE', 'ssh-ed25519', 'Test Root CA']) assert.ok(!sealed.includes(x), `no ${x} on the relay`);
 
   step('the generator on its own page: a password, then a passphrase');
   await A.click('#toGenerator');

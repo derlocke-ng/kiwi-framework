@@ -49,7 +49,7 @@ export function VaultAppSettings() {
   const vault = useVault();
   const day = new Date().toISOString().slice(0, 10);
   return (
-    <AppSettings title={t('app.settings.title', { app: mount.name })} backLabel={t('pw.back')} how={['pw.how.1', ...HOW.passwords, 'pw.how.2']}>
+    <AppSettings title={t('app.settings.title', { app: mount.name })} backLabel={t('pw.back')} how={['pw.how.1', ...HOW.passwords, 'pw.how.keys', 'pw.how.2']}>
       <LockCard />
       <PassphraseCard />
       <BreachCard />

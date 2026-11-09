@@ -21,9 +21,17 @@ authenticator opens the same vault and shows every entry with a 2FA secret.
   Edge, Firefox, Safari, 1Password, LastPass, Dashlane and Proton Pass, otpauth:// lists, vault backups.
   **Exports**: a sealed backup, and plain JSON or CSV (Bitwarden's columns) behind a warning (`data/export.js`).
 
+- **Keys and certificates** (0.28, `pages/Keys.tsx`): SSH keys made here (Ed25519, ECDSA P-256/P-384, RSA) or
+  brought in from their private file (also an encrypted one), given out as files, with a passphrase when asked
+  (`shared/ssh.js`); an SSH key used as a CA signs other keys for users (principals, validity, the `permit-*`
+  extensions, a forced command, source addresses) and hosts, and shows the lines servers need to trust it. An
+  X.509 root CA (made here or brought in with its PKCS #8 key) issues server, client, server-and-client and
+  intermediate certificates, for a key made here or for a CSR whose key stays where it was made
+  (`shared/x509.js`); each certificate becomes an entry of its own with its key and chain.
+
 A web page cannot fill in other sites' forms; that would take a browser extension.
 
 Routes: `#/` the list, `#/e/<id>` an entry, `#/e/<id>/edit` and `#/new/<type>` the editor, `#/generate`,
 `#/health`, `#/settings`. Strings: `pw.*` in `locales/`, the vault's screens `vault.*` in `shared/locales`.
 Tests: `test/unit/vault.test.js` (the vault), `test/unit/passwords.test.js` (generator, strength, breach check,
-imports, exports), `test/e2e/vault.mjs` (the app in a browser, two devices, the authenticator beside it).
+imports, exports), `test/unit/pki.test.js` (keys and certificates against ssh-keygen, openssl and TLS), `test/e2e/vault.mjs` (the app in a browser, two devices, the authenticator beside it).

@@ -247,17 +247,21 @@ The value (unknown fields are kept by every version):
 
 | field | value |
 |---|---|
-| `type` | `"login"`, `"note"`, `"card"`, `"totp"` (0.28 adds keys and certificates) |
+| `type` | `"login"`, `"note"`, `"card"`, `"totp"`, `"ssh"`, `"ca"`, `"cert"` (keys and certificates since 0.28) |
 | `name`, `username`, `password`, `notes` | strings |
 | `urls` | strings, at most 20 |
 | `totp` | `{ "secret" (base32, RFC 4648, at least 10 bytes), "algorithm" ("SHA1" \| "SHA256" \| "SHA512"), "digits" (6–8), "period" (seconds) }` or null; codes are RFC 6238 TOTP made on the device |
 | `card` | `{ "holder", "number", "exp" ("MM/YY"), "code", "brand" }` or null |
+| `ssh` | an SSH key: `{ "keyType", "publicKey" (an authorized_keys line), "privateKey" (an unencrypted OPENSSH PRIVATE KEY file: the vault seals it), "fingerprint" ("SHA256:…"), "comment", "ca" (it signs certificates), "issued": [{ "serial", "type" ("user" \| "host"), "keyId", "principals", "validBefore" (ms or null: forever), "at", "fingerprint" }] }` or null |
+| `pki` | an X.509 CA (`type` `ca`) or certificate (`cert`): `{ "kind" ("root" \| "intermediate" \| "server" \| "client" \| "both"), "keyType", "certPem", "keyPem" (PKCS #8; empty when the certificate was made for a CSR), "chainPem", "subject": { "cn", "o", "ou", "c" }, "sans": { "dns", "ips", "emails" }, "serial" (hex), "notAfter" (ms), "caId" (the issuing CA's entry), "issued": [{ "serial", "cn", "kind", "notAfter", "at", "entryId" }] }` or null |
 | `fields` | `[{ "name", "value", "hidden" }]` |
 | `tags` | strings; `fav`: pinned to the top |
 | `history` | earlier passwords, newest first, at most 10: `[{ "password", "at" }]` |
 | `created`, `updated`, `changed` | milliseconds: made, last changed, password last changed |
 
 The authenticator shows every entry with a `totp`: `name` and `username` stand for the service and the account. Accounts come in as `otpauth://totp/` links (Key Uri Format: `secret`, `issuer`, `algorithm`, `digits`, `period`; the label `issuer:account`), as a QR code holding one, or as a Google Authenticator export (`otpauth-migration://offline?data=`, its protocol buffer: TOTP entries only). The password manager also reads Bitwarden's plain JSON and CSV, KeePass 2's XML and the CSV files of KeePassXC, the browsers, 1Password, LastPass, Dashlane and Proton Pass, by their column names.
+
+**Keys and certificates** (0.28, `shared/ssh.js`, `shared/x509.js`) are made on the device. SSH keys: Ed25519 (`@noble/curves`), ECDSA P-256 and P-384 and RSA (WebCrypto), in OpenSSH's formats; a key file given out with a passphrase is `openssh-key-v1` with `aes256-ctr` and `bcrypt` (16 rounds), as ssh-keygen writes it, and such files (Ed25519, ECDSA, RSA) are read back. An SSH CA signs certificates per PROTOCOL.certkeys (`<type>-cert-v01@openssh.com`, a 32-byte nonce, the serial the CA counts, user (1) or host (2), key id, principals, validity in seconds, `force-command` and `source-address` critical options, the five `permit-*` extensions for users; Ed25519, ECDSA with SHA-256/384, RSA as `rsa-sha2-512`). X.509 (RFC 5280): ECDSA P-256/P-384 or RSA keys, SHA-256 (SHA-384 for P-384) signatures; a root CA (basicConstraints CA, keyUsage keyCertSign and cRLSign, critical) issues intermediate CAs (pathLen 0), server, client or server-and-client certificates (keyUsage digitalSignature, and keyEncipherment for RSA; extKeyUsage; subjectAltName with DNS names, IP addresses and emails; subject and authority key identifiers; a random 16-byte serial; validity from five minutes back), for a key made here or for a PKCS #10 request whose signature is checked and whose names are kept.
 
 **Backups.** `{ "type": "kiwi-vault-backup", "v": 2, "keys": <the keys record>, "entries": [{ "d", "content" }] }`: the entries as the relays hold them, opened with that backup's passphrase. Plain exports (`{ "type": "kiwi-vault-export", "v": 1, "items": […] }`, or a CSV in Bitwarden's columns) hold every secret readable and are offered behind a warning.
 
@@ -277,6 +281,7 @@ The authenticator shows every entry with a `totp`: `name` and `username` stand f
 - **v1, changed** (0.25): Payload's direct transfers and pong's games moved from gun to the ephemeral kinds 21700–21702 (§8, the formats defined); Payload's links (§9). Rooms of earlier versions on gun do not meet rooms on nostr: both sides need 0.25.
 - **v1, extended** (0.26): the authenticator's vault (§3, §16). No existing format changed.
 - **v1, extended** (0.27): the vault's second form, one sealed event per entry (kind 30792) under a wrapped vault key, for the password manager and the authenticator (§3, §16); 0.26's codes move into it on the first unlock.
+- **v1, extended** (0.28): keys and certificates in the vault (§16: entry types `ssh`, `ca`, `cert`). No existing format changed.
 
 
 ## 9. Relay lists, inboxes and hints

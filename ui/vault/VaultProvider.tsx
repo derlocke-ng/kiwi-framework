@@ -32,6 +32,28 @@ export interface VaultItem {
   notes: string;
   totp: { secret: string; algorithm: string; digits: number; period: number } | null;
   card: { holder: string; number: string; exp: string; code: string; brand: string } | null;
+  ssh: {
+    keyType: string;
+    publicKey: string;
+    privateKey: string;
+    fingerprint: string;
+    comment: string;
+    ca: boolean;
+    issued: { serial: number; type: 'user' | 'host'; keyId: string; principals: string[]; validBefore: number | null; at: number; fingerprint: string }[];
+  } | null;
+  pki: {
+    kind: 'root' | 'intermediate' | 'server' | 'client' | 'both';
+    keyType: string;
+    certPem: string;
+    keyPem: string;
+    chainPem: string;
+    subject: { cn: string; o: string; ou: string; c: string };
+    sans: { dns: string[]; ips: string[]; emails: string[] };
+    serial: string;
+    notAfter: number;
+    caId: string;
+    issued: { serial: string; cn: string; kind: string; notAfter: number; at: number; entryId: string }[];
+  } | null;
   fields: { name: string; value: string; hidden: boolean }[];
   tags: string[];
   fav: boolean;

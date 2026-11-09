@@ -18,7 +18,7 @@ import { cleanEntry } from './totp.js';
 import { openItem, sealItem } from './vault.js';
 import { baseStore, whole } from './peers.js';
 
-export const TYPES = ['login', 'note', 'card', 'totp'];
+export const TYPES = ['login', 'note', 'card', 'totp', 'ssh', 'ca', 'cert'];
 const HISTORY = 10; // earlier passwords kept per entry
 
 /** The hub's own network's view of a net, or the net as given when it has no networks (as settings.js). */
@@ -32,6 +32,52 @@ const onHub = (net) => {
 
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 const randomD = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+const strings = (a, max, n) => (Array.isArray(a) ? a.map((x) => str(x, max).trim()).filter(Boolean).slice(0, n) : []);
+const time = (v) => (v === null ? null : Number(v) || 0);
+
+/** An SSH key (shared/ssh.js): its files, and, for a CA, the certificates it signed. */
+function cleanSsh(k) {
+  if (!k || typeof k !== 'object') return null;
+  return {
+    keyType: str(k.keyType, 20),
+    publicKey: str(k.publicKey, 20000),
+    privateKey: str(k.privateKey, 20000),
+    fingerprint: str(k.fingerprint, 100),
+    comment: str(k.comment, 200),
+    ca: Boolean(k.ca),
+    issued: Array.isArray(k.issued)
+      ? k.issued
+          .filter((c) => c && typeof c === 'object')
+          .map((c) => ({ serial: Number(c.serial) || 0, type: c.type === 'host' ? 'host' : 'user', keyId: str(c.keyId, 200), principals: strings(c.principals, 200, 50), validBefore: time(c.validBefore), at: Number(c.at) || 0, fingerprint: str(c.fingerprint, 100) }))
+          .slice(-500)
+      : [],
+  };
+}
+
+/** A certificate authority, or a certificate it issued (shared/x509.js). */
+function cleanPki(p) {
+  if (!p || typeof p !== 'object') return null;
+  const kinds = ['root', 'intermediate', 'server', 'client', 'both'];
+  return {
+    kind: kinds.includes(p.kind) ? p.kind : 'server',
+    keyType: str(p.keyType, 20),
+    certPem: str(p.certPem, 30000),
+    keyPem: str(p.keyPem, 20000),
+    chainPem: str(p.chainPem, 60000),
+    subject: { cn: str(p.subject?.cn, 64), o: str(p.subject?.o, 64), ou: str(p.subject?.ou, 64), c: str(p.subject?.c, 2) },
+    sans: { dns: strings(p.sans?.dns, 253, 100), ips: strings(p.sans?.ips, 45, 100), emails: strings(p.sans?.emails, 254, 100) },
+    serial: str(p.serial, 40),
+    notAfter: Number(p.notAfter) || 0,
+    caId: str(p.caId, 64),
+    issued: Array.isArray(p.issued)
+      ? p.issued
+          .filter((c) => c && typeof c === 'object')
+          .map((c) => ({ serial: str(c.serial, 40), cn: str(c.cn, 64), kind: kinds.includes(c.kind) ? c.kind : 'server', notAfter: Number(c.notAfter) || 0, at: Number(c.at) || 0, entryId: str(c.entryId, 64) }))
+          .slice(-1000)
+      : [],
+  };
+}
 
 /**
  * An entry as this version keeps it, or null when it is not one. Unknown fields are kept (a newer
@@ -55,6 +101,8 @@ export function cleanItem(e) {
     notes: str(e.notes, 50000),
     totp: totp ? { secret: totp.secret, algorithm: totp.algorithm, digits: totp.digits, period: totp.period } : null,
     card,
+    ssh: cleanSsh(e.ssh),
+    pki: cleanPki(e.pki),
     fields: Array.isArray(e.fields)
       ? e.fields
           .filter((f) => f && typeof f === 'object')
@@ -84,13 +132,15 @@ export const fromAuthenticator = (e) => ({
   totp: { secret: e.secret, algorithm: e.algorithm, digits: e.digits, period: e.period },
 });
 
-/** Two entries that say the same (an import of what is already here): kind, name, login, password, 2FA secret and notes. */
+/** Two entries that say the same (an import of what is already here): kind, name, login, password, 2FA secret, key, certificate and notes. */
 export const sameItem = (a, b) =>
   (a.type || '') === (b.type || '') &&
   (a.name || '') === (b.name || '') &&
   (a.username || '') === (b.username || '') &&
   (a.password || '') === (b.password || '') &&
   (a.totp?.secret || '') === (b.totp?.secret || '') &&
+  (a.ssh?.publicKey || '') === (b.ssh?.publicKey || '') &&
+  (a.pki?.certPem || '') === (b.pki?.certPem || '') &&
   (a.notes || '') === (b.notes || '');
 
 /** The entries to show: favourites first, then by name. */

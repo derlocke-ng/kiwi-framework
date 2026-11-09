@@ -405,3 +405,66 @@ body {
   padding-left: 1.1rem;
   overflow-wrap: anywhere;
 }
+
+/* keys and certificates */
+.pw-keys {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.pw-block {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.pw-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pw-pre {
+  margin: 0.35rem 0 0;
+  padding: 0.6rem 0.7rem;
+  max-height: 14rem;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.pw-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.pw-inline input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.pw-sign {
+  margin-top: 0.75rem;
+}
+
+.pw-sign h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.pw-expired {
+  color: var(--danger, #c0392b);
+}
