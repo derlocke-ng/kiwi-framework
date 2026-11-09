@@ -121,5 +121,22 @@
     "few": "{n} dni",
     "many": "{n} dni",
     "other": "{n} dnia"
-  }
+  },
+  "mk.seller.title": "Kto tu sprzedaje",
+  "mk.seller.rule": "Kto tu sprzedaje, najpierw udzielał się w {feed}: wpisy ({posts}), każdy polubiony przez co najmniej {likes} inne osoby. Albo zatwierdza go moderator.",
+  "mk.seller.ruleApproval": "Sprzedających zatwierdza tu moderator.",
+  "mk.seller.progress": "Twoje wpisy, które się liczą: {have} z {posts}.",
+  "mk.seller.checking": "Sprawdzanie twoich wpisów w {feed}…",
+  "mk.seller.revoked": "Moderator cofnął twoje zatwierdzenie jako sprzedawcy.",
+  "mk.seller.feed": "Przejdź do {feed}",
+  "mk.seller.ask": "Zapytaj moderatora",
+  "mk.seller.askText": "Cześć, chciałbym sprzedawać na {market}. Czy możesz zatwierdzić mnie jako sprzedawcę?",
+  "mk.seller.pending": "Jeszcze niewidoczne dla kupujących",
+  "mk.seller.approve": "Zatwierdź jako sprzedawcę",
+  "mk.seller.withdraw": "Cofnij zatwierdzenie",
+  "mk.seller.approved": "Zatwierdzono jako sprzedawcę.",
+  "mk.seller.withdrawn": "Zatwierdzenie cofnięte.",
+  "mk.seller.statusApproved": "Zatwierdzony przez moderatora jako sprzedawca",
+  "mk.seller.statusPosts": "Wpisy w {feed}, które się liczą: {have} z {posts}",
+  "mk.seller.statusNone": "Jeszcze nie sprzedaje tutaj"
 }

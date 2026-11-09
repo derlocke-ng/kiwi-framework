@@ -9,7 +9,7 @@
 // Anything malformed is ignored.
 import { MOUNTS } from './apps.js';
 import { DISTRIBUTION } from './distribution.js';
-import { resolveSpaces, SPACES, setSpaceRelays } from './spaces.js';
+import { moderatorKey, resolveSpaces, SPACES, setSpaceRelays } from './spaces.js';
 
 export const LOCAL_CONFIG = 'hub.local.json';
 const RELAY = /^wss?:\/\/\S+$/;
@@ -51,6 +51,16 @@ export function applyHubConfig(local) {
   if (!DISTRIBUTION.publicRelays?.length) {
     for (const m of MOUNTS) m.network = 'hub';
     for (const m of DISTRIBUTION.mounts || []) m.network = 'hub';
+  }
+  // moderators named where the hub runs (a company's managers, set with HUB_MODERATORS): with the config's, for every
+  // space the hub defines itself; a space someone owns names its moderators in its own definition
+  if (Array.isArray(local.moderators)) {
+    const keys = local.moderators.map(moderatorKey).filter(Boolean);
+    if (keys.length) {
+      for (const space of SPACES) if (!space.owned) space.moderators = [...new Set([...space.moderators, ...keys])];
+      DISTRIBUTION.moderators = [...new Set([...(DISTRIBUTION.moderators || []), ...keys])];
+      applied.moderators = keys;
+    }
   }
   // a space's relays: `spaces: { <id>: { relays: [...] } }`; an empty list puts the space on its mount's network
   if (local.spaces && typeof local.spaces === 'object' && !Array.isArray(local.spaces)) {
@@ -104,6 +114,7 @@ export function describeHub(config, { version = '', framework = '' } = {}) {
       network: m.network === 'public' ? 'public' : 'hub',
       space: m.space || null,
       requireAccount: Boolean(m.requireAccount),
+      ...(m.sellers ? { sellers: { space: m.sellers.space || null, posts: Number(m.sellers.posts) || 0, likes: Number(m.sellers.likes) || 0 } } : {}),
     })),
   };
 }

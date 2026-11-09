@@ -119,5 +119,22 @@
   "mk.days": {
     "one": "{n} Tag",
     "other": "{n} Tage"
-  }
+  },
+  "mk.seller.title": "Wer hier verkauft",
+  "mk.seller.rule": "Wer hier verkauft, war zuerst in {feed} dabei: {posts} Beiträge, jeder von mindestens {likes} anderen Leuten geliked. Oder ein Moderator gibt frei.",
+  "mk.seller.ruleApproval": "Wer hier verkauft, wird von einem Moderator freigegeben.",
+  "mk.seller.progress": "Deine Beiträge, die zählen: {have} von {posts}.",
+  "mk.seller.checking": "Deine Beiträge in {feed} werden angesehen…",
+  "mk.seller.revoked": "Ein Moderator hat deine Freigabe als Verkäufer zurückgenommen.",
+  "mk.seller.feed": "Zu {feed}",
+  "mk.seller.ask": "Einen Moderator fragen",
+  "mk.seller.askText": "Hallo, ich würde gern auf {market} verkaufen. Kannst du mich als Verkäufer freigeben?",
+  "mk.seller.pending": "Für Käufer noch nicht sichtbar",
+  "mk.seller.approve": "Als Verkäufer freigeben",
+  "mk.seller.withdraw": "Freigabe zurücknehmen",
+  "mk.seller.approved": "Als Verkäufer freigegeben.",
+  "mk.seller.withdrawn": "Freigabe zurückgenommen.",
+  "mk.seller.statusApproved": "Von einem Moderator als Verkäufer freigegeben",
+  "mk.seller.statusPosts": "Beiträge in {feed}, die zählen: {have} von {posts}",
+  "mk.seller.statusNone": "Hier noch kein Verkäufer"
 }

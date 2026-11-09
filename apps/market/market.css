@@ -390,3 +390,26 @@ body {
     order: 3;
   }
 }
+
+/* who may sell (shared/sellers.js): a listing buyers do not see yet, marked for its seller and the moderators */
+.listing-card.pending {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
+.listing-pending {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--danger);
+}
+
+.seller-status[data-ok='true'] {
+  color: var(--accent);
+}
+
+.seller-gate .hint {
+  margin: 0.5rem 0 0;
+}
+

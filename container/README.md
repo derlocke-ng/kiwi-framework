@@ -24,6 +24,7 @@ The site is built once, with the relays and policy its `distribution.js` names. 
 | `HUB_ACCOUNT_MOUNTS` | the mounts that ask for an account (username and password), by id: `tradingpost`; someone on a key alone is told why and sent to sign in or register |
 | `HUB_REQUIRE_ACCOUNT` | `true`: every mount asks for an account |
 | `HUB_SPACE_RELAYS` | a space's own relays, per space id, spaces separated by `;`: `jobs=wss://relay.sh3.home;gems=wss://a,wss://b`; an id with an empty list puts that space on its mount's network |
+| `HUB_MODERATORS` | npubs (or hex keys) who moderate every space the hub defines, besides those it ships with: a company hub's managers |
 
 Nothing set: no `hub.local.json`, the site runs as built. `hub.json` next to it is the hub as built (name, versions, relays, policy, spaces with their addresses, mounts), for catalogs and tools; it never changes at start.
 

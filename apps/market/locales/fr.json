@@ -120,5 +120,22 @@
     "one": "{n} jour",
     "many": "{n} jours",
     "other": "{n} jours"
-  }
+  },
+  "mk.seller.title": "Qui vend ici",
+  "mk.seller.rule": "Ceux qui vendent ici ont d’abord participé à {feed} : {posts} publications, chacune aimée par au moins {likes} autres personnes. Ou un modérateur les approuve.",
+  "mk.seller.ruleApproval": "Ceux qui vendent ici sont approuvés par un modérateur.",
+  "mk.seller.progress": "Vos publications qui comptent : {have} sur {posts}.",
+  "mk.seller.checking": "Regard sur vos publications dans {feed}…",
+  "mk.seller.revoked": "Un modérateur a retiré votre approbation comme vendeur.",
+  "mk.seller.feed": "Aller à {feed}",
+  "mk.seller.ask": "Demander à un modérateur",
+  "mk.seller.askText": "Bonjour, j’aimerais vendre sur {market}. Pourriez-vous m’approuver comme vendeur ?",
+  "mk.seller.pending": "Pas encore visible des acheteurs",
+  "mk.seller.approve": "Approuver comme vendeur",
+  "mk.seller.withdraw": "Retirer l’approbation",
+  "mk.seller.approved": "Approuvé comme vendeur.",
+  "mk.seller.withdrawn": "Approbation retirée.",
+  "mk.seller.statusApproved": "Approuvé comme vendeur par un modérateur",
+  "mk.seller.statusPosts": "Publications dans {feed} qui comptent : {have} sur {posts}",
+  "mk.seller.statusNone": "Pas encore vendeur ici"
 }

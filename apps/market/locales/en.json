@@ -119,5 +119,22 @@
   "mk.days": {
     "one": "{n} day",
     "other": "{n} days"
-  }
+  },
+  "mk.seller.title": "Who sells here",
+  "mk.seller.rule": "Sellers here have shown up in {feed} first: {posts} posts, each liked by at least {likes} other people. Or a moderator approves them.",
+  "mk.seller.ruleApproval": "Sellers here are approved by a moderator.",
+  "mk.seller.progress": "Your posts that count: {have} of {posts}.",
+  "mk.seller.checking": "Looking at your posts in {feed}…",
+  "mk.seller.revoked": "A moderator has taken back your approval as a seller.",
+  "mk.seller.feed": "Go to {feed}",
+  "mk.seller.ask": "Ask a moderator",
+  "mk.seller.askText": "Hello, I would like to sell on {market}. Could you approve me as a seller?",
+  "mk.seller.pending": "Not shown to buyers yet",
+  "mk.seller.approve": "Approve as a seller",
+  "mk.seller.withdraw": "Take back the approval",
+  "mk.seller.approved": "Approved as a seller.",
+  "mk.seller.withdrawn": "Approval taken back.",
+  "mk.seller.statusApproved": "Approved as a seller by a moderator",
+  "mk.seller.statusPosts": "Posts in {feed} that count: {have} of {posts}",
+  "mk.seller.statusNone": "Not a seller here yet"
 }

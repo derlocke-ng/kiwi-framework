@@ -6,13 +6,15 @@ import { useState } from 'react';
 import { countriesByName } from '../../../shared/countries.js';
 import { KINDS } from '../../../shared/events.js';
 import { currentLanguage } from '../../../shared/i18n.js';
+import { isModerator } from '../../../shared/spaces.js';
 import { store } from '../../../shared/util.js';
 import { Icon } from '../../../ui/components';
 import { useIdentity, useKiwi, useSpace, useT } from '../../../ui/hooks';
 import { CATEGORIES } from '../data/market.js';
-import { useListings, useMarket, usePrefs } from '../state';
+import { useListings, useMarket, usePrefs, useSellers } from '../state';
 import { Compose } from './Compose';
 import { ListingCard } from './Listing';
+import { SellerGate } from './SellerGate';
 
 type View = 'all' | 'mine' | 'saved';
 
@@ -70,6 +72,9 @@ export function Home() {
   const [pickup, setPickup] = useState(false);
   const [query, setQuery] = useState('');
   const [compose, setCompose] = useState(false);
+  // a market with a rule for sellers: the form for those who may sell (and its moderators), the rule for everyone else
+  const sellers = useSellers();
+  const canSell = !sellers.ruled || isModerator(space, id.pk) || sellers.status(id.pk).ok === true;
   const where = country ?? String(prefs.get('country') || '');
   const inSpace = space ? { '#a': [space.address] } : {};
   const labels = data.labelsFor({ category: category || null, country: where || null, pickup });
@@ -140,7 +145,13 @@ export function Home() {
       ) : (
         <Grid filters={filters} query={query} empty={t(view === 'mine' ? 'mk.emptyMine' : where ? 'mk.emptyHere' : 'mk.empty')} />
       )}
-      {compose ? <Compose onClose={() => setCompose(false)} onPosted={() => view === 'saved' && setView('mine')} /> : null}
+      {compose ? (
+        canSell ? (
+          <Compose onClose={() => setCompose(false)} onPosted={() => view === 'saved' && setView('mine')} />
+        ) : (
+          <SellerGate onClose={() => setCompose(false)} />
+        )
+      ) : null}
     </div>
   );
 }

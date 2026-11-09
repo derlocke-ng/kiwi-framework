@@ -109,6 +109,11 @@ export class Kiwi {
     this.net = this.content === 'hub' ? this.hubNet : scope(this.content);
   }
 
+  /** The store, relays and outbox of one network (`hub`, `public`, `space:<id>`): another space's posts, read from a page. */
+  netOf(network: string): Net {
+    return { db: this.whole.db.scope(network), pool: this.whole.pool.scope(network), sync: this.whole.sync.scope(network) };
+  }
+
   /** The space this page's mount serves, as the relays describe it (the config until they do), or null. */
   space(): any | null {
     return this.mountSpace ? this.spaces?.get(this.mountSpace.id) || this.mountSpace : null;

@@ -5,8 +5,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo } from 'reac
 import { countryName } from '../../shared/countries.js';
 import { fingerprint } from '../../shared/events.js';
 import { currentLanguage } from '../../shared/i18n.js';
+import type { Sellers } from '../../shared/sellers.js';
 import type { Social } from '../../shared/social.js';
-import { useIdentity, usePeople, useT, useTick } from '../../ui/hooks';
+import { isModerator } from '../../shared/spaces.js';
+import { useIdentity, usePeople, useSpace, useT, useTick } from '../../ui/hooks';
 import { useEvents } from '../../ui/useEvents';
 import { useOpened } from '../../ui/useOpened';
 import type { MarketData } from './data/market.js';
@@ -15,6 +17,7 @@ export interface MarketState {
   data: MarketData;
   social: Social;
   prefs: any;
+  sellers: Sellers;
 }
 
 export const MarketContext = createContext<MarketState | null>(null);
@@ -32,6 +35,13 @@ export function useSocial(): Social {
   return social;
 }
 
+/** Who may sell here (shared/sellers.js): re-renders when a moderator decides or someone's posts were looked at. */
+export function useSellers(): Sellers {
+  const { sellers } = useMarket();
+  useTick(useCallback((fn: () => void) => sellers.onChange(fn), [sellers]));
+  return sellers;
+}
+
 /** The app's settings in the account (my country, a default contact, saved listings), re-rendering on every change. */
 export function usePrefs(): any {
   const { prefs } = useMarket();
@@ -45,16 +55,22 @@ export function usePrefs(): any {
  */
 export function useListings(filters: Record<string, unknown>[], pageSize = 24) {
   const { data, social } = useMarket();
+  const sellers = useSellers();
+  const space = useSpace();
   const me = useIdentity();
   const list = useEvents({ filters, pageSize, accept: (ev) => data.inSpace(ev) });
   const opened = useOpened(list.events, (ev) => data.openListing(ev));
+  // a listing by someone who may not sell here is not for buyers; its seller and the space's moderators see it, marked
+  const moderator = isModerator(space, me.pk);
+  const version = sellers.version;
   const listings: any[] = useMemo(
     () =>
       list.events
         .map((ev) => opened.get(ev.id))
         .filter((l: any) => l && !l.deleted && (!l.expired || l.pubkey === me.pk))
+        .filter((l: any) => version >= 0 && (l.pubkey === me.pk || moderator || sellers.status(l.pubkey).ok === true))
         .sort((a: any, b: any) => b.at - a.at),
-    [list.events, opened, me.pk],
+    [list.events, opened, me.pk, moderator, sellers, version],
   );
   useEffect(() => {
     social.watch(listings.map((l: any) => l.address));

@@ -15,11 +15,13 @@
 #   HUB_REQUIRE_ACCOUNT true: every mount asks for an account
 #   HUB_SPACE_RELAYS    a space's own relays, per space id, spaces separated by ';':
 #                       jobs=wss://relay.sh3.home;gems=wss://a,wss://b (an empty list: the mount's network)
+#   HUB_MODERATORS      npubs (or hex keys) who moderate every space the hub defines, with those it ships with:
+#                       a company hub's managers
 set -eu
 root=${HUB_ROOT:-/usr/share/nginx/html}
 out="$root/hub.local.json"
 
-if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}${HUB_SPACE_RELAYS:-}${HUB_ACCOUNT_MOUNTS:-}${HUB_REQUIRE_ACCOUNT:-}" ]; then
+if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}${HUB_SPACE_RELAYS:-}${HUB_ACCOUNT_MOUNTS:-}${HUB_REQUIRE_ACCOUNT:-}${HUB_MODERATORS:-}" ]; then
     rm -f "$out"
     exit 0
 fi
@@ -49,6 +51,7 @@ bool() { # true/yes/1/on -> true, anything else -> false
     if [ -n "${HUB_DIRECTORY_RELAYS:-}" ]; then printf "$sep"'  "directoryRelays": %s' "$(json_list "$HUB_DIRECTORY_RELAYS")"; sep=',\n'; fi
     if [ -n "${HUB_PUBLIC_MOUNTS+x}" ]; then printf "$sep"'  "publicMounts": %s' "$(json_list "${HUB_PUBLIC_MOUNTS:-}")"; sep=',\n'; fi
     if [ -n "${HUB_ACCOUNT_MOUNTS+x}" ]; then printf "$sep"'  "accountMounts": %s' "$(json_list "${HUB_ACCOUNT_MOUNTS:-}")"; sep=',\n'; fi
+    if [ -n "${HUB_MODERATORS:-}" ]; then printf "$sep"'  "moderators": %s' "$(json_list "$HUB_MODERATORS")"; sep=',\n'; fi
     if [ -n "${HUB_SPACE_RELAYS:-}" ]; then
         spaces=''
         ssep=''

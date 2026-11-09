@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { fingerprint, KINDS } from '../../../shared/events.js';
 import { tErr } from '../../../shared/i18n.js';
+import { isModerator } from '../../../shared/spaces.js';
 import { Icon } from '../../../ui/components';
 import { useIdentity, useKiwi, usePeople, useSpace, useT } from '../../../ui/hooks';
 import { chatMount } from '../../../ui/notify';
 import { toast } from '../../../ui/toast';
-import { useListings, useNameOf } from '../state';
+import { useListings, useMarket, useNameOf, useSellers } from '../state';
 import { Compose } from './Compose';
 import { ListingCard, ListingView } from './Listing';
+import { useFeedOfRule } from './SellerGate';
 
 export function ListingPanel({ pk, d, foreign }: { pk: string; d: string; foreign?: { address: string; from: string | null } | null }) {
   const t = useT();
@@ -63,6 +65,16 @@ export function SellerPanel({ pk }: { pk: string }) {
   const friend = Boolean(people?.isFriend(pk));
   const asked = Boolean(people?.outgoing().some((r: any) => r.pk === pk));
   const chat = chatMount();
+  const { data } = useMarket();
+  const sellers = useSellers();
+  const feed = useFeedOfRule();
+  const moderator = isModerator(space, id.pk);
+  const st = sellers.status(pk);
+  const decide = (decision: string) =>
+    data
+      .decideSeller(pk, decision, sellers.decisions.get(pk)?.at || 0)
+      .then(() => toast(t(decision === 'approved' ? 'mk.seller.approved' : 'mk.seller.withdrawn'), 'success'))
+      .catch((err: unknown) => toast(tErr(err), 'error'));
   return (
     <div className="seller-page">
       <section className="person-head card" id="seller" data-pk={pk}>
@@ -75,6 +87,30 @@ export function SellerPanel({ pk }: { pk: string }) {
         <p className="muted small">
           <code title={npub(pk)}>{fingerprint(pk)}</code> · {me ? t('mk.thisIsYou') : friend ? t('people.friend') : t('mk.seller')}
         </p>
+        {sellers.ruled ? (
+          <p className="small seller-status" id="sellerStatus" data-ok={String(st.ok)}>
+            {st.approved
+              ? t('mk.seller.statusApproved')
+              : st.need && st.posts != null
+                ? t('mk.seller.statusPosts', { feed: feed.name, have: st.posts, posts: st.need })
+                : t('mk.seller.statusNone')}
+          </p>
+        ) : null}
+        {moderator && !me && sellers.ruled ? (
+          <div className="form-actions">
+            {st.approved ? (
+              <button type="button" className="btn btn-sm" data-act="withdraw-seller" onClick={() => decide('revoked')}>
+                <Icon name="x" />
+                <span>{t('mk.seller.withdraw')}</span>
+              </button>
+            ) : (
+              <button type="button" className="btn btn-sm btn-primary" data-act="approve-seller" onClick={() => decide('approved')}>
+                <Icon name="check" />
+                <span>{t('mk.seller.approve')}</span>
+              </button>
+            )}
+          </div>
+        ) : null}
         {me ? null : (
           <div className="form-actions">
             {chat ? (

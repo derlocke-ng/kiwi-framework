@@ -119,5 +119,22 @@
   "mk.days": {
     "one": "{n} dag",
     "other": "{n} dagen"
-  }
+  },
+  "mk.seller.title": "Wie hier verkoopt",
+  "mk.seller.rule": "Wie hier verkoopt, was eerst actief in {feed}: {posts} berichten, elk geliket door minstens {likes} andere mensen. Of een moderator keurt hen goed.",
+  "mk.seller.ruleApproval": "Wie hier verkoopt, wordt goedgekeurd door een moderator.",
+  "mk.seller.progress": "Je berichten die tellen: {have} van {posts}.",
+  "mk.seller.checking": "Je berichten in {feed} worden bekeken…",
+  "mk.seller.revoked": "Een moderator heeft je goedkeuring als verkoper ingetrokken.",
+  "mk.seller.feed": "Naar {feed}",
+  "mk.seller.ask": "Een moderator vragen",
+  "mk.seller.askText": "Hallo, ik zou graag verkopen op {market}. Kun je mij goedkeuren als verkoper?",
+  "mk.seller.pending": "Nog niet zichtbaar voor kopers",
+  "mk.seller.approve": "Goedkeuren als verkoper",
+  "mk.seller.withdraw": "Goedkeuring intrekken",
+  "mk.seller.approved": "Goedgekeurd als verkoper.",
+  "mk.seller.withdrawn": "Goedkeuring ingetrokken.",
+  "mk.seller.statusApproved": "Door een moderator goedgekeurd als verkoper",
+  "mk.seller.statusPosts": "Berichten in {feed} die tellen: {have} van {posts}",
+  "mk.seller.statusNone": "Hier nog geen verkoper"
 }

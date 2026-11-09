@@ -11,6 +11,8 @@
 //                       name, relays (the space's own network, or none: the mount's)
 //   mounts[].space      the id of one of the spaces
 //   mounts[].requireAccount, policy.requireAccount   true or false: only people with an account use it
+//   mounts[].sellers    a market's rule for who sells: { space, posts, likes } (posts in that feed space, each
+//                       liked by that many other people), else a moderator's approval; posts: 0 for approval only
 
 const RELAY = /^wss?:\/\/\S+$/;
 const SPACE_ID = /^[a-z0-9][a-z0-9-]{1,39}$/;
@@ -52,5 +54,12 @@ export function checkDistribution(config) {
     if (s?.moderators !== undefined && (!Array.isArray(s.moderators) || s.moderators.some((p) => !KEY.test(String(p))))) problems.push(`space "${id}": moderators is a list of npubs or hex pubkeys`);
   }
   for (const m of config.mounts || []) if (m.space != null && !ids.has(String(m.space))) problems.push(`mount "${m.id}" names a space "${m.space}" the distribution does not define`);
+  for (const m of config.mounts || []) {
+    const r = m.sellers;
+    if (r === undefined) continue;
+    const count = (v) => v === undefined || (Number.isInteger(v) && v >= 0 && v <= 100);
+    if (!r || typeof r !== 'object' || !count(r.posts) || !count(r.likes)) problems.push(`mount "${m.id}": sellers is { space, posts, likes }, posts and likes whole numbers from 0 to 100`);
+    else if (r.posts && !ids.has(String(r.space))) problems.push(`mount "${m.id}": sellers.space names a space the distribution does not define`);
+  }
   return problems;
 }

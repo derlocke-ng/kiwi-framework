@@ -17,6 +17,7 @@
 import { addressOf, isHex64, KINDS, makeAddressable, now, seal, sign } from '../../../shared/events.js';
 import { destinationsFor, isCountry, isDestination } from '../../../shared/countries.js';
 import { keyTag, SpaceSeal } from '../../../shared/sealed.js';
+import { sellerTags } from '../../../shared/sellers.js';
 import { fail, randomId } from '../../../shared/util.js';
 
 export { keyTag };
@@ -186,6 +187,16 @@ export class MarketData {
   }
 
   /** Delete a listing everywhere: a tombstone under the same key, gone from relays in a day. */
+  /**
+   * A moderator's decision on a seller (NIP-32, kind 1985, wjs/seller): 'approved' or 'revoked'. Stamped after
+   * `after`, the newest decision seen, so the one made last is the one that counts.
+   */
+  async decideSeller(pk, decision, after = 0) {
+    const ev = sign({ kind: KINDS.LABEL, created_at: Math.max(now(), after + 1), tags: [...sellerTags(pk, decision), ...this.seal.tags()], content: '' }, this.identity.sk);
+    await this.net.sync.publish(ev, { wait: 'one' });
+    return ev;
+  }
+
   async remove(listing) {
     const tags = [...this.seal.tags(listing.kid), ['expiration', String(now() + 86_400)]];
     const ev = makeAddressable(KINDS.MARKET_LISTING, listing.d, await seal(listing.k, { del: 1, u: Date.now() }), this.identity.sk, tags);

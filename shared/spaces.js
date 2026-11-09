@@ -38,7 +38,7 @@ export function spaceKey(hubId, spaceId) {
 export const spaceAddress = (owner, id) => `${KINDS.SPACE}:${owner}:${id}`;
 
 /** A moderator as configured, an npub (what a person can copy from their account page) or 64 hex characters, as hex; else null. */
-function moderatorKey(v) {
+export function moderatorKey(v) {
   const s = String(v || '').trim();
   if (HEX64.test(s)) return s;
   try {

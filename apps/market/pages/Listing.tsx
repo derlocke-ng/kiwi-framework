@@ -18,7 +18,7 @@ import { MediaImage } from '../../../ui/widgets/MediaImage';
 import { Modal } from '../../../ui/widgets/Modal';
 import { PhotoGrid } from '../../../ui/widgets/PhotoGrid';
 import { listingHash } from '../data/market.js';
-import { useMarket, useNameOf, usePlaceName, usePrefs, useSocial } from '../state';
+import { useMarket, useNameOf, usePlaceName, usePrefs, useSellers, useSocial } from '../state';
 
 const fail = (err: unknown) => toast(tErr(err), 'error');
 
@@ -29,8 +29,15 @@ export function ListingCard({ listing }: { listing: any }) {
   const social = useSocial();
   const blocks = useBlocks();
   const folded = social.collapsed(listing, (pk: string) => Boolean(blocks?.isBlocked(pk)));
+  // shown only to its seller and the moderators while the seller may not sell here
+  const sellers = useSellers();
+  const pending = sellers.ruled && sellers.status(listing.pubkey).ok !== true;
   return (
-    <a className={`listing-card status-${listing.status}${folded ? ' folded' : ''}`} href={listingHash(listing)} data-address={listing.address}>
+    <a
+      className={`listing-card status-${listing.status}${folded ? ' folded' : ''}${pending ? ' pending' : ''}`}
+      href={listingHash(listing)}
+      data-address={listing.address}
+    >
       <span className="listing-thumb">
         {listing.media[0] && !folded ? <MediaImage media={listing.media[0]} small alt={listing.title} /> : <Icon name={folded ? 'eye' : 'package'} />}
         {listing.status !== 'open' ? <span className={`listing-status ${listing.status}`}>{t(`mk.status.${listing.status}`)}</span> : null}
@@ -48,6 +55,7 @@ export function ListingCard({ listing }: { listing: any }) {
           ) : null}
           {listing.expired ? ` · ${t('mk.expired')}` : ''}
         </span>
+        {pending ? <span className="listing-pending">{t('mk.seller.pending')}</span> : null}
       </span>
     </a>
   );

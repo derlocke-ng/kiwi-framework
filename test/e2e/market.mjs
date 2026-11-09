@@ -70,7 +70,24 @@ export async function marketSuite(env, { app, chat, settings, space, moderator =
   await country(S, 'DE');
   await open(S);
   await S.click('#newListing');
-  await S.waitForSelector('#listingForm');
+  // a market with a rule for sellers: someone new is told what it takes, and a moderator approves them
+  await S.waitForSelector('#listingForm, #sellerGate');
+  if (await S.$('#sellerGate')) {
+    assert.ok(moderator, 'this market asks for approved sellers: the suite needs one of its moderators');
+    step('the market asks for approved sellers: the seller is told what it takes, a moderator approves them, the form opens');
+    assert.match(await S.textContent('#sellerGate'), /moderator/);
+    assert.ok(await S.$('#askModerator'), 'a message to a moderator, one tap away');
+    const pkS = await S.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
+    const M0 = await dev('M0', withAccount('mod', moderator));
+    await M0.goto(`${app}#/s/${pkS}`);
+    await M0.waitForSelector('#seller [data-act=approve-seller]');
+    assert.match(await M0.textContent('#sellerStatus'), /Not a seller here yet|Posts in/);
+    await M0.click('#seller [data-act=approve-seller]');
+    await M0.waitForSelector('.toast-success');
+    await until(async () => /Approved as a seller/.test(await M0.textContent('#sellerStatus')), 'approved, on the moderator’s screen', 10000);
+    await S.waitForSelector('#listingForm', { timeout: 20000 }); // the rule gives way to the form by itself
+    await M0.ctx.close();
+  }
   assert.equal(await S.inputValue('#listingForm select[name=from]'), 'DE', 'the listing starts in the seller’s country');
   await S.fill('#listingForm [name=title]', 'Five autoflower seeds');
   await S.selectOption('#listingForm select[name=category]', 'seeds');
@@ -182,6 +199,19 @@ export async function marketSuite(env, { app, chat, settings, space, moderator =
     await M.click('#reportForm .btn-danger');
     await until(async () => !(await M.$('#reportForm')), 'report sent', 20000);
     await until(async () => (await B.$$('.listing-card.folded')).length === 1, 'folded on B', 20000);
+    {
+      // where sellers need approval: taking it back hides the seller's listings from buyers, giving it again shows them
+      const pkS = await S.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
+      await M.goto(`${app}#/s/${pkS}`);
+      await M.waitForSelector('#seller');
+      if (await M.$('#seller [data-act=withdraw-seller]')) {
+        await M.click('#seller [data-act=withdraw-seller]');
+        await until(async () => (await B.$$('.listing-card')).length === 0, 'the listing is gone for the buyer once the approval is taken back', 20000);
+        await M.waitForSelector('#seller [data-act=approve-seller]');
+        await M.click('#seller [data-act=approve-seller]');
+        await until(async () => (await B.$$('.listing-card')).length === 1, 'and back once it is given again', 20000);
+      }
+    }
     await S.goto(app);
     await S.waitForSelector('#newListing');
     await S.check('input[name=view][value=mine]', { force: true });
@@ -210,10 +240,18 @@ if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process
   const address = spaceAddress(getPublicKey(hexToBytes(spaceKey(hubId, 'trade'))), 'trade');
   const site = await testHub(
     [
-      { app: 'market', id: 'trade', name: 'Trade', icon: 'package', space: 'trade', requireAccount: true },
+      // sellers show up in the grow feed first (one post that someone liked), or a moderator approves them
+      { app: 'market', id: 'trade', name: 'Trade', icon: 'package', space: 'trade', requireAccount: true, sellers: { space: 'grow', posts: 1, likes: 1 } },
       { app: 'chat', name: 'Chat', icon: 'message-circle' },
     ],
-    { id: hubId, name: 'Market hub', spaces: [{ id: 'trade', name: 'Trade', moderators: [mod.pk] }] },
+    {
+      id: hubId,
+      name: 'Market hub',
+      spaces: [
+        { id: 'trade', name: 'Trade', moderators: [mod.pk] },
+        { id: 'grow', name: 'Grow' },
+      ],
+    },
   );
   await run(
     'market',

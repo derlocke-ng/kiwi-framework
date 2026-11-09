@@ -4,10 +4,13 @@
 // Routes: #/ the listings, #/l/<seller>/<d> one listing (a link into the
 // mount's space, ui/spaces.ts), #/s/<pk> one seller, #/settings.
 import { useEffect, useState } from 'react';
+import { mountById } from '../../shared/apps.js';
 import { KINDS } from '../../shared/events.js';
 import { tErr } from '../../shared/i18n.js';
+import { Sellers, sellerRule } from '../../shared/sellers.js';
 import { AccountSettings } from '../../shared/settings.js';
 import { Social } from '../../shared/social.js';
+import { spaceById } from '../../shared/spaces.js';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useIdentity, useKiwi, useT } from '../../ui/hooks';
 import { goBack, useHash } from '../../ui/route';
@@ -39,15 +42,23 @@ export function MarketApp() {
     const data = new MarketData(kiwi.net, identity, { space: kiwi.mountSpace, audiences: () => kiwi.audiences });
     const social = new Social(kiwi.net, identity, { space: kiwi.mountSpace, kind: KINDS.MARKET_LISTING }).start();
     const prefs = new AccountSettings(identity, kiwi.hubNet, NAMESPACE);
+    // who may sell here: the mount's rule (posts in a feed space and likes on them, or a moderator's approval)
+    const rule = sellerRule(mountById(kiwi.current)?.sellers, spaceById);
+    const feedNet = rule?.feed ? kiwi.netOf(rule.feed.network || 'hub') : null;
+    const sellers = new Sellers({ market: kiwi.net, feed: feedNet }, identity, {
+      space: kiwi.mountSpace,
+      rule,
+      isBlocked: (pk: string) => Boolean(kiwi.blocks?.isBlocked(pk)),
+    });
     let live = true;
-    prefs
-      .start()
-      .then(() => live && setState({ data, social, prefs }))
+    Promise.all([prefs.start(), sellers.start()])
+      .then(() => live && setState({ data, social, prefs, sellers }))
       .catch((err: unknown) => toast(tErr(err), 'error'));
     return () => {
       live = false;
       social.stop();
       prefs.stop();
+      sellers.stop();
       setState(null);
     };
   }, [identity.pk, kiwi]);

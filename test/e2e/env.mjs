@@ -332,6 +332,7 @@ export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays
       ...(a.network ? { network: a.network } : {}),
       ...(a.space ? { space: a.space } : {}),
       ...(a.requireAccount ? { requireAccount: true } : {}),
+      ...(a.sellers ? { sellers: a.sellers } : {}),
     })),
   };
   fs.writeFileSync(path.join(dist, 'distribution.js'), `export const DISTRIBUTION = ${JSON.stringify(config)};\n`);
