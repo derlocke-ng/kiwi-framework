@@ -95,15 +95,29 @@ await run(
     const E = await device(env, 'E', (relay) => localStorage.setItem('wjs.relays', JSON.stringify([relay])), RELAY);
     await E.goto(`${env.base}settings.html`);
     await E.waitForSelector('#authForm');
-    await new Promise((r) => setTimeout(r, 2500)); // the device key's first writes: the relay asks, the page answers with that key
+    const deviceKey = await E.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
+    // the device key's first writes: the relay asks who writes, the page answers with the device's key
+    await until(() => relay.authedAs(deviceKey), 'the device key proven on its connection', 15000);
     await E.check('input[name=authTab][value=signin]', { force: true });
     await E.fill('#authForm [name=alias]', 'dan_members');
     await E.fill('#authForm [name=pass]', 'a long enough password');
     await E.click('#authBtn');
     await until(async () => (await E.textContent('#accountBody')).includes('dan_members'), 'signed in', 60000);
-    const before2 = boardsOnRelay().length;
-    await makeBoard(E, env.base, 'From the new phone');
-    await until(() => boardsOnRelay().length > before2, 'the board from the new device on the relay', 20000);
+    // on the same page, without a new one: the account's language goes to the relay as the member's
+    const since = Math.floor(Date.now() / 1000);
+    const pageId = await E.evaluate(() => performance.timeOrigin);
+    await E.evaluate(() => {
+      location.hash = '#device';
+    });
+    await E.waitForSelector('#langSelect');
+    await E.selectOption('#langSelect', 'de');
+    await until(
+      () => relay.store.query([{ kinds: [30791], authors: [dan.pk], '#d': ['suite'] }]).some((e) => e.created_at >= since),
+      'the member’s settings, written right after signing in, on the relay',
+      20000,
+    );
+    assert.equal(await E.evaluate(() => performance.timeOrigin), pageId, 'all on the page the person signed in on');
+    await E.selectOption('#langSelect', 'en');
 
     step('a message to a member from someone who is not one goes through: a gift wrap to a member is taken from anyone');
     await B.goto(`${env.base}chat/#/dm/${ada.pk}`);

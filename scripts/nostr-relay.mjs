@@ -116,6 +116,7 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
   });
   const wss = new WebSocketServer({ server, maxPayload: MAX_MESSAGE });
   const clients = new Set(); // { ws, subs: Map<id, filters[]> }
+  const authed = new Set(); // every key a connection proved (NIP-42), for tests
 
   const send = (ws, msg) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
@@ -178,6 +179,7 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
         if (!event || event.kind !== 22242 || !verifyEvent(event) || tag('challenge') !== client.challenge || !relayTag || !fresh)
           return send(ws, ['OK', event?.id || '', false, 'invalid: not an answer to this challenge']);
         client.authed = event.pubkey;
+        authed.add(event.pubkey);
         send(ws, ['OK', event.id, true, '']);
       } else if (type === 'CLOSE') {
         client.subs.delete(rest[0]);
@@ -194,6 +196,8 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
         port: p,
         url: `ws://localhost:${p}`,
         store,
+        /** Has a connection proved this key (NIP-42)? */
+        authedAs: (pk) => authed.has(pk),
         close: () =>
           new Promise((done) => {
             for (const c of clients) c.ws.terminate();

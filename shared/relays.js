@@ -305,7 +305,10 @@ export class RelayPool {
     }
     entry.connecting = false;
     this.tick();
-    this.connect(entry);
+    // nostr-tools' close() sends each subscription's CLOSE on the old connection's promise, a microtask later and to
+    // whatever socket the relay has by then: connecting first would hand them to the new socket while it is still
+    // connecting (an InvalidStateError). They go first, to the old one, which drops them.
+    queueMicrotask(() => this.connect(entry));
   }
 
   tick() {
