@@ -327,5 +327,8 @@
   "gate.account.text": "Een account is een gebruikersnaam en een wachtwoord voor je sleutel, zodat die meegaat naar elk apparaat waarop je inlogt. Geen e-mail, geen telefoonnummer, niets over jou behalve de naam die je kiest. Het kost even in de instellingen, en daarna kom je hier terug.",
   "gate.account.keyText": "Je gebruikt een sleutel zonder account. Geef hem in de instellingen een gebruikersnaam en een wachtwoord (een account aanmaken houdt je sleutel), en daarna kom je hier terug.",
   "gate.account.go": "Inloggen of een account aanmaken",
-  "gate.account.home": "Terug naar {hub}"
+  "gate.account.home": "Terug naar {hub}",
+  "photo.n": "Foto {n}",
+  "photo.prev": "Vorige",
+  "photo.next": "Volgende"
 }

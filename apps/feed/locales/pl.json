@@ -65,8 +65,6 @@
   "fd.showAnyway": "Pokaż mimo to",
   "fd.photo": "Zdjęcie {n}",
   "fd.photoBy": "Zdjęcie od {name}",
-  "fd.prevPhoto": "Poprzednie",
-  "fd.nextPhoto": "Następne",
   "fd.like": "Lubię to",
   "fd.unlike": "Cofnij polubienie",
   "fd.noComments": "Jeszcze brak komentarzy.",
@@ -91,5 +89,14 @@
     "few": "{n} komentarze",
     "many": "{n} komentarzy",
     "other": "{n} komentarza"
-  }
+  },
+  "fd.label": "Oznaczenie",
+  "fd.label.none": "Brak",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Reklama",
+  "fd.labelHint": "Widoczne tylko dla osób z kontem na tym hubie; pozostali widzą, że coś tu jest.",
+  "fd.locked.adult": "Dla dorosłych: widoczne dla osób z kontem na tym hubie.",
+  "fd.locked.ad": "Reklama: widoczna dla osób z kontem na tym hubie.",
+  "fd.entryTitle": "Wpis",
+  "fd.profile": "Profil"
 }

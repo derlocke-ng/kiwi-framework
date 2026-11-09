@@ -11,7 +11,7 @@ globalThis.localStorage = {
   removeItem: (k) => mem.delete(k),
 };
 const { cleanEntry, FeedData, hashtags, parseRoute } = await import('../../apps/feed/data/feed.js');
-const { Social } = await import('../../apps/feed/data/social.js');
+const { Social } = await import('../../shared/social.js');
 const { audienceKey } = await import('../../shared/audiences.js');
 const { KINDS, keyId, sign } = await import('../../shared/events.js');
 const { resolveSpaces, spaceOf } = await import('../../shared/spaces.js');

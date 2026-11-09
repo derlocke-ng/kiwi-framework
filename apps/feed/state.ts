@@ -1,11 +1,14 @@
 // What the feed's screens share: the data (data/feed.js), what people do with
-// the entries (data/social.js), the app's settings in the account, and the
-// hooks that open entries and comments as their keys arrive.
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+// the entries (shared/social.js), the app's settings in the account; entries
+// and comments open as their keys arrive with useOpened (ui/useOpened.ts).
+import { createContext, useCallback, useContext } from 'react';
 import { fingerprint } from '../../shared/events.js';
-import { useIdentity, useKiwiTick, usePeople, useT, useTick } from '../../ui/hooks';
+import { useIdentity, usePeople, useT, useTick } from '../../ui/hooks';
+
+export { useOpened } from '../../ui/useOpened';
+
+import type { Social } from '../../shared/social.js';
 import type { FeedData } from './data/feed.js';
-import type { Social } from './data/social.js';
 
 export interface FeedState {
   data: FeedData;
@@ -33,43 +36,6 @@ export function usePrefs(): any {
   const { prefs } = useFeed();
   useTick(useCallback((fn: () => void) => prefs.onChange(fn), [prefs]));
   return prefs;
-}
-
-/**
- * Events opened with the keys this device has, as they open; tried again when keys arrive (any change the
- * runtime announces, the audiences' keys among them). `open` is the opener (an entry's, a comment's);
- * `key` names what it depends on besides the event.
- */
-export function useOpened<T>(events: { id: string }[], open: (ev: any) => Promise<T | null>, key = ''): Map<string, T | null> {
-  const tick = useKiwiTick();
-  const [opened, setOpened] = useState<Map<string, T | null>>(() => new Map());
-  const asked = useRef(new Map<string, string>()); // event id -> the tick and key it was last asked at
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `tick` retries what did not open (a key may have arrived); `key` is what `open` depends on
-  useEffect(() => {
-    const at = `${tick}|${key}`;
-    for (const ev of events) {
-      if (opened.get(ev.id) || asked.current.get(ev.id) === at) continue;
-      asked.current.set(ev.id, at);
-      // the answer is kept whenever it comes, as long as the page is there: a render in between must not lose it
-      open(ev).then((r) => {
-        if (!mounted.current) return;
-        setOpened((m) => {
-          if (m.has(ev.id) && m.get(ev.id) === r) return m;
-          const next = new Map(m);
-          next.set(ev.id, r);
-          return next;
-        });
-      });
-    }
-  }, [events, tick, key]);
-  return opened;
 }
 
 /** What to call the author of something: me, a friend by the name they gave, else the name they wrote, else their key. */

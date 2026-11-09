@@ -327,5 +327,8 @@
   "gate.account.text": "An account is a username and a password for your key, so it comes with you to every device you sign in on. No email, no phone number, nothing about you but the name you choose. It takes a moment in the settings, and then you come back here.",
   "gate.account.keyText": "You use a key without an account. Give it a username and a password in the settings (creating an account keeps your key), and then you come back here.",
   "gate.account.go": "Sign in or create an account",
-  "gate.account.home": "Back to {hub}"
+  "gate.account.home": "Back to {hub}",
+  "photo.n": "Photo {n}",
+  "photo.prev": "Previous",
+  "photo.next": "Next"
 }

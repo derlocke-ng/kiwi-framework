@@ -65,8 +65,6 @@
   "fd.showAnyway": "Mostrar mesmo assim",
   "fd.photo": "Foto {n}",
   "fd.photoBy": "Uma foto de {name}",
-  "fd.prevPhoto": "Anterior",
-  "fd.nextPhoto": "Seguinte",
   "fd.like": "Gosto",
   "fd.unlike": "Retirar o gosto",
   "fd.noComments": "Ainda não há comentários.",
@@ -90,5 +88,14 @@
     "one": "{n} comentário",
     "many": "{n} comentários",
     "other": "{n} comentários"
-  }
+  },
+  "fd.label": "Etiqueta",
+  "fd.label.none": "Nenhuma",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Anúncio",
+  "fd.labelHint": "Só visível para quem tem conta neste hub; os outros veem que está lá.",
+  "fd.locked.adult": "Para adultos: visível para quem tem conta neste hub.",
+  "fd.locked.ad": "Um anúncio: visível para quem tem conta neste hub.",
+  "fd.entryTitle": "Entrada",
+  "fd.profile": "Perfil"
 }

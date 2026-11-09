@@ -345,5 +345,8 @@
   "gate.account.text": "Konto to nazwa użytkownika i hasło do twojego klucza, dzięki czemu idzie z tobą na każde urządzenie, na którym się zalogujesz. Bez e-maila, bez numeru telefonu, nic o tobie poza wybraną nazwą. Zajmuje chwilę w ustawieniach, a potem wracasz tutaj.",
   "gate.account.keyText": "Używasz klucza bez konta. Nadaj mu w ustawieniach nazwę użytkownika i hasło (utworzenie konta zachowuje twój klucz), a potem wracasz tutaj.",
   "gate.account.go": "Zaloguj się lub utwórz konto",
-  "gate.account.home": "Wróć do {hub}"
+  "gate.account.home": "Wróć do {hub}",
+  "photo.n": "Zdjęcie {n}",
+  "photo.prev": "Poprzednie",
+  "photo.next": "Następne"
 }

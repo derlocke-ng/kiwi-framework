@@ -336,5 +336,8 @@
   "gate.account.text": "Uma conta é um nome de utilizador e uma palavra-passe para a tua chave, para que te acompanhe em cada dispositivo onde entras. Sem email, sem número de telefone, nada sobre ti além do nome que escolhes. Demora um momento nas definições, e depois voltas aqui.",
   "gate.account.keyText": "Usas uma chave sem conta. Dá-lhe um nome de utilizador e uma palavra-passe nas definições (criar uma conta mantém a tua chave), e depois voltas aqui.",
   "gate.account.go": "Entrar ou criar uma conta",
-  "gate.account.home": "Voltar a {hub}"
+  "gate.account.home": "Voltar a {hub}",
+  "photo.n": "Foto {n}",
+  "photo.prev": "Anterior",
+  "photo.next": "Seguinte"
 }

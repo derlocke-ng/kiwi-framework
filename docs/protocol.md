@@ -191,7 +191,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
-| market kinds | to be assigned in the 307xx/308xx ranges when the market lands |
+| 30830 | in use: market listings (§14) |
 | 30820, 30822, 7805 | in use: feed entries and comments, audience keys (§13) |
 | 34550 | in use: space definitions (§12) |
 
@@ -202,6 +202,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 - **v1, extended**: the media object and Blossom authorization (§9); the suite keys `appOrder` and `mediaServers`. No existing format changed.
 - **v1, extended** (0.18): spaces (§12): the definition event, the `a` tag a note carries, the `s=` and `h=` of a link. A note in no space is what it was; a board on a space shows only notes that name it.
 - **v1, extended** (0.19): audiences and the feed (§13): the audience keys and their rumor (kind 7805), the space key, feed entries (30820) and comments (30822). No existing format changed.
+- **v1, extended** (0.20): the market (§14): listings (30830), search labels (NIP-32 `l` tags keyed with the space key); a feed entry's `label`; a chat link's `?text=` draft. No existing format changed.
 
 
 ## 9. Relay lists, inboxes and hints
@@ -250,8 +251,30 @@ so every device holding the key `sk` derives every audience key it ever used. Th
 |---|---|
 | kind | **30820** (addressable) |
 | tags | `["d", <random id>]`, `["a", <space address>, <relay>]` (on a mount on a space, §12), `["key", <kid>]` |
-| content | `seal(k, { "v": 1, "text": <≤ 5000, markdown>, "media": [<media object, §9>…] (≤ 6, each with its own key), "tags": [<hashtag>…] (≤ 10, lowercase), "name": <the writer's alias, ≤ 40>, "at": <ms of the first version> })` |
+| content | `seal(k, { "v": 1, "text": <≤ 5000, markdown>, "media": [<media object, §9>…] (≤ 6, each with its own key), "tags": [<hashtag>…] (≤ 10, lowercase), "name": <the writer's alias, ≤ 40>, "at": <ms of the first version>, "label"?: "adult" \| "ad" })` |
 
-`k` is the key `kid` names: the space key for an entry to the space, else one of the author's audience keys. A reader without the key does not show the entry. Editing republishes under the same `d` (keeping `at`), possibly under another key; deleting publishes `seal(k, { "del": 1, "u": <ms> })` under the same key.
+`k` is the key `kid` names: the space key for an entry to the space, else one of the author's audience keys. A reader without the key does not show the entry. An entry with a `label` (for adults, or an ad) is shown to people with an account on the reading hub only; everyone else sees that it is there. Editing republishes under the same `d` (keeping `at`), possibly under another key; deleting publishes `seal(k, { "del": 1, "u": <ms> })` under the same key.
 
 **Comments**: kind **30822** (addressable), `["d", <random id>]`, `["a", <entry address>]`, the entry's space `a` tag, `["key", <the entry's kid>]`, content `seal(k, { "text": <≤ 1000>, "name", "at" })` with the entry's key; deleted like entries. **Likes**: NIP-25 kind 7, `+` (an empty content takes it back; the newest per person counts), with `["a", <entry address>]`, `["p", <author>]`, `["k", "30820"]`. **Reports**: §4, with `["a", <entry address>]`, `["e", <entry id>, <type>]`, `["k", "30820"]`. A report by one of the space's moderators folds an entry away on its own; otherwise three reports by people the reader has not blocked do. Likes, reports and who commented on what are visible to relays; what an entry or a comment says is not.
+
+## 14. The market
+
+**Listings.**
+
+| | |
+|---|---|
+| kind | **30830** (addressable) |
+| tags | `["d", <random id>]`, `["a", <space address>, <relay>]`, `["key", <kid>]` (§13: the space key, or one of the seller's audience keys for a listing to friends or a circle), `["expiration", <unix seconds>]` (NIP-40, 1 to 90 days after the version), and on a listing to the space `["L", "wjs/label"]` and its search labels |
+| content | `seal(k, { "v": 1, "title": <≤ 100>, "text": <≤ 3000, markdown>, "category": "seeds" \| "cuttings" \| "gear" \| "other", "price": <≤ 40, free text>, "from": <ISO 3166-1 alpha-2>, "ships": [<country> \| "EU" \| "WW"…] (≤ 30; empty: pickup only), "pickup": <bool>, "media": [<media object>…] (≤ 8), "contact": <≤ 200>, "status": "open" \| "reserved" \| "sold", "name": <≤ 40>, "at": <ms of the first version> })` |
+
+A listing needs a title, a category and a country; a reader drops one that has expired (its seller still sees it, to renew). Marking it reserved or sold, changing or renewing it republishes it under the same `d`; deleting publishes `seal(k, { "del": 1, "u" })` with a one-day expiration. Reports: §4 with `["a", <listing address>]`, `["e", …]`, `["k", "30830"]`; one by a moderator of the space folds a listing away by itself.
+
+**Search labels** let a relay filter what it cannot read. For each word of a listing (`cat:<category>`, `from:<country>`, `to:<destination>` for each place it ships to, `cat:<category>|to:<destination>`, and with pickup `pickup:<country>` and `cat:<category>|pickup:<country>`) the listing carries `["l", <label>, "wjs/label"]` with
+
+```
+label = hex(HKDF-SHA-256(<space key>, info = "wjs/label/v1|" + <word>))[0..16)
+```
+
+A buyer asks `{ "kinds": [30830], "#a": [<space>], "#l": [<labels>] }` for the words of their search, any of which matches: a buyer in Austria looking for seeds asks for `cat:seeds|to:AT`, `cat:seeds|to:EU` and `cat:seeds|to:WW`. Anyone who knows the space's address computes the same labels: they keep a listing's category and countries off plain view, as the space key keeps its content, and do not make them secret. A listing to friends or a circle carries no labels.
+
+**Contact.** A buyer writes to a seller in the chat; a chat link may carry a draft, `#/dm/<pubkey>?text=<the message>`, which the chat puts in its composer unsent. The listing's `contact` is shown on request.

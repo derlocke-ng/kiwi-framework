@@ -24,6 +24,6 @@ The audience keys are derived from the writer's key, so every device of theirs h
 | File | What |
 |---|---|
 | `data/feed.js` | opening, posting, editing, deleting entries and comments; likes and reports; routes |
-| `data/social.js` | the likes, comments and reports of the entries a page shows |
+| `shared/social.js` (the framework's) | the likes, comments and reports of the entries a page shows |
 | `state.ts` | the context and the hooks the pages share |
 | `pages/` | the feed (tabs: the space, friends, mine), an entry with its comments, a person, the composer, the settings |

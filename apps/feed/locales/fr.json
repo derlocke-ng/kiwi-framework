@@ -65,8 +65,6 @@
   "fd.showAnyway": "Afficher quand même",
   "fd.photo": "Photo {n}",
   "fd.photoBy": "Une photo de {name}",
-  "fd.prevPhoto": "Précédente",
-  "fd.nextPhoto": "Suivante",
   "fd.like": "J’aime",
   "fd.unlike": "Retirer le j’aime",
   "fd.noComments": "Pas encore de commentaires.",
@@ -90,5 +88,14 @@
     "one": "{n} commentaire",
     "many": "{n} commentaires",
     "other": "{n} commentaires"
-  }
+  },
+  "fd.label": "Marquage",
+  "fd.label.none": "Aucun",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Pub",
+  "fd.labelHint": "Visible seulement par les personnes ayant un compte sur ce hub ; les autres voient qu’elle est là.",
+  "fd.locked.adult": "Pour adultes : visible par les personnes ayant un compte sur ce hub.",
+  "fd.locked.ad": "Une pub : visible par les personnes ayant un compte sur ce hub.",
+  "fd.entryTitle": "Entrée",
+  "fd.profile": "Profil"
 }

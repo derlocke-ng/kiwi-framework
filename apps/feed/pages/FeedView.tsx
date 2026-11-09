@@ -96,7 +96,7 @@ export function FeedView() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="button" className="btn btn-primary" id="newEntry" onClick={() => setCompose({ existing: null })}>
+        <button type="button" className="btn btn-primary fab" id="newEntry" onClick={() => setCompose({ existing: null })}>
           <Icon name="plus" />
           <span>{t('fd.new')}</span>
         </button>

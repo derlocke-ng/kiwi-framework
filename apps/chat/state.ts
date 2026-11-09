@@ -29,7 +29,7 @@ export const saveNick = (nick: string): void => {
 
 export type Route =
   | { page: 'home'; tab: 'messages' | 'groups' }
-  | { page: 'dm'; pk: string }
+  | { page: 'dm'; pk: string; draft: string }
   | { page: 'room'; secret: string; relays: string[] }
   | { page: 'group'; pub: string; host: string; invite: string; name: string; relays: string[] }
   | { page: 'settings' };
@@ -39,7 +39,8 @@ export function parseRoute(hash: string): Route {
   const g = parseGroupLink(hash);
   if (hash.startsWith('#/group/') && g) return { page: 'group', ...g };
   const m = hash.match(/^#\/(dm|room)\/([^/?]+)/);
-  if (m?.[1] === 'dm' && /^[0-9a-f]{64}$/i.test(m[2])) return { page: 'dm', pk: m[2].toLowerCase() };
+  if (m?.[1] === 'dm' && /^[0-9a-f]{64}$/i.test(m[2]))
+    return { page: 'dm', pk: m[2].toLowerCase(), draft: String(new URLSearchParams(hash.split('?')[1] || '').get('text') || '').slice(0, 2000) };
   if (m?.[1] === 'room' && m[2].length >= 8)
     return { page: 'room', secret: decodeURIComponent(m[2]), relays: readHints(new URLSearchParams(hash.split('?')[1] || '')) };
   if (hash.startsWith('#/settings')) return { page: 'settings' };

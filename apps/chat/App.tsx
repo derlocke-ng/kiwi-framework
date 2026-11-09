@@ -63,7 +63,7 @@ export function ChatApp() {
     ) : !dm ? (
       <p className="empty">{t('common.loading')}</p>
     ) : route.page === 'dm' ? (
-      <Conversation key={route.pk} pk={route.pk} />
+      <Conversation key={route.pk} pk={route.pk} draft={route.draft} />
     ) : route.page === 'group' ? (
       <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} relays={route.relays} />
     ) : route.page === 'settings' ? (

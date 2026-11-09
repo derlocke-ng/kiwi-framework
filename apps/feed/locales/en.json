@@ -65,8 +65,6 @@
   "fd.showAnyway": "Show anyway",
   "fd.photo": "Photo {n}",
   "fd.photoBy": "A photo by {name}",
-  "fd.prevPhoto": "Previous",
-  "fd.nextPhoto": "Next",
   "fd.like": "Like",
   "fd.unlike": "Take the like back",
   "fd.noComments": "No comments yet.",
@@ -89,5 +87,14 @@
   "fd.comments": {
     "one": "{n} comment",
     "other": "{n} comments"
-  }
+  },
+  "fd.label": "Label",
+  "fd.label.none": "None",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Ad",
+  "fd.labelHint": "Shown only to people with an account on this hub; everyone else sees that it is there.",
+  "fd.locked.adult": "For adults: shown to people with an account on this hub.",
+  "fd.locked.ad": "An ad: shown to people with an account on this hub.",
+  "fd.entryTitle": "Entry",
+  "fd.profile": "Profile"
 }

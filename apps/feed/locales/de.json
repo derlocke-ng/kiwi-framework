@@ -65,8 +65,6 @@
   "fd.showAnyway": "Trotzdem zeigen",
   "fd.photo": "Foto {n}",
   "fd.photoBy": "Ein Foto von {name}",
-  "fd.prevPhoto": "Zurück",
-  "fd.nextPhoto": "Weiter",
   "fd.like": "Gefällt mir",
   "fd.unlike": "Gefällt mir zurücknehmen",
   "fd.noComments": "Noch keine Kommentare.",
@@ -89,5 +87,14 @@
   "fd.comments": {
     "one": "{n} Kommentar",
     "other": "{n} Kommentare"
-  }
+  },
+  "fd.label": "Kennzeichnung",
+  "fd.label.none": "Keine",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Werbung",
+  "fd.labelHint": "Nur für Leute mit Konto auf diesem Hub sichtbar; alle anderen sehen, dass es da ist.",
+  "fd.locked.adult": "Für Erwachsene: sichtbar für Leute mit Konto auf diesem Hub.",
+  "fd.locked.ad": "Werbung: sichtbar für Leute mit Konto auf diesem Hub.",
+  "fd.entryTitle": "Eintrag",
+  "fd.profile": "Profil"
 }

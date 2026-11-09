@@ -708,3 +708,180 @@ span.wjs-media.loading {
     animation: none;
   }
 }
+
+/* PhotoGrid: a post's photos */
+.photo-grid {
+  display: grid;
+  gap: 0.3rem;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.photo-grid.n1 {
+  grid-template-columns: 1fr;
+}
+
+.photo-grid-item {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--border);
+  cursor: zoom-in;
+  aspect-ratio: 1;
+}
+
+.photo-grid.n1 .photo-grid-item {
+  aspect-ratio: auto;
+  max-height: 70vh;
+}
+
+.photo-grid-item .wjs-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-large {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 75vh;
+  object-fit: contain;
+}
+
+.photo-grid.lead {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.photo-grid.lead .photo-grid-item:first-child {
+  grid-column: 1 / -1;
+  aspect-ratio: 4 / 3;
+}
+
+/* Panel: a window over a list (ui/widgets/Panel.tsx). A side panel on a wide screen, the whole screen on a phone. */
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(0 0 0 / 0.35);
+  animation: wjs-fade 0.18s ease-out;
+}
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  width: min(600px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow-pop);
+  outline: none;
+  animation: wjs-slide-in 0.22s ease-out;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: calc(3.25rem + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) var(--gutter) 0 calc(var(--gutter) - 0.4rem);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem var(--gutter) calc(2rem + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+
+@keyframes wjs-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes wjs-slide-in {
+  from {
+    transform: translateX(48px);
+    opacity: 0.4;
+  }
+}
+
+@keyframes wjs-sheet-up {
+  from {
+    transform: translateY(48px);
+    opacity: 0.5;
+  }
+}
+
+/* The main action of a list (a new entry, a new listing): a button in the toolbar, a round one in reach of the thumb on a phone. */
+@media (max-width: 640px) {
+  .panel {
+    width: 100vw;
+  }
+
+  .panel-backdrop {
+    display: none;
+  }
+
+  html.panel-open,
+  html.panel-open body {
+    overflow: hidden;
+  }
+
+  .fab {
+    position: fixed;
+    right: calc(1rem + env(safe-area-inset-right));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 30;
+    width: 3.5rem;
+    height: 3.5rem;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    box-shadow: var(--shadow-pop);
+  }
+
+  .fab .icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  body:has(.fab) .toasts {
+    bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  }
+
+  .fab span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel-backdrop,
+  .modal {
+    animation: none;
+  }
+}

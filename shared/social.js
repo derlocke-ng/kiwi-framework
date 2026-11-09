@@ -1,9 +1,11 @@
-// What people do with the entries a page shows: likes (NIP-25), comments
-// (kind 30822, sealed with the entry's key) and reports (NIP-56). A page tells
-// it which entries it shows (`watch`); it reads what the device holds, then
-// asks the relays, for those entries only, and follows them live.
-import { addressOf, KINDS, supersedes } from '../../../shared/events.js';
-import { isModerator } from '../../../shared/spaces.js';
+// What people do with the posts a page shows (the feed's entries, the
+// market's listings): likes (NIP-25, `k` naming the posts' kind), comments
+// (kind 30822, sealed with the post's key) and reports (NIP-56). A page tells
+// it which posts it shows (`watch`); it reads what the device holds, then
+// asks the relays, for those posts only, and follows them live. A report by
+// one of the space's moderators folds a post away by itself.
+import { addressOf, KINDS, supersedes } from './events.js';
+import { isModerator } from './spaces.js';
 
 const KINDS_SOCIAL = [KINDS.REACTION, KINDS.REPORT, KINDS.FEED_COMMENT];
 const CHUNK = 100;
@@ -13,12 +15,14 @@ export class Social {
   /**
    * @param {{ db: any, pool: any }} net  the feed's content network
    * @param {{ pk: string }} identity
-   * @param {{ space?: any }} [options]  space: its moderators' reports count as enough on their own
+   * @param {{ space?: any, kind?: number }} [options]  space: its moderators' reports count as enough on their own;
+   *   kind: the posts' kind, which a like names in its `k` tag (the feed's entries by default)
    */
-  constructor(net, identity, { space = null } = {}) {
+  constructor(net, identity, { space = null, kind = KINDS.FEED_ENTRY } = {}) {
     this.net = net;
     this.pk = identity.pk;
     this.space = space;
+    this.kind = kind;
     this.addresses = new Set();
     this.likes = new Map(); // entry address -> Map(pk -> { on, at, id })
     this.reports = new Map(); // entry address -> Map(pk -> at)
@@ -66,7 +70,7 @@ export class Social {
     const a = this.target(ev);
     if (!a) return;
     if (ev.kind === KINDS.REACTION) {
-      if (!ev.tags.some((t) => t[0] === 'k' && t[1] === String(KINDS.FEED_ENTRY))) return;
+      if (!ev.tags.some((t) => t[0] === 'k' && t[1] === String(this.kind))) return;
       if (!this.likes.has(a)) this.likes.set(a, new Map());
       const cur = this.likes.get(a).get(ev.pubkey);
       if (cur && (cur.at > ev.created_at || (cur.at === ev.created_at && cur.id <= ev.id))) return;

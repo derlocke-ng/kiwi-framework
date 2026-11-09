@@ -65,8 +65,6 @@
   "fd.showAnyway": "Toch tonen",
   "fd.photo": "Foto {n}",
   "fd.photoBy": "Een foto van {name}",
-  "fd.prevPhoto": "Vorige",
-  "fd.nextPhoto": "Volgende",
   "fd.like": "Leuk",
   "fd.unlike": "Like intrekken",
   "fd.noComments": "Nog geen reacties.",
@@ -89,5 +87,14 @@
   "fd.comments": {
     "one": "{n} reactie",
     "other": "{n} reacties"
-  }
+  },
+  "fd.label": "Label",
+  "fd.label.none": "Geen",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Advertentie",
+  "fd.labelHint": "Alleen zichtbaar voor mensen met een account op deze hub; anderen zien dat het er is.",
+  "fd.locked.adult": "Voor volwassenen: zichtbaar voor mensen met een account op deze hub.",
+  "fd.locked.ad": "Een advertentie: zichtbaar voor mensen met een account op deze hub.",
+  "fd.entryTitle": "Bericht",
+  "fd.profile": "Profiel"
 }

@@ -336,5 +336,8 @@
   "gate.account.text": "Un account è un nome utente e una password per la tua chiave, così ti segue su ogni dispositivo su cui accedi. Niente email, niente numero di telefono, niente su di te tranne il nome che scegli. Ci vuole un attimo nelle impostazioni, e poi torni qui.",
   "gate.account.keyText": "Usi una chiave senza account. Dalle un nome utente e una password nelle impostazioni (creare un account mantiene la tua chiave), e poi torni qui.",
   "gate.account.go": "Accedi o crea un account",
-  "gate.account.home": "Torna a {hub}"
+  "gate.account.home": "Torna a {hub}",
+  "photo.n": "Foto {n}",
+  "photo.prev": "Precedente",
+  "photo.next": "Successiva"
 }

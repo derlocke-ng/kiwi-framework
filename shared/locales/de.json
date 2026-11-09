@@ -327,5 +327,8 @@
   "gate.account.text": "Ein Konto ist ein Benutzername und ein Passwort für deinen Schlüssel, damit er auf jedes Gerät mitkommt, auf dem du dich anmeldest. Keine E-Mail, keine Telefonnummer, nichts über dich außer dem Namen, den du wählst. Es dauert einen Moment in den Einstellungen, und dann kommst du hierher zurück.",
   "gate.account.keyText": "Du nutzt einen Schlüssel ohne Konto. Gib ihm in den Einstellungen einen Benutzernamen und ein Passwort (ein neues Konto behält deinen Schlüssel), und dann kommst du hierher zurück.",
   "gate.account.go": "Anmelden oder Konto erstellen",
-  "gate.account.home": "Zurück zu {hub}"
+  "gate.account.home": "Zurück zu {hub}",
+  "photo.n": "Foto {n}",
+  "photo.prev": "Zurück",
+  "photo.next": "Weiter"
 }

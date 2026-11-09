@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=market
+DESCRIPTION=A market of listings with photos for a community, found by category and by where the buyer is, sealed before they leave the browser
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# the nostr event kinds it reads and writes
+KINDS=30830 1984 7805
+TAGS=nostr market listings encrypted spaces
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/market
+LICENSE=GPL-3.0-or-later

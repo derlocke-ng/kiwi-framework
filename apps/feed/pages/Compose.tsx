@@ -10,7 +10,7 @@ import { toast } from '../../../ui/toast';
 import { ImageUpload } from '../../../ui/widgets/ImageUpload';
 import { MediaImage } from '../../../ui/widgets/MediaImage';
 import { Modal } from '../../../ui/widgets/Modal';
-import { LIMITS } from '../data/feed.js';
+import { LABELS, LIMITS } from '../data/feed.js';
 import { useAudienceChoices, useAudienceLabel, useFeed, usePrefs } from '../state';
 
 /** The audience a new entry starts with: the person's usual one when it still exists here, else the space's or friends. */
@@ -30,6 +30,7 @@ export function Compose({ existing = null, onClose, onPosted }: { existing?: any
   const [text, setText] = useState<string>(existing?.text || '');
   const [media, setMedia] = useState<any[]>(existing?.media || []);
   const [audience, setAudience] = useState<string>(existing && choices.includes(existing.audience) ? existing.audience : defaultAudience(prefs, choices));
+  const [entryLabel, setEntryLabel] = useState<string>(existing?.label || '');
   const [busy, setBusy] = useState(false);
   const hint = audience === 'space' ? 'space' : audience.startsWith('c:') ? 'circle' : audience;
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -37,7 +38,7 @@ export function Compose({ existing = null, onClose, onPosted }: { existing?: any
     if (!text.trim() && !media.length) return toast(t('fd.error.empty'), 'error');
     setBusy(true);
     try {
-      await data.post({ text, media, audience, ...(existing ? { d: existing.d, at: existing.at } : {}) });
+      await data.post({ text, media, audience, label: entryLabel, ...(existing ? { d: existing.d, at: existing.at } : {}) });
       onPosted?.(audience);
       onClose();
       toast(t(existing ? 'fd.saved' : 'fd.posted'), 'success');
@@ -98,6 +99,18 @@ export function Compose({ existing = null, onClose, onPosted }: { existing?: any
         <p className="hint" id="audienceHint">
           <Icon name={audience === 'space' ? 'users-round' : 'lock'} /> {t(`fd.aud.${hint}.hint`, { space: space?.name || '' })}
         </p>
+        <label className="field">
+          <span>{t('fd.label')}</span>
+          <select name="label" value={entryLabel} onChange={(e) => setEntryLabel(e.target.value)}>
+            <option value="">{t('fd.label.none')}</option>
+            {LABELS.map((l) => (
+              <option key={l} value={l}>
+                {t(`fd.label.${l}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {entryLabel ? <p className="hint">{t('fd.labelHint')}</p> : null}
         <div className="modal-actions">
           <button type="button" className="btn" data-close onClick={onClose}>
             {t('common.cancel')}

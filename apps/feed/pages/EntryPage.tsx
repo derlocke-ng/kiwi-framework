@@ -99,10 +99,6 @@ export function EntryPage({ pk, d, foreign }: { pk: string; d: string; foreign?:
   const entry = list.entries[0];
   return (
     <div className="entry-page">
-      <a className="back-link" href="#/">
-        <Icon name="chevron-left" />
-        <span>{t('fd.back')}</span>
-      </a>
       {foreign ? (
         <div className="banner foreign-space" id="foreignSpace">
           <Icon name="globe" />

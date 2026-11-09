@@ -2,8 +2,9 @@
 // a feed on no space that asks for an account. Entries for the space, for friends and for "only me", with
 // a photo; who can read what, on the relay and on the screen; a friend added later reads what was posted
 // under the current key, an unfriended one reads nothing new; likes and comments; edits and deletions;
-// a moderator's report folds an entry; a link opens the entry; the account gate sends a person with a key
-// alone to register and brings them back.
+// a moderator's report folds an entry; an entry marked 18+ is folded for someone without an account; an
+// entry or a person opens in a panel over the feed, which keeps its place; a link opens the entry; the account
+// gate sends a person with a key alone to register and brings them back.
 //
 // A distribution runs it against its own site:
 //   import { feedSuite } from 'kiwi-framework/test/e2e/feed.mjs';
@@ -38,6 +39,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   const dev = (name, identity = null, options = {}) => device(env, name, init, { relay: env.nostrUrl, identity }, options);
   const id = (alias) => ({ ...keypair(), alias, created: Date.now() });
   const entryTexts = (page) => texts(page, '.entry .entry-text');
+  const panelTexts = (page) => texts(page, '#panel .entry .entry-text'); // what a link or a tap opened over the feed
   const entryOn = (page, text) => page.locator('.entry', { has: page.locator('.entry-text', { hasText: text }) });
   const pkOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wjs.identity')).pk);
 
@@ -49,10 +51,11 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   async function tab(page, which) {
     await page.check(`input[name=tab][value=${which}]`, { force: true });
   }
-  async function post(page, text, audience, photo = null) {
+  async function post(page, text, audience, photo = null, label = '') {
     await page.click('#newEntry');
     await page.waitForSelector('#composeForm');
     await page.fill('#composeForm textarea[name=text]', text);
+    if (label) await page.selectOption('#composeForm select[name=label]', label);
     if (photo) {
       await page.setInputFiles('#compose input[type=file]', photo);
       await page.waitForSelector('#composePhotos li', { timeout: 20000 });
@@ -121,7 +124,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   const C = await dev('C', id(null));
   await open(C);
   await until(async () => (await entryTexts(C)).includes('Week 1: seedlings up #grow #auto'), 'the entry on C', 20000);
-  await until(async () => C.$eval('.entry-photo img', (img) => img.complete && img.naturalWidth > 0).catch(() => false), 'the photo opens on C', 20000);
+  await until(async () => C.$eval('.photo-grid-item img', (img) => img.complete && img.naturalWidth > 0).catch(() => false), 'the photo opens on C', 20000);
   assert.match(await C.textContent('.entry-author'), /ada/, 'the writer’s name travels with the entry');
   await C.click('.entry [data-tag=auto]');
   assert.equal(await C.inputValue('#search'), '#auto');
@@ -152,8 +155,14 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   await until(async () => (await entryTexts(B)).some((x) => x.startsWith('Only for my friends')), 'the entry again on B', 20000);
   await entryOn(B, 'Only for my friends').locator('[data-act=like]').click();
   await until(async () => (await entryOn(B, 'Only for my friends').locator('.like-count').textContent()) === '1', 'liked on B');
+  const scrolled = await B.evaluate(() => {
+    window.scrollTo(0, 120);
+    return window.scrollY;
+  });
   await entryOn(B, 'Only for my friends').locator('[data-act=comments]').click();
-  await B.waitForSelector('#commentForm');
+  await B.waitForSelector('#panel #commentForm');
+  assert.ok(await B.$('#feedTabs'), 'the feed stays under the panel');
+  assert.equal(await B.evaluate(() => window.scrollY), scrolled, 'and keeps its place');
   await B.fill('#commentForm textarea', 'Looks great, what ratio?');
   await B.click('#commentForm [type=submit]');
   await until(async () => (await texts(B, '.comment-text')).includes('Looks great, what ratio?'), 'the comment on B', 15000);
@@ -164,7 +173,10 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   await A.goto(entryLink.replace(/^[^#]*/, app));
   await A.waitForSelector('#commentForm');
   await until(async () => (await texts(A, '.comment-text')).includes('Looks great, what ratio?'), 'A reads the comment', 20000);
-  await until(async () => (await A.textContent('.entry .like-count')) === '1', 'A sees the like', 20000);
+  await until(async () => (await A.textContent('#panel .entry .like-count')) === '1', 'A sees the like', 20000);
+  await A.click('#panel [data-act=panel-back]');
+  await until(async () => !(await A.$('#panel')), 'the panel closes; the feed is there', 10000);
+  assert.ok(await A.$('#feedTabs'));
 
   step('a friend added later reads what was posted under the current key');
   const D = await dev('D', id('dan'));
@@ -193,9 +205,9 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   const [, , oldD] = oldAddress.split(':');
   const pkA = await pkOf(A);
   await B.goto(`${app}#/e/${pkA}/${newD}`);
-  await B.waitForSelector('#notForYou', { timeout: 20000 });
+  await B.waitForSelector('#panel #notForYou', { timeout: 20000 });
   await B.goto(`${app}#/e/${pkA}/${oldD}`);
-  await until(async () => (await entryTexts(B)).some((x) => x.startsWith('Only for my friends')), 'B still reads the old one', 20000);
+  await until(async () => (await panelTexts(B)).some((x) => x.startsWith('Only for my friends')), 'B still reads the old one', 20000);
 
   step('"only me": on A’s own feed, labelled so, nowhere else');
   await open(A);
@@ -208,6 +220,20 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   await tab(D, 'friends');
   await sleep(1500);
   assert.ok(!(await entryTexts(D)).some((x) => x.includes('pH')), 'not even a friend reads it');
+
+  step('an entry marked 18+ is folded for someone without an account, and shown to someone with one');
+  await tab(A, 'space');
+  await post(A, 'Flowering week 6, lights off #grow', 'space', null, 'adult');
+  await until(async () => (await entryTexts(A)).includes('Flowering week 6, lights off #grow'), 'the writer sees it');
+  await open(C);
+  await until(async () => (await C.$$('.entry-locked[data-label=adult]')).length === 1, 'folded on C, who has no account', 20000);
+  assert.ok(!(await entryTexts(C)).some((x) => x.startsWith('Flowering')), 'its text is not shown');
+  assert.match(await C.textContent('.entry-locked'), /people with an account/);
+  const G = await dev('G', { ...id('gus'), accountPk: 'a'.repeat(64) });
+  await open(G);
+  await until(async () => (await entryTexts(G)).includes('Flowering week 6, lights off #grow'), 'shown on G, who has an account', 20000);
+  assert.equal((await G.textContent('.entry .badge.label-adult')).trim(), '18+');
+  await G.ctx.close();
 
   step('editing and deleting: the space entry changes, then disappears, for the stranger too');
   await tab(A, 'space');
@@ -232,8 +258,10 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   const link = await A.evaluate(() => navigator.clipboard.readText());
   assert.match(link, /#\/e\/[0-9a-f]{64}\/[^?]+\?s=34550%3A/, `a link into the space: ${link}`);
   await C.goto(link);
-  await until(async () => (await entryTexts(C)).includes('Week 2: first true leaves #grow'), 'the linked entry on C', 20000);
-  await C.waitForSelector('#commentForm');
+  await until(async () => (await panelTexts(C)).includes('Week 2: first true leaves #grow'), 'the linked entry, in a panel on C', 20000);
+  await C.waitForSelector('#panel #commentForm');
+  await C.click('#panel [data-act=panel-back]');
+  await until(async () => !(await C.$('#panel')) && Boolean(await C.$('#feedTabs')), 'back closes the panel onto the feed', 10000);
 
   if (moderator) {
     step('a moderator of the space reports an entry: it is folded away for everyone else, not for its writer');

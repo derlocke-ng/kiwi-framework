@@ -28,7 +28,7 @@ export const ICONS = [
   'shield', 'refresh-cw', 'external-link', 'pin', 'pin-off', 'search', 'file-text', 'languages', 'layout-grid', 'send', 'gamepad-2', 'message-square-lock',
   'sticky-note', 'radio-tower', 'git-branch', 'arrow-up-right', 'users', 'user-plus', 'user-check', 'users-round',
   'image', 'image-plus', 'server', 'message-circle', 'messages-square', 'radio', 'bell', 'bell-off',
-  'heart', 'message-square', 'newspaper', 'sprout', 'hash',
+  'heart', 'message-square', 'newspaper', 'sprout', 'hash', 'store',
 ];
 export function sprite(file, icons) {
   const symbols = icons.map((name) => {

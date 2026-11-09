@@ -33,7 +33,18 @@ export function Text({ text }: { text: string }) {
   );
 }
 
-export function Composer({ onSend, placeholder, id = 'composer' }: { onSend: (text: string) => Promise<unknown>; placeholder: string; id?: string }) {
+/** `draft`: text the composer starts with (a link from another app: "About your listing …"), not sent until the person sends it. */
+export function Composer({
+  onSend,
+  placeholder,
+  id = 'composer',
+  draft = '',
+}: {
+  onSend: (text: string) => Promise<unknown>;
+  placeholder: string;
+  id?: string;
+  draft?: string;
+}) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -61,7 +72,16 @@ export function Composer({ onSend, placeholder, id = 'composer' }: { onSend: (te
   };
   return (
     <form className="composer" id={id} onSubmit={submit}>
-      <textarea ref={ref} name="text" rows={1} maxLength={TEXT} placeholder={placeholder} aria-label={placeholder} onKeyDown={onKey} />
+      <textarea
+        ref={ref}
+        name="text"
+        rows={draft ? 3 : 1}
+        maxLength={TEXT}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        onKeyDown={onKey}
+        defaultValue={draft}
+      />
       <button type="submit" className="btn btn-primary" disabled={busy} aria-label={t('chat.send')} title={t('chat.send')}>
         <Icon name="send" />
       </button>
@@ -69,7 +89,7 @@ export function Composer({ onSend, placeholder, id = 'composer' }: { onSend: (te
   );
 }
 
-export function Conversation({ pk }: { pk: string }) {
+export function Conversation({ pk, draft = '' }: { pk: string; draft?: string }) {
   const t = useT();
   const dm = useDm();
   const version = useDmVersion(dm);
@@ -192,7 +212,7 @@ export function Conversation({ pk }: { pk: string }) {
         ))}
         <div ref={end} />
       </div>
-      {blocked ? null : <Composer onSend={(text) => dm.send(pk, text)} placeholder={t('chat.write')} />}
+      {blocked ? null : <Composer onSend={(text) => dm.send(pk, text)} placeholder={t('chat.write')} draft={draft} />}
     </section>
   );
 }

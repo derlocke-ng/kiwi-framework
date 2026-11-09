@@ -65,8 +65,6 @@
   "fd.showAnyway": "Mostra comunque",
   "fd.photo": "Foto {n}",
   "fd.photoBy": "Una foto di {name}",
-  "fd.prevPhoto": "Precedente",
-  "fd.nextPhoto": "Successiva",
   "fd.like": "Mi piace",
   "fd.unlike": "Togli il mi piace",
   "fd.noComments": "Ancora nessun commento.",
@@ -90,5 +88,14 @@
     "one": "{n} commento",
     "many": "{n} commenti",
     "other": "{n} commenti"
-  }
+  },
+  "fd.label": "Etichetta",
+  "fd.label.none": "Nessuna",
+  "fd.label.adult": "18+",
+  "fd.label.ad": "Pubblicità",
+  "fd.labelHint": "Visibile solo a chi ha un account su questo hub; gli altri vedono che c’è.",
+  "fd.locked.adult": "Per adulti: visibile a chi ha un account su questo hub.",
+  "fd.locked.ad": "Pubblicità: visibile a chi ha un account su questo hub.",
+  "fd.entryTitle": "Voce",
+  "fd.profile": "Profilo"
 }

@@ -39,7 +39,7 @@ export const HOW = {
   boards: ['linkKeys', 'offline', 'relays', 'backup'], // shared lists and notes
   notices: ['signed', 'pow', 'expiry', 'blocks', 'spaces'], // a public noticeboard
   feed: ['audiences', 'spaces', 'media', 'friends', 'blocks', 'offline'],
-  market: ['signed', 'media', 'pow', 'expiry', 'blocks', 'spaces'],
+  market: ['spaces', 'audiences', 'media', 'expiry', 'blocks'],
   chat: ['privateMessages', 'friends', 'blocks', 'media', 'offline'],
   blog: ['signed', 'media', 'offline'],
   rooms: ['direct', 'linkKeys'], // live rooms: file drops, games

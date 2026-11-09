@@ -7,14 +7,15 @@ import { type FormEvent, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
 import { REPORT_TYPES } from '../../../shared/moderation.js';
+import { rememberReturn } from '../../../ui/AccountGate';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useBlocks, useIdentity, useKiwi, usePeople, useSpace, useT } from '../../../ui/hooks';
 import { spaceLinkQuery } from '../../../ui/spaces';
 import { copyText, toast } from '../../../ui/toast';
 import { Markdown } from '../../../ui/widgets/Markdown';
-import { MediaImage } from '../../../ui/widgets/MediaImage';
 import { Modal } from '../../../ui/widgets/Modal';
+import { PhotoGrid } from '../../../ui/widgets/PhotoGrid';
 import { entryHash } from '../data/feed.js';
 import { useAudienceLabel, useFeed, useNameOf, useSocial } from '../state';
 
@@ -69,39 +70,6 @@ function ReportDialog({ entry, onClose }: { entry: any; onClose: () => void }) {
   );
 }
 
-/** The photos of an entry: a grid of thumbnails; a tap shows one large. */
-function Photos({ media, alt }: { media: any[]; alt: string }) {
-  const t = useT();
-  const [shown, setShown] = useState<number | null>(null);
-  if (!media.length) return null;
-  return (
-    <>
-      <div className={`entry-photos n${Math.min(media.length, 4)}`}>
-        {media.map((m, i) => (
-          <button key={m.sha256} type="button" className="entry-photo" data-photo={i} aria-label={t('fd.photo', { n: i + 1 })} onClick={() => setShown(i)}>
-            <MediaImage media={m} small alt={alt} />
-          </button>
-        ))}
-      </div>
-      {shown !== null && media[shown] ? (
-        <Modal open wide title={t('fd.photo', { n: shown + 1 })} onClose={() => setShown(null)} id="photoView">
-          <MediaImage media={media[shown]} alt={alt} className="entry-photo-large" />
-          {media.length > 1 ? (
-            <div className="modal-actions">
-              <button type="button" className="btn btn-sm" disabled={shown === 0} onClick={() => setShown(shown - 1)}>
-                {t('fd.prevPhoto')}
-              </button>
-              <button type="button" className="btn btn-sm" disabled={shown === media.length - 1} onClick={() => setShown(shown + 1)}>
-                {t('fd.nextPhoto')}
-              </button>
-            </div>
-          ) : null}
-        </Modal>
-      ) : null}
-    </>
-  );
-}
-
 export function EntryCard({
   entry,
   onEdit,
@@ -129,6 +97,12 @@ export function EntryCard({
   const mine = entry.pubkey === id.pk;
   const folded = social.collapsed(entry, isBlocked);
   const hidden = folded && !open;
+  // an entry its writer marked for adults or as an ad: for people with an account on this hub
+  const locked = Boolean(entry.label) && !mine && !id.accountPk;
+  const signIn = () => {
+    rememberReturn(location.href, document.title);
+    location.href = `${kiwi.base}settings.html#account`;
+  };
   const likes = social.likeCount(entry.address, isBlocked);
   const liked = social.liked(entry.address);
   const comments = social.commentEvents(entry.address, isBlocked).length;
@@ -175,28 +149,44 @@ export function EntryCard({
       data-audience={entry.audience}
     >
       <header className="entry-head">
-        <a className="entry-author" href={`#/p/${entry.pubkey}`} title={npub(entry.pubkey)}>
-          <span className="entry-avatar" aria-hidden="true">
-            {(name.replace(/[^\p{L}\p{N}]/gu, '')[0] || '?').toUpperCase()}
-          </span>
-          <span className="entry-name">{name}</span>
-        </a>
-        <span className="entry-meta muted small">
-          <a href={entryHash(entry)} className="entry-when">
-            {relTime(entry.at)}
+        <span className="entry-avatar" aria-hidden="true">
+          {(name.replace(/[^\p{L}\p{N}]/gu, '')[0] || '?').toUpperCase()}
+        </span>
+        <span className="entry-who">
+          <a className="entry-author" href={`#/p/${entry.pubkey}`} title={npub(entry.pubkey)}>
+            <span className="entry-name">{name}</span>
           </a>
-          {' · '}
-          <span className="entry-aud" data-audience={entry.audience}>
-            <Icon name={entry.audience === 'space' ? 'users-round' : entry.audience === 'me' ? 'lock' : 'users'} />
-            {audienceLabel(entry.audience, space?.name)}
+          <span className="entry-meta muted small">
+            <a href={entryHash(entry)} className="entry-when">
+              {relTime(entry.at)}
+            </a>
+            {' · '}
+            {entry.label ? (
+              <>
+                <span className={`badge label-${entry.label}`} data-label={entry.label}>
+                  {t(`fd.label.${entry.label}`)}
+                </span>{' '}
+              </>
+            ) : null}
+            <span className="entry-aud" data-audience={entry.audience}>
+              <Icon name={entry.audience === 'space' ? 'users-round' : entry.audience === 'me' ? 'lock' : 'users'} />
+              {audienceLabel(entry.audience, space?.name)}
+            </span>
           </span>
         </span>
-        <span className="spacer" />
         <button type="button" className="icon-btn" data-act="menu" aria-label={t('fd.more')} onClick={(e) => menu(e.currentTarget)}>
           <Icon name="ellipsis" />
         </button>
       </header>
-      {hidden ? (
+      {locked ? (
+        <div className="entry-folded entry-locked" data-label={entry.label}>
+          <Icon name="lock" />
+          <span>{t(`fd.locked.${entry.label}`)}</span>
+          <button type="button" className="link-btn" data-act="sign-in" onClick={signIn}>
+            {t('gate.account.go')}
+          </button>
+        </div>
+      ) : hidden ? (
         <div className="entry-folded">
           <Icon name="eye" />
           <span>{t(folded === 'moderator' ? 'fd.foldedModerator' : 'fd.foldedReports')}</span>
@@ -207,7 +197,7 @@ export function EntryCard({
       ) : (
         <>
           {entry.text ? <Markdown source={entry.text} className="md entry-text" /> : null}
-          <Photos media={entry.media} alt={entry.text ? entry.text.slice(0, 80) : t('fd.photoBy', { name })} />
+          <PhotoGrid media={entry.media} alt={entry.text ? entry.text.slice(0, 80) : t('fd.photoBy', { name })} />
           {entry.tags.length ? (
             <div className="entry-tags">
               {entry.tags.map((tag: string) => (

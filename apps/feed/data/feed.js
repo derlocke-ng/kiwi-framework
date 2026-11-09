@@ -12,10 +12,14 @@
 // comments; likes and reports are plain (relays see who liked what, not what
 // it says).
 import { addressOf, isHex64, KINDS, makeAddressable, now, open, seal, sign, stamp } from '../../../shared/events.js';
-import { spaceOf, spaceReadKey, spaceTag } from '../../../shared/spaces.js';
+import { keyTag, SpaceSeal } from '../../../shared/sealed.js';
 import { fail, randomId } from '../../../shared/util.js';
 
+export { keyTag };
+
 export const LIMITS = { text: 5000, media: 6, tags: 10, tag: 32, name: 40, comment: 1000 };
+/** What a writer may say an entry is: for adults, or an ad. Such an entry is shown to people with an account only. */
+export const LABELS = ['adult', 'ad'];
 /** The app's own settings in the account (kind 30791, d = 'feed'): the audience new entries start with. */
 export const NAMESPACE = 'feed';
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -29,9 +33,6 @@ export function hashtags(text) {
   }
   return out.slice(0, LIMITS.tags);
 }
-
-/** The id of the key an event is sealed with (its `key` tag), or null. */
-export const keyTag = (ev) => ev?.tags?.find((t) => t[0] === 'key')?.[1] || null;
 
 const file = (f) =>
   f && typeof f === 'object' && typeof f.url === 'string' && HEX64.test(String(f.sha256))
@@ -61,7 +62,8 @@ export function cleanEntry(v) {
     .map((x) => String(x).toLowerCase().slice(0, LIMITS.tag))
     .filter(Boolean)
     .slice(0, LIMITS.tags);
-  return { text, media, tags, name: String(v.name || '').slice(0, LIMITS.name), at: Number(v.at) > 0 ? Number(v.at) : 0 };
+  const label = LABELS.includes(v.label) ? v.label : '';
+  return { text, media, tags, name: String(v.name || '').slice(0, LIMITS.name), at: Number(v.at) > 0 ? Number(v.at) : 0, label };
 }
 
 /** An entry's route: `#/e/<author>/<d>`, with the space and hints in the query (ui/spaces.ts). */
@@ -79,29 +81,23 @@ export class FeedData {
     this.net = net;
     this.identity = identity;
     this.space = space;
-    this.audiences = audiences;
-    this.spaceKey = space ? spaceReadKey(space) : null;
+    this.seal = new SpaceSeal(net, identity, { space, audiences }); // the space's key and the audiences' (shared/sealed.js)
     this.cache = new Map(); // event id -> Promise<opened | null>
   }
 
   /** Does an event belong to this feed: in its space, or in none for a feed on no space? */
   inSpace(ev) {
-    return spaceOf(ev) === (this.space?.address || null);
+    return this.seal.inSpace(ev);
   }
 
   /** The key `kid` of `author`'s, when this device has it: the space's, one of mine, or one I was given. */
   key(author, kid) {
-    if (!kid) return null;
-    if (this.spaceKey && kid === this.spaceKey.kid) return this.spaceKey.k;
-    return this.audiences()?.key(author, kid) || null;
+    return this.seal.key(author, kid);
   }
 
   /** Who an entry is for, as the page names it: 'space', one of my audiences ('friends', 'c:…', 'me'), or 'shared' (I am in one of theirs). */
   audienceOf(ev) {
-    const kid = keyTag(ev);
-    if (this.spaceKey && kid === this.spaceKey.kid) return 'space';
-    if (ev.pubkey === this.identity.pk) return this.audiences()?.audienceOf(kid) || 'me';
-    return 'shared';
+    return this.seal.audienceOf(ev);
   }
 
   /** An entry, opened; null when this device holds no key for it (it is not for me) or it does not open. */
@@ -116,18 +112,12 @@ export class FeedData {
   }
 
   async readEntry(ev) {
-    if (ev.kind !== KINDS.FEED_ENTRY || !this.inSpace(ev)) return null;
-    const kid = keyTag(ev);
-    const k = this.key(ev.pubkey, kid);
-    if (!k) return null;
-    let v;
-    try {
-      v = await open(k, ev.content);
-    } catch {
-      return null;
-    }
+    if (ev.kind !== KINDS.FEED_ENTRY) return null;
+    const opened = await this.seal.open(ev);
+    if (!opened) return null;
+    const { value: v, k, kid, audience } = opened;
     const address = addressOf(ev);
-    const base = { address, d: address.split(':').slice(2).join(':'), pubkey: ev.pubkey, event: ev, id: ev.id, kid, k, audience: this.audienceOf(ev), created_at: ev.created_at };
+    const base = { address, d: address.split(':').slice(2).join(':'), pubkey: ev.pubkey, event: ev, id: ev.id, kid, k, audience, created_at: ev.created_at };
     if (v?.del) return { ...base, deleted: true, text: '', media: [], tags: [], name: '', at: ev.created_at * 1000 };
     const clean = cleanEntry(v);
     return clean ? { ...base, ...clean, at: clean.at || ev.created_at * 1000 } : null;
@@ -166,27 +156,21 @@ export class FeedData {
   // ---- writing ----
 
   /** The key a post to `audience` is sealed with: the space's, or the current key of one of my audiences. */
-  async sealFor(audience) {
-    if (audience === 'space') {
-      if (!this.spaceKey) throw fail('fd.error.noSpace', 'This feed serves no space.');
-      return this.spaceKey;
-    }
-    const { k, kid } = await this.audiences().current(audience);
-    return { k, kid };
+  sealFor(audience) {
+    return this.seal.sealFor(audience);
   }
 
   /** What every event of this feed carries: its space (with a relay where it lives), the key it is sealed with. */
   tags(kid = null) {
-    const relay = this.net.pool.urls?.[0] || null;
-    return [...(this.space ? [spaceTag(this.space, relay)] : []), ...(kid ? [['key', kid]] : [])];
+    return this.seal.tags(kid);
   }
 
   /**
-   * Post an entry, or a new version of one (`d`, `at` of the old). Returns the event.
-   * @param {{ text: string, media?: any[], audience: string, d?: string, at?: number }} entry
+   * Post an entry, or a new version of one (`d`, `at` of the old). Returns the event. `label`: 'adult' or 'ad', inside the seal.
+   * @param {{ text: string, media?: any[], audience: string, d?: string, at?: number, label?: string }} entry
    */
-  async post({ text, media = [], audience, d = randomId(), at = Date.now() }) {
-    const value = cleanEntry({ text, media, tags: hashtags(text), name: this.identity.alias || '', at });
+  async post({ text, media = [], audience, d = randomId(), at = Date.now(), label = '' }) {
+    const value = cleanEntry({ text, media, tags: hashtags(text), name: this.identity.alias || '', at, label });
     if (!value) throw fail('fd.error.empty', 'Write something or add a photo.');
     const { k, kid } = await this.sealFor(audience);
     const ev = makeAddressable(KINDS.FEED_ENTRY, d, await seal(k, { v: 1, ...value }), this.identity.sk, this.tags(kid));

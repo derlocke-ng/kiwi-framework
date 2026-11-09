@@ -32,10 +32,6 @@ export function PersonPage({ pk }: { pk: string }) {
   const chat = chatMount();
   return (
     <div className="person-page">
-      <a className="back-link" href="#/">
-        <Icon name="chevron-left" />
-        <span>{t('fd.back')}</span>
-      </a>
       <section className="person-head card" id="person" data-pk={pk}>
         <h2>
           <span className="entry-avatar" aria-hidden="true">

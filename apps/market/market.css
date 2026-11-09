@@ -1,0 +1,392 @@
+/* The market: tokens and components from the shared design library; this file
+   holds what is the market's own: the grid of listings and a listing in full. */
+@import "../../shared/ui.css";
+@import "../../shared/widgets.css";
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 1rem var(--gutter) 3rem;
+  flex: 1;
+}
+
+/* the views, the search and the filters stay under the top bar while the listings scroll */
+.market-page .toolbar {
+  position: sticky;
+  top: calc(3.5rem + env(safe-area-inset-top));
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: -1rem calc(-1 * var(--gutter)) 0.5rem;
+  padding: 0.6rem var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.market-page .toolbar .seg {
+  margin: 0;
+}
+
+.market-page .toolbar .search {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex-basis: 100%;
+}
+
+.filters select {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.market-notice {
+  margin: 0 0 0.75rem;
+}
+
+.listing-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 0.75rem;
+}
+
+.listing-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.listing-card:active {
+  transform: scale(0.99);
+}
+
+.listing-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--border);
+  color: var(--muted);
+}
+
+.listing-thumb .wjs-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.listing-thumb > .icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.listing-status {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.listing-badges .listing-status {
+  position: static;
+}
+
+.listing-card.status-sold .listing-thumb {
+  opacity: 0.55;
+}
+
+.listing-info {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.listing-title {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.listing-price {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.listing-where .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  vertical-align: -0.1rem;
+}
+
+/* a listing in full, in its panel: the buyer's actions at the bottom, as an app's */
+.listing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.panel .listing-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel .listing {
+  flex: 1;
+}
+
+.listing-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.listing-head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.listing-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.listing-head .listing-price {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+}
+
+.listing-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.listing-badges .badge {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.listing-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.9rem;
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.listing-facts dt {
+  color: var(--muted);
+}
+
+.listing-facts dd {
+  margin: 0;
+}
+
+.listing-text {
+  overflow-wrap: anywhere;
+}
+
+.listing-seller {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.entry-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+/* the buyer's actions stay in reach at the bottom of the panel */
+.listing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: auto !important;
+  position: sticky;
+  bottom: calc(-2rem - env(safe-area-inset-bottom));
+  margin: 0 calc(-1 * var(--gutter)) calc(-2rem - env(safe-area-inset-bottom));
+  padding: 0.6rem var(--gutter) calc(0.6rem + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.listing-actions .btn-primary {
+  flex: 1;
+  justify-content: center;
+}
+
+.listing-folded {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.contact {
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.foreign-space {
+  margin-bottom: 1rem;
+}
+
+.person-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.25rem;
+}
+
+.person-head {
+  margin-bottom: 1rem;
+}
+
+/* the form: photos, the places a listing ships to as chips */
+.compose-photos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.compose-photos li {
+  position: relative;
+  width: 5rem;
+  height: 5rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--border);
+}
+
+.compose-photos .wjs-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compose-photos .icon-btn {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  background: var(--surface);
+}
+
+.ships {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ships legend {
+  padding: 0;
+  margin-bottom: 0.35rem;
+}
+
+.dest-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.dest-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.1rem 0.15rem 0.1rem 0.65rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: 0.88rem;
+}
+
+.dest-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.dest-add select {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* on a phone the listings fill the width, two to a row */
+@media (max-width: 640px) {
+  .listing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .market-page .toolbar .search {
+    flex-basis: 100%;
+    order: 2;
+  }
+
+  .filters {
+    order: 3;
+  }
+}

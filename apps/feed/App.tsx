@@ -5,13 +5,14 @@
 import { useEffect, useState } from 'react';
 import { tErr } from '../../shared/i18n.js';
 import { AccountSettings } from '../../shared/settings.js';
+import { Social } from '../../shared/social.js';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useIdentity, useKiwi, useT } from '../../ui/hooks';
-import { useHash } from '../../ui/route';
+import { goBack, useHash } from '../../ui/route';
 import { resolveSpaceLink } from '../../ui/spaces';
 import { toast } from '../../ui/toast';
+import { Panel } from '../../ui/widgets/Panel';
 import { FeedData, NAMESPACE, parseRoute } from './data/feed.js';
-import { Social } from './data/social.js';
 import { EntryPage } from './pages/EntryPage';
 import { FeedSettings } from './pages/FeedSettings';
 import { FeedView } from './pages/FeedView';
@@ -23,7 +24,7 @@ export function FeedApp() {
   const kiwi = useKiwi();
   const identity = useIdentity();
   const mount = useMount();
-  const hash = useHash();
+  const hash = useHash({ scroll: false }); // an entry or a person opens over the feed, which keeps its place
   const route = parseRoute(hash);
   // a link into another space: this hub's mount for it, or a word that it is not served here
   const link = route.page === 'entry' ? resolveSpaceLink(kiwi, route.params, hash) : null;
@@ -55,17 +56,29 @@ export function FeedApp() {
   useEffect(() => {
     document.title = mount.name;
   }, [mount.name]);
+  useEffect(() => {
+    if (route.page === 'settings') window.scrollTo(0, 0);
+  }, [route.page]);
 
+  const close = () => goBack('#/');
   const page = !state ? (
     <p className="empty">{t('common.loading')}</p>
   ) : route.page === 'settings' ? (
     <FeedSettings />
-  ) : route.page === 'entry' ? (
-    <EntryPage pk={route.pk} d={route.d} foreign={link?.foreign || null} />
-  ) : route.page === 'person' ? (
-    <PersonPage pk={route.pk} />
   ) : (
-    <FeedView />
+    <>
+      <FeedView />
+      {route.page === 'entry' ? (
+        <Panel key={`${route.pk}/${route.d}`} title={t('fd.entryTitle')} onClose={close}>
+          <EntryPage pk={route.pk} d={route.d} foreign={link?.foreign || null} />
+        </Panel>
+      ) : null}
+      {route.page === 'person' ? (
+        <Panel key={route.pk} title={t('fd.profile')} onClose={close}>
+          <PersonPage pk={route.pk} />
+        </Panel>
+      ) : null}
+    </>
   );
   return (
     <AppShell footer={t('fd.footer')} settings="#/settings">
