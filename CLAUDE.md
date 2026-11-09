@@ -31,7 +31,7 @@ Run browser suites one after another, never two in parallel in one container (th
 
 1. Bump `version` in `package.json` **and** `VERSION=` in `kiwi.manifest` (same number; the smoke test and `hub.json` read the manifest).
 2. Everything green locally: typecheck, lint, unit, smoke, the suites the change touches (all of them for a release that touches `shared/` or `ui/`).
-3. One commit on `main`: the message is the release note (below). Push. Watch the run; the release appears when it is green.
+3. One commit on `main`: the message is the release note (below). Push. Watch the run; the release appears when it is green. CI tags the first green commit carrying the new version, with that commit's message as the notes: if a release commit fails CI and a fix follows, the fix's message becomes the release notes, so repeat the release's notes in it (0.19.0's release page shows only its test fix; the real notes are commit fbf2d0f).
 4. Re-pin Armory (below), run its suites, commit, push, check the live site serves the new `framework` version in `hub.json`.
 
 ### Pinning Armory
