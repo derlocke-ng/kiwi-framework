@@ -1,6 +1,7 @@
 /* Payload: tokens and components from the shared design library; this file
    holds what is the app's own. */
 @import "../../shared/ui.css";
+@import "../../shared/widgets.css";
 
 body {
   display: flex;
@@ -25,6 +26,7 @@ body {
 .view {
   flex: 1;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   align-content: start;
   padding-top: 1rem;
@@ -94,7 +96,9 @@ body {
   gap: 0.5rem;
 }
 
-input {
+/* the link fields; checkboxes and file pickers keep the shared look */
+.open-link input,
+.copy-field input {
   font: inherit;
   font-size: 16px;
   color: var(--text);
@@ -111,7 +115,8 @@ input {
   font-size: 13px;
 }
 
-input:focus {
+.open-link input:focus,
+.copy-field input:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -369,4 +374,191 @@ input:focus {
   .bar span {
     transition: none;
   }
+}
+
+/* ---------- the app's lists and choices (0.25) ---------- */
+
+
+.pl-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* a long file name ellipsizes instead of widening the page */
+  gap: 1rem;
+  align-content: start;
+}
+
+.pl-page > .app-bar {
+  margin-bottom: 0;
+}
+
+/* the three lists: links that look like the segmented control */
+.pl-tabs a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pl-tabs a.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.drop .icon.drop-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.pl-chosen li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pl-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0.25rem;
+  cursor: pointer;
+}
+
+.pl-how {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+/* the three ways to send: big choices, one under the other */
+.ways {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.way {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.way:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.way:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.way > .icon {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.1rem;
+  color: var(--accent);
+}
+
+.way > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+/* received files and links: a row each */
+.pl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.pl-item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.pl-item > .icon {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.pl-what {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pl-what b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pl-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pl-pick {
+  border: 0;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pl-pick legend {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.pl-pick .check-row {
+  align-items: center;
+}
+
+.pl-servers {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.2rem;
+}
+
+.pl-foot {
+  margin: 0;
+}
+
+.card h2 .icon {
+  margin-right: 0.4rem;
+  vertical-align: -0.15em;
 }

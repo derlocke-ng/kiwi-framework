@@ -147,7 +147,15 @@ Neither key is in the invite link: `#/group/<pub>/<host>/<invite token>/<name>`.
 **Chat rooms** are on nostr already: a room is named by its link's `#secret`; its public id is `sha256("wjs|room|chat|" + secret)` as hex, and its key is `HKDF(secret, "wjs/room/chat")` (`shared/events.js` `deriveKey`). A message is an **ephemeral** event of kind **21710** with `["h", <room id>]` and content `seal(key, { "nick": <≤ 24 chars>, "text": <≤ 2000 chars> })`; presence is kind **21700** with the same tag and `seal(key, { "nick" })`, sent on entering, every 30 s, when someone new appears and on returning to the foreground (someone silent for 75 s has left); `{ "nick", "hello": true }` is the first ping of a visit (and the one on returning), which the others answer with a ping of their own so the newcomer's list fills now; `{ "nick", "bye": true }` says the person left, so the others drop them at once. A tab keeps its visit key and name in session storage, so a reload brings the same person back, not a newcomer beside a ghost. Each visit signs with a key made for it, so relays learn no identity; relays pass ephemeral events to the room's subscribers and store nothing, so a room has no history. Anyone with the link is in the room; there is no account.
 
 
-Payload and pong still signal through gun and WebRTC (a room is named by `sha256("wjs|room|" + secret)`, frames are AES-GCM sealed with a key derived from the secret). The nostr kinds **21700** (presence), **21701** (signal) and **21702** (data), ephemeral, are reserved for their move to nostr: presence and signaling encrypted to the room secret, data frames when WebRTC fails. Their content formats are defined when that lands.
+**Payload's direct transfers and pong's games** (0.25, `shared/p2p.js`) find each other the same way and then talk over a WebRTC data channel. The link's `#secret` (16 random bytes, base64url) names the room: its id is the first 22 characters of `base64url(sha256("wjs-p2p-1|room|" + secret))`, its key AES-256-GCM `sha256("wjs-p2p-1|key|" + secret)`; `seal` is a 12-byte IV followed by the ciphertext and tag, base64url. Every event is ephemeral, carries `["h", <room id>]` and is signed by a key made for the visit, which is the peer's id:
+
+| kind | content (sealed) | tags |
+|---|---|---|
+| **21700** presence | `{ "role", "name", "meta", "t": <ms> }`, every 5 s and at once when someone new appears; `{ …, "bye": true }` on leaving; a peer silent for 16 s has left | `h` |
+| **21701** signal | `{ "type": "offer" \| "answer" \| "relay" \| "bye", "cid", "sdp"?, "to": <peer>, "t" }` (older than 90 s: ignored) | `h`, `["p", <peer>]` |
+| **21702** data | one part of a frame: `frame({ "s": <frame no.>, "i": <part>, "n": <parts> }, <≤ 24 KB of the frame>)`, where a frame is a 4-byte header length, a JSON header and the bytes | `h`, `["p", <peer>]`, `["c", <channel id>]` |
+
+A peer offers WebRTC (`offer`/`answer`, the SDP with its ICE candidates gathered); when that fails, or the person chose *through the relays*, it says `relay` and both send frames as 21702 events, put together again by `s`. Payload's frames are its pieces (64 KB, each checked against its SHA-256; a missing or damaged one is asked for again). pong's open-games **lobby** is kind 21700 with `["h", hex(sha256("wjs-pong-lobby-1"))]` and a plain `{ "name", "secret", "t" }` (a listed game is public by its host's choice), every 4 s while listed, `{ "bye": true }` when it is not.
 
 ## 9. Files
 
@@ -177,6 +185,8 @@ What an app keeps, inside its own event's content, is the **media object**:
 
 With `key`, the stored bytes are `iv (12 bytes) || AES-256-GCM ciphertext and tag`, uploaded as `application/octet-stream`; the key is random per file and the thumbnail uses the same key with its own IV. A media object with a key only ever travels inside encrypted content. Without `key` the file is stored as it is, and a client uploads that way only when the app marks the file public or the person agreed to it after no server took the encrypted file. A reader fetches `url`, then `<server>/<sha256>` from its own servers, and must reject bytes whose SHA-256 differs. Photos are re-encoded before upload (long side at most 2048 px, a 480 px thumbnail; JPEG, or WebP for PNG and WebP input), which drops the metadata cameras write.
 
+**Payload's links** (0.25, `apps/payload/data/shares.js`): each file is encrypted and uploaded as for files in messages (below); a **manifest** `{ "v": 1, "from": <the sender's name or "">, "at": <ms>, "files": [<file objects as below: url, x, ox, key, nonce, type, name, size>] }` is encrypted the same way (its own key and nonce) and uploaded beside them. The link is `<page>#/l/<x of the manifest>.<base64url key>.<base64url nonce>.<base64url of the server's origin>`; the fragment never reaches a server. A reader fetches the manifest from `<server>/<x>`, checks it, decrypts it, then each file. At most 20 files a link. The sender keeps its links in the app's settings (kind 30791, `d` = `payload`, `shares`); deleting one asks the servers to delete every blob of it (`DELETE`, as above).
+
 **Files in messages** (`shared/files.js`): a file sent in the chat is encrypted on the device with AES-256-GCM, a random 32-byte key and 12-byte nonce of its own, and the ciphertext with its tag, nothing in front, is uploaded to the sender's media servers as `application/octet-stream`. The message describes it as NIP-17's kind 15 does: the URL as content, `["file-type", <mime>]`, `["encryption-algorithm", "aes-gcm"]`, `["decryption-key", <hex>]`, `["decryption-nonce", <hex>]`, `["x", <sha256 of the stored bytes>]`, `["ox", <sha256 of the file>]`, `["size", <bytes>]`, `["dim", "<w>x<h>"]` for a photo, and `["file-name", <name>]` (ours; not `name`, which carries the writer's name in our messages). A reader fetches it from the URL or the sender's servers, checks `x`, decrypts, checks `ox`. No thumbnail: NIP-17 encrypts one with the same key and nonce as the file, which AES-GCM must never do. In a group (§7b) the inner event of a message carries the same tags and the URL as its content. At most 100 MB.
 
 **Hub manifest and catalog**: `kiwi.manifest` (ini: `NAME`, `DESCRIPTION`, `VERSION`, `CATEGORY` = Framework | Hub | App, `COMPONENTS=web`, `FRAMEWORK`, `KINDS`, `TAGS`, `HOMEPAGE`, `LICENSE`) in every repository and app folder; `apps.list` in a catalog, one repository per line with `path=`, `ref=`, `branch=` options. Not events, but part of what a hub reads.
@@ -195,7 +205,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 4550 | NIP-72 approvals by a space's moderators (not read yet; §12) |
 | 10002, 10050 | relay lists (§10) |
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
-| 21701–21702 | live rooms for Payload and pong (§8); 21700 presence and 21710 chat-room messages are in use |
+| 21700–21702, 21710 | in use: live rooms (§8): presence, signals, data frames, chat-room messages |
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
@@ -212,6 +222,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 - **v1, extended** (0.19): audiences and the feed (§13): the audience keys and their rumor (kind 7805), the space key, feed entries (30820) and comments (30822). No existing format changed.
 - **v1, extended** (0.20): the market (§14): listings (30830), search labels (NIP-32 `l` tags keyed with the space key); a feed entry's `label`; a chat link's `?text=` draft. No existing format changed.
 - **v1, extended** (0.24): proof of work on a new account entry (§2), answering a relay's AUTH (§10), the calendar's settings and what it writes to a CalDAV server (§3, §15). No existing format changed.
+- **v1, changed** (0.25): Payload's direct transfers and pong's games moved from gun to the ephemeral kinds 21700–21702 (§8, the formats defined); Payload's links (§9). Rooms of earlier versions on gun do not meet rooms on nostr: both sides need 0.25.
 
 
 ## 9. Relay lists, inboxes and hints

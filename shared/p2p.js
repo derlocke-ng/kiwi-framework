@@ -1,31 +1,30 @@
-// Rooms over gun: a shared secret (from the link's #fragment) names a room and
-// encrypts everything said in it. gun relays carry presence and signaling;
-// data then flows over a direct WebRTC data channel, or — when no direct path
-// exists, e.g. two phones on mobile networks — over gun itself, still
-// end-to-end encrypted.
+// Rooms on nostr: a shared secret (from the link's #fragment) names a room and
+// encrypts everything said in it. Ephemeral events on the page's relays carry
+// presence and signaling (kinds 21700 and 21701), sealed to the room's key and
+// signed by a key made for the visit; data then flows over a direct WebRTC data
+// channel, or, when no direct path exists (two phones on mobile networks),
+// through the relays as sealed ephemeral frames (kind 21702). Relays keep none
+// of it. Payload's direct transfers and pong's games run on it.
 //
-//   const room = new Room(gun, { secret, role: 'host', name: 'Ann' });
+//   const room = new Room(kiwi.net, { secret, role: 'host', name: 'Ann' });
 //   await room.join();
 //   room.on('peer', (p) => …);            // someone joined (p.id, p.role, p.name)
 //   room.on('channel', (ch) => …);        // they connected to us
 //   const ch = await room.connect(p.id);  // or we connect to them
 //   ch.on('message', (msg, bytes) => …);  ch.send({ t: 'hi' }, optionalBytes);
 
-/* global Gun */
+import { finalizeEvent, generateSecretKey, getPublicKey } from './nostr.mjs';
 
-export const DEFAULT_RELAYS = [
-  'https://gun.kiwi-network.eu/herbhub-relay/gun',
-  'https://gun2.kiwi-network.eu/herbhub-relay/gun',
-  'https://gun.defucc.me/gun',
-  'https://gun.o8.is/gun',
-  'https://relay.peer.ooo/gun',
-];
 export const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+/** The room's ephemeral kinds (docs/protocol.md §8). */
+export const KIND = { PRESENCE: 21700, SIGNAL: 21701, DATA: 21702 };
 
 const NS = 'wjs-p2p-1';
-const BEAT = 3000;
-const GONE_AFTER = 12_000;
+const BEAT = 5000; // presence this often, and at once when someone new appears
+const GONE_AFTER = 16_000;
 const MAIL_MAX_AGE = 90_000;
+const PART = 24 * 1024; // a relayed frame's largest part: relays take events of 64 KB, sealed and in base64 a part is ~33 KB
+const INFLIGHT = 24; // relayed parts on their way at once
 const te = new TextEncoder();
 const td = new TextDecoder();
 
@@ -145,26 +144,21 @@ class Emitter {
   }
 }
 
-export function createGun(peers = DEFAULT_RELAYS) {
-  return Gun({ peers, localStorage: false });
-}
-
-/** Number of relays with an open socket. */
-export function relaysUp(gun) {
-  return Object.values(gun._.opt.peers || {}).filter((p) => p.url && p.wire?.readyState === 1).length;
-}
-
 // ---------- room ----------
 
+/**
+ * Everyone in a room speaks under a key made for this visit: relays learn no identity and nothing of what is said,
+ * only that some keys exchange ephemeral events tagged with the room's id (a hash of the secret).
+ */
 export class Room extends Emitter {
   /**
-   * @param {object} gun
+   * @param {{ pool: any }} net  the page's network (its relays carry the room's ephemeral events)
    * @param {{ secret: string, role: string, name?: string, meta?: object, forceRelay?: boolean,
    *   channel?: RTCDataChannelInit, iceServers?: RTCIceServer[], connectTimeout?: number }} opt
    */
-  constructor(gun, opt) {
+  constructor(net, opt) {
     super();
-    this.gun = gun;
+    this.net = net;
     this.secret = opt.secret;
     this.role = opt.role;
     this.name = opt.name || '';
@@ -173,28 +167,39 @@ export class Room extends Emitter {
     this.channelInit = opt.channel || { ordered: true };
     this.iceServers = opt.iceServers || ICE_SERVERS;
     this.connectTimeout = opt.connectTimeout || 12_000;
-    this.peerId = randomSecret(9);
+    this.sk = generateSecretKey(); // this visit's key: the peer id others know us by
+    this.peerId = getPublicKey(this.sk);
     this.peers = new Map();
     this.channels = new Map(); // cid -> channel
     this.pending = new Map(); // cid -> { answer }
     this.incoming = new Map(); // cid -> RTCPeerConnection we answered
-    this.seenMail = new Set();
+    this.seen = new Set(); // event ids handled (relays may each deliver one)
   }
 
   async join() {
     const { id, key } = await roomKeys(this.secret);
     this.id = id;
     this.key = key;
-    this.presence = this.gun.get(`${NS}/${id}/p`);
-    this.presenceMap = this.presence.map();
-    this.presenceMap.on((v, k) => this.onPresence(k, v));
-    this.mailMap = this.gun.get(`${NS}/${id}/m/${this.peerId}`).map();
-    this.mailMap.on((v, k) => this.onMail(k, v));
+    const since = Math.floor(Date.now() / 1000) - 10;
+    this.sub = this.net.pool.subscribe(
+      [
+        { kinds: [KIND.PRESENCE], '#h': [id], since },
+        { kinds: [KIND.SIGNAL, KIND.DATA], '#h': [id], '#p': [this.peerId], since },
+      ],
+      { onevent: (ev) => this.onEvent(ev) },
+    );
     await this.beat();
     this.timers = [setInterval(() => this.beat(), BEAT), setInterval(() => this.sweep(), 2000)];
     this.onHide = () => this.leave();
     addEventListener('pagehide', this.onHide);
     return this;
+  }
+
+  /** An ephemeral event of the room, signed by this visit's key, to the page's relays (no store, no outbox). */
+  send(kind, content, tags = []) {
+    if (this.left && kind !== KIND.PRESENCE) return Promise.resolve();
+    const event = finalizeEvent({ kind, created_at: Math.floor(Date.now() / 1000), tags: [['h', this.id], ...tags], content }, this.sk);
+    return Promise.resolve(this.net.pool.publish(event)).catch(() => {});
   }
 
   /** Update what others see about us (name, meta). */
@@ -203,22 +208,35 @@ export class Room extends Emitter {
     await this.beat();
   }
 
-  async beat() {
-    if (this.left) return;
-    const info = { role: this.role, name: this.name, meta: this.meta, t: Date.now() };
-    this.presence.get(this.peerId).put(await sealJson(this.key, info));
+  async beat(extra = {}) {
+    if (this.left && !extra.bye) return;
+    const info = { role: this.role, name: this.name, meta: this.meta, t: Date.now(), ...extra };
+    await this.send(KIND.PRESENCE, await sealJson(this.key, info));
   }
 
-  async onPresence(peerId, value) {
-    if (peerId === this.peerId) return;
-    if (value == null) return this.drop(peerId);
-    const info = await unsealJson(this.key, value);
+  async onEvent(ev) {
+    if (ev.pubkey === this.peerId || this.seen.has(ev.id) || this.left) return;
+    this.seen.add(ev.id);
+    if (this.seen.size > 5000) this.seen = new Set([...this.seen].slice(-2500));
+    if (ev.kind === KIND.PRESENCE) return this.onPresence(ev.pubkey, await unsealJson(this.key, ev.content));
+    if (ev.kind === KIND.SIGNAL) return this.onMail(ev.pubkey, await unsealJson(this.key, ev.content));
+    if (ev.kind === KIND.DATA) {
+      const cid = ev.tags.find((t) => t[0] === 'c')?.[1];
+      const ch = cid && this.channels.get(cid);
+      if (ch?.kind === 'relay' && ch.peer === ev.pubkey) ch.receive(ev.content);
+    }
+  }
+
+  onPresence(peerId, info) {
     if (!info || Date.now() - info.t > GONE_AFTER) return;
+    if (info.bye) return this.drop(peerId);
     const known = this.peers.get(peerId);
     const peer = { id: peerId, role: info.role, name: info.name, meta: info.meta || {}, seen: Date.now() };
     this.peers.set(peerId, peer);
-    if (!known) this.emit('peer', peer);
-    else if (known.name !== peer.name || JSON.stringify(known.meta) !== JSON.stringify(peer.meta)) this.emit('peer-update', peer);
+    if (!known) {
+      this.emit('peer', peer);
+      this.beat().catch(() => {}); // someone new: they see us now, not at our next beat
+    } else if (known.name !== peer.name || JSON.stringify(known.meta) !== JSON.stringify(peer.meta)) this.emit('peer-update', peer);
   }
 
   sweep() {
@@ -234,33 +252,31 @@ export class Room extends Emitter {
   }
 
   async mail(to, msg) {
-    const box = this.gun.get(`${NS}/${this.id}/m/${to}`);
-    box.get(randomSecret(9)).put(await sealJson(this.key, { ...msg, from: this.peerId, t: Date.now() }));
+    await this.send(KIND.SIGNAL, await sealJson(this.key, { ...msg, to, t: Date.now() }), [['p', to]]);
   }
 
-  async onMail(mid, value) {
-    if (value == null || this.seenMail.has(mid)) return;
-    this.seenMail.add(mid);
-    const m = await unsealJson(this.key, value);
-    if (!m || Math.abs(Date.now() - m.t) > MAIL_MAX_AGE) return;
+  onMail(from, m) {
+    if (!m || m.to !== this.peerId || Math.abs(Date.now() - m.t) > MAIL_MAX_AGE) return;
+    m.from = from;
     if (m.type === 'offer') this.answer(m).catch((err) => console.warn('p2p answer:', err));
     else if (m.type === 'answer') this.pending.get(m.cid)?.(m);
     else if (m.type === 'relay') this.acceptRelay(m);
     else if (m.type === 'bye') this.channels.get(m.cid)?.close('bye', false);
   }
 
-  /** Open a channel to a peer: direct WebRTC first, gun relay as fallback. */
+  /** Open a channel to a peer: direct WebRTC first, the relays as fallback. */
   async connect(peerId) {
     const cid = randomSecret(9);
     if (!this.forceRelay && typeof RTCPeerConnection !== 'undefined') {
       try {
         return await this.direct(peerId, cid);
       } catch (err) {
-        console.info('p2p: direct connection failed, relaying through gun:', err.message);
+        console.info('p2p: direct connection failed, relaying through the relays:', err.message);
       }
     }
+    const ch = this.adopt(new RelayChannel(this, peerId, cid), true);
     await this.mail(peerId, { type: 'relay', cid });
-    return this.adopt(new RelayChannel(this, peerId, cid), true);
+    return ch;
   }
 
   async direct(peerId, cid) {
@@ -327,14 +343,13 @@ export class Room extends Emitter {
 
   leave() {
     if (this.left) return;
+    for (const ch of [...this.channels.values()]) ch.close('left');
+    this.beat({ bye: true }).catch(() => {}); // the others drop us now, not when we go quiet
     this.left = true;
     (this.timers || []).forEach(clearInterval);
     removeEventListener('pagehide', this.onHide);
-    for (const ch of [...this.channels.values()]) ch.close('left');
     for (const pc of this.incoming.values()) pc.close();
-    this.presence?.get(this.peerId).put(null);
-    this.presenceMap?.off();
-    this.mailMap?.off();
+    this.sub?.close();
   }
 }
 
@@ -423,50 +438,90 @@ class DirectChannel extends Channel {
   }
 }
 
-/** Encrypted frames written to gun nodes; unordered, best effort (apps retry). */
+/**
+ * Frames as sealed ephemeral events (kind 21702) through the page's relays, for when no direct path exists:
+ * a frame larger than a relay takes is sent in parts and put together again. Best effort and unordered, as
+ * relays are: the apps ask again for what does not arrive.
+ */
 class RelayChannel extends Channel {
   constructor(room, peer, cid) {
     super(room, peer, cid, 'relay');
     this.seq = 0;
-    this.seen = new Set();
-    this.out = room.gun.get(`${NS}/${room.id}/s/${cid}/${room.peerId}`);
-    this.inbound = room.gun.get(`${NS}/${room.id}/s/${cid}/${peer}`);
-    this.inMap = this.inbound.map();
-    this.inMap.on((v, k) => this.receive(k, v));
+    this.parts = new Map(); // seq -> { n, got: Map<i, bytes> }
+    this.done = new Set(); // seqs put together
+    this.inflight = 0;
+    this.waiters = [];
   }
 
   send(msg, bytes) {
     if (!this.open) return false;
-    const key = String(++this.seq);
-    seal(this.room.key, encodeFrame(msg, bytes)).then((v) => this.open && this.out.get(key).put(v));
+    const frame = encodeFrame(msg, bytes);
+    const s = ++this.seq;
+    const n = Math.max(1, Math.ceil(frame.length / PART));
+    for (let i = 0; i < n; i++) {
+      this.inflight++;
+      seal(this.room.key, encodeFrame({ s, i, n }, frame.subarray(i * PART, (i + 1) * PART)))
+        .then((content) => this.open && this.room.send(KIND.DATA, content, [['p', this.peer], ['c', this.cid]]))
+        .catch(() => {})
+        .finally(() => {
+          this.inflight--;
+          if (this.inflight < INFLIGHT) for (const w of this.waiters.splice(0)) w();
+        });
+    }
     return true;
   }
 
-  async receive(key, value) {
-    if (value == null || this.seen.has(key) || !this.open) return;
-    this.seen.add(key);
-    const frame = await unseal(this.room.key, value);
-    if (!frame || !this.open) return;
+  async receive(content) {
+    if (!this.open) return;
+    const sealed = await unseal(this.room.key, content);
+    if (!sealed || !this.open) return;
+    let part;
+    try {
+      part = decodeFrame(sealed);
+    } catch {
+      return;
+    }
+    const { s, i, n } = part.msg || {};
+    if (!Number.isInteger(s) || !Number.isInteger(i) || !Number.isInteger(n) || n < 1 || n > 64 || i < 0 || i >= n || this.done.has(s)) return;
+    let entry = this.parts.get(s);
+    if (!entry) this.parts.set(s, (entry = { n, got: new Map(), at: Date.now() }));
+    entry.got.set(i, part.bytes || new Uint8Array(0));
+    if (entry.got.size < entry.n) return this.forget();
+    this.parts.delete(s);
+    this.done.add(s);
+    const size = [...entry.got.values()].reduce((a, b) => a + b.length, 0);
+    const frame = new Uint8Array(size);
+    let at = 0;
+    for (let k = 0; k < entry.n; k++) {
+      frame.set(entry.got.get(k), at);
+      at += entry.got.get(k).length;
+    }
     let decoded;
     try {
       decoded = decodeFrame(frame);
     } catch {
       return;
     }
-    // Don't leave bulk data lying around on the relays once it has arrived.
-    if (decoded.bytes?.length > 1024) this.inbound.get(key).put(null);
     this.emit('message', decoded.msg, decoded.bytes);
   }
 
-  get buffered() {
-    return 0;
+  /** Parts of frames that never came together, after a minute: dropped (the app asks again). */
+  forget() {
+    const old = Date.now() - 60_000;
+    for (const [s, e] of this.parts) if (e.at < old) this.parts.delete(s);
   }
 
+  get buffered() {
+    return this.inflight * PART;
+  }
+
+  /** Resolve once few enough parts are on their way (relays take a burst badly). */
   drain() {
-    return Promise.resolve();
+    if (this.inflight < INFLIGHT || !this.open) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push(resolve));
   }
 
   shutdown() {
-    this.inMap.off();
+    for (const w of this.waiters.splice(0)) w();
   }
 }

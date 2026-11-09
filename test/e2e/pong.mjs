@@ -1,6 +1,7 @@
 // pong in Chromium: practice against the CPU, a direct game with rematch
-// and leaving, a game through the gun relay, and joining from the
-// open-games lobby.
+// and leaving, a game through the hub's relays (no direct path), and joining
+// from the open-games lobby; the players find each other through the hub's
+// nostr relay (ephemeral events, shared/p2p.js).
 //
 // A distribution runs it against its own site:
 //   import { pongSuite } from 'kiwi-framework/test/e2e/pong.mjs';
@@ -19,7 +20,7 @@ const step = (s) => console.log(`• ${s}`);
  */
 export async function pongSuite(env, { app }) {
   const init = (relay) => {
-    localStorage.setItem('pong.relays', JSON.stringify([relay]));
+    localStorage.setItem('wjs.relays', JSON.stringify([relay]));
     localStorage.setItem('pong.mute', 'true');
     globalThis.__pongTest = {};
   };
@@ -28,7 +29,7 @@ export async function pongSuite(env, { app }) {
     return S && { mode: S.mode, kind: S.ch?.kind || null, s: { ...S.s }, snapN: S.snap?.n ?? -1, rtt: S.rtt, names: S.names };
   });
   const player = async (name, query = '') => {
-    const p = await device(env, name, init, env.relayUrl);
+    const p = await device(env, name, init, env.nostrUrl);
     await p.goto(`${app}${query}`);
     await p.fill('#name', name);
     return p;
@@ -94,7 +95,7 @@ export async function pongSuite(env, { app }) {
   await H.ctx.close();
   await G2.ctx.close();
 
-  step('a game through the gun relay');
+  step('a game through the relays');
   const RH = await player('RELAYHOST', '?relay');
   await RH.click('#hostBtn');
   await RH.waitForSelector('#wait:not([hidden])');

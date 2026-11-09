@@ -301,6 +301,21 @@ export class LocalStore {
     });
   }
 
+  /** The messages that carry a file, in conversations and groups, newest first (Payload's "Received"). */
+  files({ limit = 300 } = {}) {
+    return new Promise((resolve, reject) => {
+      const out = [];
+      const r = this.tx('chat').index('convAt').openCursor(null, 'prev');
+      r.onerror = () => reject(r.error);
+      r.onsuccess = () => {
+        const c = r.result;
+        if (!c) return resolve(out.sort((a, b) => (b.t || b.at * 1000) - (a.t || a.at * 1000)).slice(0, limit));
+        if (c.value.file) out.push(c.value);
+        c.continue();
+      };
+    });
+  }
+
   /** Every conversation with its newest message, newest first. */
   conversations() {
     // The newest message of each conversation. The index orders by the second; two messages in one

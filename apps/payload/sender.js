@@ -10,9 +10,9 @@ export async function setFingerprint(roots) {
 }
 
 export class Sharing {
-  /** @param {any} gun @param {{ name: string, forceRelay: boolean }} options */
-  constructor(gun, { name, forceRelay }) {
-    this.gun = gun;
+  /** @param {{ pool: any }} net  the page's relays @param {{ name: string, forceRelay: boolean }} options */
+  constructor(net, { name, forceRelay }) {
+    this.net = net;
     this.name = name;
     this.forceRelay = forceRelay;
     this.prepared = [];
@@ -48,7 +48,7 @@ export class Sharing {
       this.prepared.push({ file, name: file.name, size: file.size, type: file.type || 'application/octet-stream', chunks: hashes.length, hashes, root });
     }
     const secret = randomSecret(16);
-    this.room = new Room(this.gun, { secret, role: 'sender', name: this.name, forceRelay: this.forceRelay });
+    this.room = new Room(this.net, { secret, role: 'sender', name: this.name, forceRelay: this.forceRelay });
     await this.room.join();
     this.link = `${location.href.split('#')[0]}#${secret}`;
     this.fp = await setFingerprint(this.prepared.map((f) => f.root));

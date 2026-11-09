@@ -10,7 +10,7 @@ Retro two-player Pong between two browsers, first to 7.
 
 ## How it works
 
-The two browsers find each other through gun (the link's `#secret` names an encrypted room; see `shared/p2p.js`) and then play over a direct WebRTC data channel. When no direct path exists, the game runs through gun relays instead — a little laggier, but playable.
+The two browsers find each other through the hub's nostr relays (the link's `#secret` names a room; presence and the connection's offer and answer are ephemeral events sealed to the room's key and signed by a key made for the visit, which relays keep nowhere; see `shared/p2p.js`) and then play over a direct WebRTC data channel. When no direct path exists, the game runs through the relays instead, still sealed: a little laggier, but playable. The open-games lobby is ephemeral events too: a listed game shows while its host keeps it listed.
 
 The host runs the game at 120 steps a second and sends ~30 snapshots a second; the guest sends its paddle position and draws the ball predicted forward between snapshots, so it moves smoothly. Your own paddle always moves locally, without waiting for the network. The rules and physics are in `game.js` (unit tested in `test/unit/pong.test.js`), the sessions, networking and drawing in `engine.js`, and the screens in `App.tsx` (React); `node test/e2e/pong.mjs` plays real games between browsers, and Armory runs the same suite against its site.
 

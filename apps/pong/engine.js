@@ -1,13 +1,18 @@
-// The game behind the screens: two browsers find each other over gun (a
-// link, a QR code or the open-games lobby) and play over a direct WebRTC data
-// channel, or through gun when no direct path exists. The host runs the
-// game; the guest sends its paddle and draws the host's snapshots,
-// predicting the ball in between. React draws the screens from `view` and
-// calls the methods; the field is a canvas this class draws on its own.
-import { Room, createGun, randomSecret, relaysUp, DEFAULT_RELAYS } from '../../shared/p2p.js';
+// The game behind the screens: two browsers find each other through the hub's
+// relays (a link, a QR code or the open-games lobby: ephemeral nostr events,
+// shared/p2p.js) and play over a direct WebRTC data channel, or through the
+// relays when no direct path exists. The host runs the game; the guest sends
+// its paddle and draws the host's snapshots, predicting the ball in between.
+// React draws the screens from `view` and calls the methods; the field is a
+// canvas this class draws on its own.
+import { finalizeEvent, generateSecretKey } from '../../shared/nostr.mjs';
+import { KIND, Room, randomSecret, sha256 } from '../../shared/p2p.js';
 import { H, PH, W, PW, PX, BALL, WIN, PADDLE_SPEED, clampPaddle, newGame, step, cpuMove, snapshot, extrapolate } from './game.js';
 
 const LOBBY = 'wjs-pong-lobby-1';
+const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, '0')).join('');
+// the lobby's public name on the relays; a listed game is public by its host's choice, so its link travels in the clear
+const lobbyId = sha256(new TextEncoder().encode(LOBBY)).then(hex);
 const DT = 1 / 120;
 const GREEN = '#33ff33';
 const KEYS = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down' };
@@ -35,10 +40,11 @@ export const secretOf = (text) => {
 };
 
 export class Pong {
-  constructor() {
-    this.relayList = setting('relays') || DEFAULT_RELAYS;
+  /** @param {{ pool: any }} net  the page's network: its relays carry the rooms and the lobby */
+  constructor(net) {
+    this.net = net;
     this.forceRelay = new URLSearchParams(location.search).has('relay') || setting('forceRelay') === true;
-    this.gun = createGun(this.relayList);
+    this.lobbyKey = generateSecretKey(); // who lists our game: a key for this visit
     this.name = setting('name', '') || '';
     this.muted = setting('mute', false);
     this.listPublic = setting('listPublic', false);
@@ -50,9 +56,9 @@ export class Pong {
     this.audio = null;
     /**
      * What the screens show.
-     * @type {{ screen: string, link: string, joinStatus: string, names: { l: string, r: string }, netInfo: string, overlay: { title: string, blink?: boolean, score?: string, line?: string, buttons: [string, string][] } | null, relaysUp: number }}
+     * @type {{ screen: string, link: string, joinStatus: string, names: { l: string, r: string }, netInfo: string, overlay: { title: string, blink?: boolean, score?: string, line?: string, buttons: [string, string][] } | null, relaysUp: number, relaysTotal: number }}
      */
-    this.view = { screen: 'menu', link: '', joinStatus: '', names: { l: 'P1', r: 'P2' }, netInfo: '', overlay: null, relaysUp: 0 };
+    this.view = { screen: 'menu', link: '', joinStatus: '', names: { l: 'P1', r: 'P2' }, netInfo: '', overlay: null, relaysUp: 0, relaysTotal: 0 };
     this.listeners = new Set();
     this.timers = [];
     this.last = performance.now();
@@ -95,20 +101,27 @@ export class Pong {
     addEventListener('keydown', this.onKeyDown);
     addEventListener('keyup', this.onKeyUp);
     addEventListener('blur', this.onBlur);
-    this.timers.push(setInterval(() => this.set({ relaysUp: relaysUp(this.gun) }), 1500));
-    // Open games: hosts who chose to be listed, seen in the last few seconds.
-    this.gun
-      .get(LOBBY)
-      .map()
-      .on((v, k) => {
-        if (v == null) return this.lobby.delete(k);
-        try {
-          const g = JSON.parse(v);
-          if (SECRET.test(g.secret)) this.lobby.set(k, { name: clean(g.name, 'HOST'), secret: g.secret, t: Number(g.t) || 0 });
-        } catch {
-          /* not a game */
-        }
+    const relays = () => {
+      const s = this.net.pool.status();
+      this.set({ relaysUp: s.connected, relaysTotal: s.total });
+    };
+    relays();
+    this.timers.push(setInterval(relays, 1500));
+    // Open games: hosts who chose to be listed, seen in the last few seconds (ephemeral events: nothing is kept)
+    lobbyId.then((id) => {
+      if (this.stopped) return;
+      this.lobbySub = this.net.pool.subscribe([{ kinds: [KIND.PRESENCE], '#h': [id], since: Math.floor(Date.now() / 1000) - 15 }], {
+        onevent: (ev) => {
+          try {
+            const g = JSON.parse(ev.content);
+            if (g.bye) return this.lobby.delete(ev.pubkey);
+            if (SECRET.test(g.secret)) this.lobby.set(ev.pubkey, { name: clean(g.name, 'HOST'), secret: g.secret, t: Math.min(Number(g.t) || 0, Date.now()) });
+          } catch {
+            /* not a game */
+          }
+        },
       });
+    });
     this.timers.push(setInterval(() => this.set({}), 1500));
   }
 
@@ -117,6 +130,8 @@ export class Pong {
     removeEventListener('keyup', this.onKeyUp);
     removeEventListener('blur', this.onBlur);
     for (const t of this.timers) clearInterval(t);
+    this.stopped = true;
+    this.lobbySub?.close();
     cancelAnimationFrame(this.frameId);
     this.end();
   }
@@ -323,7 +338,7 @@ export class Pong {
   async host() {
     this.room?.leave();
     const secret = randomSecret(16);
-    const room = new Room(this.gun, { secret, role: 'host', name: this.myName(), forceRelay: this.forceRelay, channel: { ordered: true } });
+    const room = new Room(this.net, { secret, role: 'host', name: this.myName(), forceRelay: this.forceRelay, channel: { ordered: true } });
     this.room = room;
     await room.join();
     room.secret = secret;
@@ -368,20 +383,28 @@ export class Pong {
     this.set({});
   }
 
+  /** A listing in the lobby: an ephemeral event under this visit's lobby key, every few seconds while it stands. */
+  async listing(body) {
+    const event = finalizeEvent({ kind: KIND.PRESENCE, created_at: Math.floor(Date.now() / 1000), tags: [['h', await lobbyId]], content: JSON.stringify(body) }, this.lobbyKey);
+    return Promise.resolve(this.net.pool.publish(event)).catch(() => {});
+  }
+
   publishLobby() {
-    this.stopLobby();
+    this.stopLobby(false);
     const put = () => {
       if (!this.room || !this.listPublic) return;
-      this.gun.get(LOBBY).get(this.room.peerId).put(JSON.stringify({ name: this.myName(), secret: this.room.secret, t: Date.now() }));
+      this.listing({ name: this.myName(), secret: this.room.secret, t: Date.now() });
+      this.listed = true;
     };
     put();
     this.lobbyTimer = setInterval(put, 4000);
   }
 
-  stopLobby() {
+  stopLobby(say = true) {
     clearInterval(this.lobbyTimer);
     this.lobbyTimer = null;
-    if (this.room?.peerId) this.gun.get(LOBBY).get(this.room.peerId).put(null);
+    if (say && this.listed) this.listing({ bye: true, t: Date.now() });
+    this.listed = false;
   }
 
   /** Guest: find the host of a link and connect. */
@@ -390,7 +413,7 @@ export class Pong {
     this.room?.leave();
     this.set({ screen: 'joining', joinStatus: 'LOOKING FOR THE HOST…' });
     const status = (joinStatus) => this.set({ joinStatus });
-    const room = new Room(this.gun, { secret, role: 'guest', name: this.myName(), forceRelay: this.forceRelay, channel: { ordered: true } });
+    const room = new Room(this.net, { secret, role: 'guest', name: this.myName(), forceRelay: this.forceRelay, channel: { ordered: true } });
     this.room = room;
     await room.join();
     const slow = setTimeout(() => status('WAITING FOR THE HOST — THEIR GAME HAS TO BE OPEN.'), 8000);

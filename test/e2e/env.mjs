@@ -1,5 +1,4 @@
-// Shared setup for the end-to-end tests: a local nostr relay (in-process), a
-// local gun relay (Payload and pong, until they move to nostr), two local
+// Shared setup for the end-to-end tests: a local nostr relay (in-process), two local
 // Blossom servers (one takes any file, one only images, like some public
 // ones), a static server for apps/, and Chromium.
 import { spawn } from 'node:child_process';
@@ -67,18 +66,14 @@ export function freePort() {
 }
 
 /**
- * The servers a suite needs: a gun relay, a nostr relay (the hub's), a web server for `webRoot`, two
+ * The servers a suite needs: a nostr relay (the hub's), a web server for `webRoot`, two
  * Blossom servers, a browser. `nostrPort` fixes the hub relay's port (a distribution built with the
  * relay's URL baked in); `publicPort` starts a second nostr relay, the public one, at that port.
  */
 export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort = null, publicPort = null, extraRelays = {} } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `${name}-e2e-`));
-  const [gunPort, webPort, freeNostr] = await Promise.all([freePort(), freePort(), freePort()]);
+  const [webPort, freeNostr] = await Promise.all([freePort(), freePort()]);
   nostrPort = nostrPort || freeNostr;
-  let runs = 0;
-  const startGun = () =>
-    spawn(process.execPath, [path.join(root, 'scripts/relay.cjs'), String(gunPort)], { env: { ...process.env, RADATA: path.join(tmp, `radata-${runs++}`) }, stdio: 'ignore' });
-  let gun = startGun();
   let nostrRuns = 0;
   let nostrDir = null;
   const startNostr = (dir = null) => startRelay({ port: nostrPort, dir: (nostrDir = dir || path.join(tmp, `nostr-${nostrRuns++}`)), name: 'e2e relay' });
@@ -97,7 +92,6 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
   const browser = await chromium.launch({ executablePath, args: ['--disable-features=WebRtcHideLocalIpsWithMdns'], env: { ...process.env, LANG: 'C.UTF-8' } });
   const env = {
     tmp,
-    relayUrl: `http://localhost:${gunPort}/gun`,
     nostrUrl: nostr.url,
     /** the public relay's URL, when the suite asked for one */
     publicUrl: publicRelay?.url || null,
@@ -109,16 +103,6 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
     base: `http://localhost:${webPort}/`,
     browser,
     errors: [],
-    /** The gun relay loses all its data. */
-    async wipeRelay() {
-      const old = gun;
-      await new Promise((r) => {
-        old.once('exit', r);
-        old.kill();
-      });
-      gun = startGun();
-      await until(() => fetch(`http://localhost:${gunPort}/`).then(() => true), 'gun relay restart');
-    },
     /** The nostr relay loses all its data. */
     async wipeNostr() {
       await nostr.close();
@@ -160,7 +144,6 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
     },
     async close() {
       await browser.close().catch(() => {});
-      gun.kill();
       web.kill();
       for (const s of servers) s.kill();
       await nostr?.close().catch(() => {});
@@ -172,11 +155,9 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
     },
   };
   process.on('exit', () => {
-    gun.kill();
     web.kill();
   });
   await until(() => fetch(env.base).then(() => true), 'web server');
-  await until(() => fetch(`http://localhost:${gunPort}/`).then(() => true), 'gun relay');
   return env;
 }
 

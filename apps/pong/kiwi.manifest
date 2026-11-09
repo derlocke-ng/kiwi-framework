@@ -6,7 +6,7 @@ CATEGORY=App
 COMPONENTS=web
 FRAMEWORK=kiwi-framework
 # the nostr event kinds it reads and writes
-KINDS=
-TAGS=gun webrtc canvas
+KINDS=21700 21701 21702
+TAGS=nostr webrtc canvas
 HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/pong
 LICENSE=GPL-3.0-or-later

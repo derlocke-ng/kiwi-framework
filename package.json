@@ -1,6 +1,6 @@
 {
   "name": "kiwi-framework",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "The engine and the parts of a federated community hub on nostr: identity and accounts, relays, store and sync, settings, people, moderation, the design kit, the app shell, build and scaffolding. A distribution adds its name, relays and apps.",
   "license": "GPL-3.0-or-later",
   "repository": "github:derlocke-ng/kiwi-framework",
@@ -34,7 +34,6 @@
     "@types/react-dom": "^19.3.0",
     "dompurify": "3.4.16",
     "esbuild": "^0.28.2",
-    "gun": "0.2020.1241",
     "ical.js": "2.2.1",
     "lucide-static": "1.52.0",
     "marked": "18.1.0",

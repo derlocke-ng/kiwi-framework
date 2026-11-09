@@ -1,12 +1,12 @@
 # kiwi.manifest: this app's entry for the Kiwi Network web catalog
 NAME=payload
-DESCRIPTION=Send files straight to another browser, every 64 KB piece checked with SHA-256
+DESCRIPTION=The file share: links that wait on your media servers, encrypted; files to friends and groups in the chat; or straight from browser to browser
 VERSION=0.1.0
 CATEGORY=App
 COMPONENTS=web
 FRAMEWORK=kiwi-framework
 # the nostr event kinds it reads and writes
-KINDS=
-TAGS=gun webrtc sha-256
+KINDS=21700 21701 21702 15 1059 24242 30791
+TAGS=nostr blossom webrtc files
 HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/payload
 LICENSE=GPL-3.0-or-later

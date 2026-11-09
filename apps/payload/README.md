@@ -1,33 +1,36 @@
 # payload
 
-Send files straight from one browser to another while you're both online. One of the framework's own apps, React like the rest; [Armory](https://github.com/derlocke-ng/armory) mounts it as **Payload** (`framework: 'payload'`), live at <https://derlocke-ng.github.io/armory/payload/>. Its texts are English for now.
+The suite's file share. One of the framework's own apps; [Armory](https://github.com/derlocke-ng/armory) mounts it as **Payload** (`framework: 'payload'`), live at <https://derlocke-ng.github.io/armory/payload/>.
 
-1. Drop files on the page. Payload hashes them and gives you a link (and a QR code).
-2. The other person opens the link and presses *Download*.
-3. Keep your tab open until they're done — nothing is uploaded anywhere; the files go from your browser to theirs. Several people can download at once.
+Drop files, then choose how they go:
 
-## How it works
+1. **A link.** Each file is encrypted on the device with a key of its own and uploaded to the person's media servers (Blossom, the same servers photos and chat files use); a list of them, encrypted with a key of its own, goes beside them. The link carries that list's hash, key, nonce and server after the `#`, which browsers never send to a server. Whoever has the link downloads, checks and decrypts the files, also when the sender is offline. Links are kept in the account (the app's settings, sealed to the key) and listed under **Links**, where deleting one removes its files from the server (`data/shares.js`).
+2. **To people.** The same upload, then a sealed file message (NIP-17, kind 15) to each friend and group chosen: it arrives in their conversation in the chat, as the chat's own files do (`shared/files.js`, `shared/chat.js`, `shared/groups.js`).
+3. **Directly.** From this open page to the other open page, nothing stored anywhere, any size: the old Payload, now finding the other side through the hub's nostr relays (`sender.js`, `receiver.js` on `shared/p2p.js`).
 
-- **Finding each other.** The link's `#secret` names a room on the gun network and is the key everything in it is encrypted with (AES-256-GCM). Relays only see encrypted presence and signaling messages.
-- **Connecting.** The receiver sets up a WebRTC data channel to the sender. The offer and answer travel encrypted through gun, so a relay can't swap in its own keys. WebRTC encrypts the channel itself (DTLS).
-- **When there is no direct path** (both on mobile data, strict firewalls), the transfer continues through gun relays instead, as encrypted 64 KB frames that the receiver deletes from the relay once they've arrived. It is slower, but it works without a TURN server.
-- **Integrity.** Before sharing, the sender hashes every 64 KB piece with SHA-256 and publishes a root hash over all of them. The receiver checks each piece as it arrives and asks again for any that don't match, then checks the root before saving. Both sides show the same short *fingerprint* you can compare out loud.
-- **Resuming.** If the connection drops, the receiver reconnects and only asks for the pieces it is still missing.
+**Received** lists the files people sent in the chat, conversations and groups, newest first, to download again, with the way to the conversation they came in.
+
+## The direct transfer
+
+- **Finding each other.** The link's `#secret` names a room; presence and the connection's offer and answer are ephemeral nostr events (kinds 21700, 21701) sealed to the room's key (AES-256-GCM) and signed by a key made for the visit, on the page's relays, which keep none of it.
+- **Connecting.** The receiver sets up a WebRTC data channel to the sender; WebRTC encrypts the channel itself (DTLS). When there is no direct path (both on mobile data, strict firewalls), the transfer goes through the relays instead, as sealed ephemeral frames (kind 21702) of at most 24 KB: slower, but without a TURN server. *Always through the relays* in the settings does that by choice, so the other side never learns this device's address.
+- **Integrity.** Before sharing, the sender hashes every 64 KB piece with SHA-256 and publishes a root over all of them. The receiver checks each piece, asks again for any that do not match, and checks the root before saving. Both sides show the same short *fingerprint*.
+- **Resuming.** When the connection drops, the receiver reconnects and asks only for what it still misses.
 
 ## Limits
 
-- Both sides must be online at the same time; it is a transfer, not storage.
-- Anyone with the link can download while you share. Press *Stop sharing* when you're done.
-- Received files are assembled in memory before saving, so very large files (several GB) depend on the receiving device's RAM.
-- The two browsers learn each other's IP addresses (that's how a direct connection works). The STUN servers used to find a direct path (Google and Cloudflare) see your IP too.
+- Links and files to people: at most 100 MB a file (what media servers take), 20 files a link. Bigger goes directly.
+- A direct transfer needs both pages open, and anyone with its link can download while the sender shares. Received files are put together in memory, so very large ones depend on the receiving device's RAM. The two browsers learn each other's IP addresses on a direct path, and the STUN servers (Google, Cloudflare) see them too.
 
 ## Files
 
 | File | What |
 |---|---|
-| `main.tsx`, `App.tsx` | the page: sending (drop, fingerprinting, the link, receivers) and receiving (the files, progress, download) |
-| `sender.js`, `receiver.js` | sharing and receiving, without the page: rooms, pieces, hashes, retries, reconnecting |
-| `transfer.js` | chunking and integrity, unit tested (`test/unit/payload.test.js`) |
-| `payload.css` | the app's own styles |
+| `App.tsx`, `state.ts` | the routes (send, received, links, a link's files, a direct transfer's receiving side, settings) and what the screens share |
+| `pages/Send.tsx`, `pages/SendTo.tsx` | the drop, the three ways, a link made, sending to friends and groups |
+| `pages/Received.tsx`, `pages/Links.tsx`, `pages/OpenLink.tsx` | files from the chat, the links made here, a link opened |
+| `pages/Direct.tsx`, `sender.js`, `receiver.js`, `transfer.js` | the direct transfer: the screens, sharing and receiving without the page, chunking and integrity |
+| `data/shares.js` | links: upload, the link's fragment, opening, deleting |
+| `locales/` | the strings, in eight languages |
 
-`node test/e2e/payload.mjs` sends real files between two browsers, directly and through a local gun relay with a corrupted piece on the way; Armory runs the same suite against its site.
+Tests: `test/unit/payload.test.js` (pieces and frames), `test/unit/payload-shares.test.js` (a link against a local Blossom server), `test/e2e/payload.mjs` (the three ways in two browsers: directly and through the relays with a corrupted piece, a link opened elsewhere and deleted, files to a friend showing up under Received). Armory runs the same suite against its site.

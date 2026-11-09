@@ -2,18 +2,19 @@
 // window of requests, check each against its SHA-256, ask again for damaged
 // or lost ones, check every file's root at the end, and save it. A lost
 // connection is found again and the download carries on.
+import { t } from '../../shared/i18n.js';
 import { Room, b64url, sha256 } from '../../shared/p2p.js';
 import { chunkLength, rootOf, Meter } from './transfer.js';
 import { setFingerprint } from './sender.js';
 
 export class Receiving {
-  /** @param {any} gun @param {string} secret @param {{ name: string, forceRelay: boolean }} options */
-  constructor(gun, secret, { name, forceRelay }) {
-    this.gun = gun;
+  /** @param {{ pool: any }} net  the page's relays @param {string} secret @param {{ name: string, forceRelay: boolean }} options */
+  constructor(net, secret, { name, forceRelay }) {
+    this.net = net;
     this.secret = secret;
     this.name = name;
     this.forceRelay = forceRelay;
-    this.status = 'Looking for the sender…';
+    this.status = t('pl.direct.looking');
     this.manifest = null;
     this.sender = null;
     this.fp = '';
@@ -48,7 +49,7 @@ export class Receiving {
   }
 
   async open() {
-    this.room = new Room(this.gun, { secret: this.secret, role: 'receiver', name: this.name, forceRelay: this.forceRelay });
+    this.room = new Room(this.net, { secret: this.secret, role: 'receiver', name: this.name, forceRelay: this.forceRelay });
     await this.room.join();
     await this.reconnect();
   }
@@ -62,7 +63,7 @@ export class Receiving {
   /** Find the sender, connect and get the manifest; again after a lost connection. */
   async connectToSender() {
     const room = this.room;
-    const waiting = setTimeout(() => this.setStatus('Waiting for the sender. Their Payload tab has to be open — files go straight from their browser to yours.'), 8000);
+    const waiting = setTimeout(() => this.setStatus(t('pl.direct.waiting')), 8000);
     const sender = await new Promise((resolve) => {
       const find = () => [...room.peers.values()].find((p) => p.role === 'sender');
       const found = find();
@@ -76,7 +77,7 @@ export class Receiving {
       });
     });
     clearTimeout(waiting);
-    this.setStatus(`Connecting to ${sender.name || 'the sender'}…`);
+    this.setStatus(sender.name ? t('pl.direct.connectingTo', { name: sender.name }) : t('pl.direct.connecting'));
     const ch = await room.connect(sender.id);
     const manifest = await new Promise((resolve, reject) => {
       const off = ch.on('message', (msg) => {
@@ -101,7 +102,7 @@ export class Receiving {
     ch.on('close', () => {
       if (this.finished) return;
       this.ch = null;
-      if (this.started) this.setStatus('Connection lost — reconnecting…');
+      if (this.started) this.setStatus(t('pl.direct.reconnecting'));
       this.reconnect();
     });
     this.ch = ch;
@@ -115,7 +116,7 @@ export class Receiving {
       try {
         const manifest = await this.connectToSender();
         if (this.manifest && manifest.files.map((f) => f.root).join() !== this.manifest.files.map((f) => f.root).join()) {
-          return this.fail('The sender is sharing different files now. Ask for a new link.');
+          return this.fail(t('pl.direct.changed'));
         }
         if (!this.manifest) {
           this.manifest = manifest;

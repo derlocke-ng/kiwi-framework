@@ -45,6 +45,7 @@ export const HOW = {
   blog: ['signed', 'media', 'offline'],
   rooms: ['direct', 'linkKeys'], // live rooms: file drops, games
   calendar: ['caldav', 'settings'], // a calendar on a CalDAV server
+  files: ['media', 'linkKeys', 'privateMessages', 'direct'], // a file share: links, to people, direct (Payload)
 };
 
 /** The i18n key of an item: a topic ('media') or an app's own key ('db.how.1'). */

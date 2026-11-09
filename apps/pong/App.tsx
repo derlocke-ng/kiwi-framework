@@ -12,7 +12,7 @@ import { Pong, secretOf } from './engine.js';
 export function PongApp() {
   const kiwi = useKiwi();
   const mount = useMount();
-  const pong = useMemo(() => new Pong(), []);
+  const pong = useMemo(() => new Pong(kiwi.net), [kiwi]);
   useTick(useCallback((fn: () => void) => pong.onChange(fn), [pong]));
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -220,7 +220,7 @@ export function PongApp() {
           </section>
 
           <footer>
-            <span id="relays" className={v.relaysUp ? '' : 'dim'}>{`RELAYS ${v.relaysUp}/${pong.relayList.length}`}</span> ·{' '}
+            <span id="relays" className={v.relaysUp ? '' : 'dim'}>{`RELAYS ${v.relaysUp}/${v.relaysTotal}`}</span> ·{' '}
             <a href={kiwi.base}>{DISTRIBUTION.name.toUpperCase()}</a>
           </footer>
         </div>

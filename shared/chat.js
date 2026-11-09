@@ -171,6 +171,11 @@ export class DirectMessages {
     return this.net.db.conversations();
   }
 
+  /** Every message with a file, in conversations and in groups (`group: true`), newest first. */
+  files(options) {
+    return this.net.db.files(options);
+  }
+
   /** Forget a conversation on this device; the wraps stay where they are and are not unwrapped again here. */
   async forget(pk) {
     await this.net.db.removeConversation(pk);
