@@ -2,11 +2,15 @@
 // tap shows one large), the hashtags, likes and comments, and the menu (copy
 // link; edit and delete for the author; add as friend, report, block for
 // everyone else). An entry several people reported, or one a moderator of the
-// space reported, is folded away until someone asks to see it.
+// space reported, is folded away until someone asks to see it. An entry marked
+// 18+ or as an ad (by its writer, by two reports, or by a moderator) is shown
+// to people with an account only; a moderator marks entries from the menu.
 import { type FormEvent, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
 import { REPORT_TYPES } from '../../../shared/moderation.js';
+import { MARKS } from '../../../shared/social.js';
+import { isModerator } from '../../../shared/spaces.js';
 import { rememberReturn } from '../../../ui/AccountGate';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
@@ -21,19 +25,21 @@ import { useAudienceLabel, useFeed, useNameOf, useSocial } from '../state';
 
 const fail = (err: unknown) => toast(tErr(err), 'error');
 
-function ReportDialog({ entry, onClose }: { entry: any; onClose: () => void }) {
+function ReportDialog({ entry, label, onClose }: { entry: any; label: string; onClose: () => void }) {
   const t = useT();
   const { data } = useFeed();
   const [busy, setBusy] = useState(false);
+  // asking for a mark comes first: the commonest report in a space where 18+ and ads are allowed, marked
+  const reasons = [...MARKS.filter((m) => m !== label), 'spam', 'illegal', 'impersonation', 'nudity', 'other'];
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const type = String(f.get('type'));
     setBusy(true);
     try {
-      await data.report(entry, REPORT_TYPES.includes(type) ? type : 'other', String(f.get('text') || ''));
+      await data.report(entry, REPORT_TYPES.includes(type) || MARKS.includes(type) ? type : 'other', String(f.get('text') || ''));
       onClose();
-      toast(t('fd.reported'), 'success');
+      toast(t(MARKS.includes(type) ? 'fd.reportedMark' : 'fd.reported'), 'success');
     } catch (err) {
       setBusy(false);
       fail(err);
@@ -46,7 +52,7 @@ function ReportDialog({ entry, onClose }: { entry: any; onClose: () => void }) {
         <label className="field">
           {t('fd.reportReason')}
           <select name="type">
-            {['spam', 'illegal', 'impersonation', 'nudity', 'other'].map((x) => (
+            {reasons.map((x) => (
               <option key={x} value={x}>
                 {t(`fd.reason.${x}`)}
               </option>
@@ -97,8 +103,22 @@ export function EntryCard({
   const mine = entry.pubkey === id.pk;
   const folded = social.collapsed(entry, isBlocked);
   const hidden = folded && !open;
-  // an entry its writer marked for adults or as an ad: for people with an account on this hub
-  const locked = Boolean(entry.label) && !mine && !id.accountPk;
+  // marked for adults or as an ad, by the writer (inside the seal), by reports or by a moderator
+  const marked: { mark: string; by: string } | null = entry.label ? { mark: entry.label, by: 'author' } : social.marked(entry.address, isBlocked);
+  const label = marked?.mark || '';
+  // such an entry is for people with an account on this hub
+  const locked = Boolean(label) && !mine && !id.accountPk;
+  const moderator = isModerator(space, id.pk) && !mine;
+  const waiting = moderator ? social.pending(entry.address) : 0;
+  const setMark = (mark: string) => data.mark(entry, mark, social.lastAt(entry.address)).then(() => toast(t(`fd.mod.done.${mark}`), 'success'), fail);
+  // a moderator marks what its writer did not; the writer's own mark stands
+  const modItems =
+    moderator && !entry.label
+      ? [
+          ...MARKS.filter((m) => m !== label).map((m) => ({ label: t(`fd.mod.${m}`), icon: 'tag', run: () => setMark(m) })),
+          ...(marked || waiting || folded === 'reports' ? [{ label: t('fd.mod.none'), icon: 'check', run: () => setMark('none') }] : []),
+        ]
+      : [];
   const signIn = () => {
     rememberReturn(location.href, document.title);
     location.href = `${kiwi.base}settings.html#account`;
@@ -138,6 +158,7 @@ export function EntryCard({
                         .catch(fail),
                   },
                 ]),
+            ...modItems,
             ...(social.reportedByMe(entry.address) ? [] : [{ label: t('fd.report'), icon: 'shield', run: () => setReporting(true) }]),
             { label: t('fd.block'), icon: 'x', danger: true, run: () => blocks.block(entry.pubkey).then(() => toast(t('fd.blocked'), 'success'), fail) },
           ]),
@@ -161,10 +182,15 @@ export function EntryCard({
               {relTime(entry.at)}
             </a>
             {' · '}
-            {entry.label ? (
+            {label ? (
               <>
-                <span className={`badge label-${entry.label}`} data-label={entry.label}>
-                  {t(`fd.label.${entry.label}`)}
+                <span
+                  className={`badge label-${label}`}
+                  data-label={label}
+                  data-by={marked?.by}
+                  title={marked?.by === 'author' ? undefined : t(`fd.markedBy.${marked?.by}`)}
+                >
+                  {t(`fd.label.${label}`)}
                 </span>{' '}
               </>
             ) : null}
@@ -178,10 +204,16 @@ export function EntryCard({
           <Icon name="ellipsis" />
         </button>
       </header>
+      {waiting ? (
+        <p className="entry-review" data-pending={waiting}>
+          <Icon name="shield" />
+          <span>{t('fd.review.pending', { n: waiting })}</span>
+        </p>
+      ) : null}
       {locked ? (
-        <div className="entry-folded entry-locked" data-label={entry.label}>
+        <div className="entry-folded entry-locked" data-label={label}>
           <Icon name="lock" />
-          <span>{t(`fd.locked.${entry.label}`)}</span>
+          <span>{t(`fd.locked.${label}`)}</span>
           <button type="button" className="link-btn" data-act="sign-in" onClick={signIn}>
             {t('gate.account.go')}
           </button>
@@ -233,7 +265,7 @@ export function EntryCard({
           </a>
         )}
       </footer>
-      {reporting ? <ReportDialog entry={entry} onClose={() => setReporting(false)} /> : null}
+      {reporting ? <ReportDialog entry={entry} label={label} onClose={() => setReporting(false)} /> : null}
     </article>
   );
 }

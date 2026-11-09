@@ -1,8 +1,11 @@
 // The feed: the space's entries ("Everyone"), friends' (and mine, whoever they
 // are for), or mine alone; newest first, more as you scroll; a search over
 // text, hashtags and names. What this device holds no key for is not shown.
-import { useEffect, useMemo, useState } from 'react';
+// A moderator of the space has one more tab: the entries whose reports wait
+// for a review.
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { KINDS } from '../../../shared/events.js';
+import { isModerator } from '../../../shared/spaces.js';
 import { store } from '../../../shared/util.js';
 import { Icon } from '../../../ui/components';
 import { useIdentity, useKiwi, usePeople, useSpace, useT } from '../../../ui/hooks';
@@ -12,7 +15,7 @@ import { useFeed, useOpened, useSocial } from '../state';
 import { Compose } from './Compose';
 import { EntryCard } from './EntryCard';
 
-type Tab = 'space' | 'friends' | 'mine';
+type Tab = 'space' | 'friends' | 'mine' | 'review';
 
 /** Entries matching a search: in the text, a hashtag (with or without #), or the writer's name. */
 export const matches = (entry: any, q: string) => {
@@ -22,22 +25,24 @@ export const matches = (entry: any, q: string) => {
   return entry.text.toLowerCase().includes(s) || entry.tags.includes(tag) || entry.name.toLowerCase().includes(s);
 };
 
-/** A list of entries from `filters`: opened, the unreadable and deleted left out, their likes and comments followed. */
+/** A list of entries from `filters`: opened, the unreadable and deleted left out, their likes, comments and reports followed. */
 export function useEntries(filters: Record<string, unknown>[], only: (entry: any) => boolean = () => true) {
   const { data, social } = useFeed();
   const feed = useEvents({ filters, pageSize: 20, accept: (ev) => data.inSpace(ev) });
   const opened = useOpened(feed.events, (ev) => data.openEntry(ev));
-  const entries: any[] = useMemo(
+  const all: any[] = useMemo(
     () =>
       feed.events
         .map((ev) => opened.get(ev.id))
-        .filter((e: any) => e && !e.deleted && only(e))
+        .filter((e: any) => e && !e.deleted)
         .sort((a: any, b: any) => b.at - a.at),
-    [feed.events, opened, only],
+    [feed.events, opened],
   );
+  // every entry read is followed, not only those shown: what `only` asks about (reports) must arrive first
   useEffect(() => {
-    social.watch(entries.map((e: any) => e.address));
-  }, [entries, social]);
+    social.watch(all.map((e: any) => e.address));
+  }, [all, social]);
+  const entries = useMemo(() => all.filter(only), [all, only]);
   return { ...feed, entries, opening: feed.events.some((ev) => !opened.has(ev.id)) };
 }
 
@@ -50,8 +55,9 @@ export function FeedView() {
   const id = useIdentity();
   const people = usePeople();
   const space = useSpace();
-  useSocial();
-  const tabs: Tab[] = space ? ['space', 'friends', 'mine'] : ['friends', 'mine'];
+  const social = useSocial();
+  const moderator = isModerator(space, id.pk);
+  const tabs: Tab[] = space ? ['space', 'friends', 'mine', ...(moderator ? (['review'] as Tab[]) : [])] : ['friends', 'mine'];
   const tabKey = `feed.tab.${kiwi.current}`;
   const [tab, setTabState] = useState<Tab>(() => {
     const saved = store.get(tabKey) as Tab;
@@ -66,16 +72,29 @@ export function FeedView() {
   const inSpace = space ? { '#a': [space.address] } : {};
   const friends = (people?.friends() || []).map((f: any) => f.pk);
   const filters =
-    tab === 'space'
+    tab === 'space' || tab === 'review'
       ? [{ kinds: [KINDS.FEED_ENTRY], ...inSpace }]
       : tab === 'friends'
         ? [{ kinds: [KINDS.FEED_ENTRY], authors: [id.pk, ...friends], ...inSpace }]
         : [{ kinds: [KINDS.FEED_ENTRY], authors: [id.pk], ...inSpace }];
-  const list = useEntries(filters, tab === 'space' ? isSpace : anyEntry);
+  // the review tab: entries in the space with reports waiting; it follows the reports as they come
+  const version = social.version;
+  const waiting = useCallback((e: any) => version >= 0 && isSpace(e) && e.pubkey !== id.pk && social.pending(e.address) > 0, [social, version, id.pk]);
+  const list = useEntries(filters, tab === 'space' ? isSpace : tab === 'review' ? waiting : anyEntry);
   const shown = list.entries.filter((e: any) => matches(e, query));
   const empty = query
     ? t('fd.noMatch')
-    : t(tab === 'space' ? 'fd.emptySpace' : tab === 'friends' ? (friends.length ? 'fd.emptyFriends' : 'fd.noFriends') : 'fd.emptyMine');
+    : t(
+        tab === 'space'
+          ? 'fd.emptySpace'
+          : tab === 'review'
+            ? 'fd.emptyReview'
+            : tab === 'friends'
+              ? friends.length
+                ? 'fd.emptyFriends'
+                : 'fd.noFriends'
+              : 'fd.emptyMine',
+      );
   return (
     <div className="feed-page">
       <div className="toolbar">

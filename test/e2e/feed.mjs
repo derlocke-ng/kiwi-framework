@@ -2,7 +2,9 @@
 // a feed on no space that asks for an account. Entries for the space, for friends and for "only me", with
 // a photo; who can read what, on the relay and on the screen; a friend added later reads what was posted
 // under the current key, an unfriended one reads nothing new; likes and comments; edits and deletions;
-// a moderator's report folds an entry; an entry marked 18+ is folded for someone without an account; an
+// a moderator's report folds an entry; an ad reported as unmarked waits under the moderator's Reported tab,
+// the moderator marks it (folded for someone without an account) and lifts the mark again; an entry marked
+// 18+ is folded for someone without an account; an
 // entry or a person opens in a panel over the feed, which keeps its place; a link opens the entry; the account
 // gate sends a person with a key alone to register and brings them back.
 //
@@ -15,7 +17,7 @@ import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes } from '../../shared/nostr.mjs';
 import { spaceAddress, spaceKey } from '../../shared/spaces.js';
-import { device, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, run, sleep, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -266,7 +268,8 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   if (moderator) {
     step('a moderator of the space reports an entry: it is folded away for everyone else, not for its writer');
     await post(A, 'Buy cheap followers here', 'space');
-    const M = await dev('M', { ...moderator, alias: 'mod', created: Date.now() });
+    // an account, so a mark does not fold what the moderator looks at
+    const M = await dev('M', { ...moderator, alias: 'mod', created: Date.now(), accountPk: 'b'.repeat(64) });
     await open(M);
     await until(async () => (await entryTexts(M)).includes('Buy cheap followers here'), 'the entry on M', 20000);
     await menu(M, 'Buy cheap followers', 'Report…');
@@ -280,7 +283,38 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
     await C.click('.entry.folded [data-act=reveal]');
     await until(async () => (await C.$$('.entry.folded')).length === 0, 'shown on request');
     await open(A);
-    assert.equal(await A.$('.entry.folded'), null, 'the writer sees it as it is');
+    assert.ok(await absent(A, '.entry.folded'), 'the writer sees it as it is');
+
+    step('an ad nobody marked: reported as one, the moderator finds it under Reported and marks it; “fine” lifts the mark');
+    await post(A, 'Nutrient sale: 20% off this week', 'space');
+    await open(C);
+    await until(async () => (await entryTexts(C)).includes('Nutrient sale: 20% off this week'), 'shown on C at first', 20000);
+    await menu(C, 'Nutrient sale', 'Report…');
+    await C.waitForSelector('#reportForm');
+    assert.deepEqual((await texts(C, '#reportForm [name=type] option')).slice(0, 2), ['Should be marked 18+', 'An ad that isn’t marked']);
+    await C.selectOption('#reportForm [name=type]', 'ad');
+    await C.click('#reportForm .btn-danger');
+    await until(async () => !(await C.$('#reportForm')), 'report sent', 20000);
+    assert.match(await C.textContent('.toast-success'), /once another person or a moderator agrees/);
+    assert.ok(await absent(C, '.entry-locked[data-label=ad]'), 'one report does not mark it');
+    await open(M);
+    await tab(M, 'review');
+    await until(async () => (await entryTexts(M)).includes('Nutrient sale: 20% off this week'), 'under Reported on M', 20000);
+    assert.equal((await entryTexts(M)).length, 1, 'only what waits for a review');
+    assert.match(await M.textContent('.entry-review'), /1 report waits for your review/);
+    await menu(M, 'Nutrient sale', 'Mark as an ad');
+    await until(async () => (await entryTexts(M)).length === 0, 'reviewed: off the Reported tab', 20000);
+    await open(C);
+    await until(async () => (await C.$$('.entry-locked[data-label=ad]')).length === 1, 'folded as an ad on C, who has no account', 20000);
+    await open(A);
+    await until(async () => Boolean(await A.$('.entry .badge.label-ad[data-by=moderator]')), 'the writer sees the moderator’s mark', 20000);
+    await tab(M, 'space');
+    await until(async () => (await entryTexts(M)).includes('Nutrient sale: 20% off this week'), 'in the space on M');
+    await menu(M, 'Nutrient sale', 'Fine as it is');
+    await open(C);
+    await until(async () => (await entryTexts(C)).includes('Nutrient sale: 20% off this week'), 'shown on C again', 20000);
+    assert.ok(await absent(C, '.entry-locked[data-label=ad]'), 'no longer folded as an ad');
+    await M.ctx.close();
   }
 
   step('blocking a writer hides their entries');
@@ -295,7 +329,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
     await E.goto(club);
     await E.waitForSelector('#accountGate');
     assert.match(await E.textContent('#accountGateTitle'), /asks for an account/);
-    assert.equal(await E.$('#newEntry'), null, 'nothing of the feed behind it');
+    assert.ok(await absent(E, '#newEntry'), 'nothing of the feed behind it');
     await E.click('#accountGateGo');
     await E.waitForSelector('#returnNote');
     assert.match(await E.textContent('#returnNote'), /asks for an account/);
@@ -306,7 +340,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
     await E.click('#authBtn');
     await until(async () => E.url().startsWith(club), 'back on the mount after registering', 90000);
     await E.waitForSelector('#newEntry', { timeout: 20000 });
-    assert.equal(await E.$('#accountGate'), null);
+    assert.ok(await absent(E, '#accountGate'));
     await E.goto(club.replace(/[^/]+\/$/, ''));
     await E.waitForSelector('#apps');
     assert.ok(await E.$(`[data-app=${club.split('/').filter(Boolean).pop()}] .badge.account`), 'the start page marks the mount');

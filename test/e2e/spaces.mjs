@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { device, freePort, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, freePort, run, sleep, testHub, until } from './env.mjs';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes } from '../../shared/nostr.mjs';
 import { spaceAddress, spaceKey } from '../../shared/spaces.js';
 
@@ -105,7 +105,7 @@ async function main(env) {
   assert.equal((await A.textContent('#spaceHead .space-name')).trim(), 'Jobs board', 'the space’s name, from the config');
   assert.match(await A.textContent('#spaceHead'), /Work for hire/);
   assert.match(await A.textContent('#spaceHead .space-rules'), /Be concrete/);
-  assert.equal(await A.$('#spaceHead .badge.adult'), null, 'not for adults');
+  assert.ok(await absent(A, '#spaceHead .badge.adult'), 'not for adults');
   await pin(A, 'Jobs: React dev wanted', 'Shop relaunch, remote.');
   const jobsNotes = await onSpace([{ kinds: [30810] }]);
   assert.equal(jobsNotes.length, 1, 'the note is on the space’s relay');
@@ -146,7 +146,7 @@ async function main(env) {
   const N = await dev('N');
   await open(N, `${X}notices/`);
   assert.equal(await network(N), 'hub');
-  assert.equal(await N.$('#spaceHead'), null, 'no space, no head');
+  assert.ok(await absent(N, '#spaceHead'), 'no space, no head');
   await sleep(2000);
   assert.deepEqual(await titles(N), [], 'notes that name a space stay off a board on none');
 
@@ -199,7 +199,7 @@ async function main(env) {
   const E = await dev('E');
   await open(E, `${X}gigs/`);
   await until(async () => (await titles(E)).includes('Gigs: Totally not spam'), 'the note on E', 20000);
-  assert.equal(await E.$('.note.collapsed'), null, 'not collapsed yet');
+  assert.ok(await absent(E, '.note.collapsed'), 'not collapsed yet');
   await open(B, `${X}gigs/`);
   await until(async () => (await titles(B)).includes('Gigs: Totally not spam'), 'the note on the moderator’s device', 20000);
   await menu(B, 'Gigs: Totally not spam', 'Report…');
@@ -208,7 +208,7 @@ async function main(env) {
   await until(async () => !(await B.$('#reportForm')), 'report sent', 30000);
   await until(async () => (await E.$$('.note.collapsed')).length === 1, 'collapsed on E by the one report', 20000);
   assert.match(await E.textContent('.note.collapsed'), /reported/);
-  assert.equal(await A.$('.note.collapsed'), null, 'the author still sees their own note opened');
+  assert.ok(await absent(A, '.note.collapsed'), 'the author still sees their own note opened');
 
   step('hub.json lists the spaces with their addresses and relays, and which mount serves which');
   const hub = await (await fetch(`${X}hub.json`)).json();

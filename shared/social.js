@@ -4,12 +4,42 @@
 // it which posts it shows (`watch`); it reads what the device holds, then
 // asks the relays, for those posts only, and follows them live. A report by
 // one of the space's moderators folds a post away by itself.
+//
+// Marks: a post can be for adults (18+) or an ad. Its writer says so inside
+// the seal; when they did not, people report it as such (a NIP-56 report
+// carrying a NIP-32 `l` tag in the namespace wjs/mark) and two such reports
+// mark it, or a moderator of the space marks it (kind 1985 in the same
+// namespace: adult, ad, or none for "fine as it is"). A moderator's mark is a
+// review: the newest one decides the mark, and the reports before it no
+// longer count, so a moderator can also lift a fold that reports caused. What
+// a mark does is the page's: the feed shows a marked post to people with an
+// account only.
 import { addressOf, KINDS, supersedes } from './events.js';
 import { isModerator } from './spaces.js';
 
-const KINDS_SOCIAL = [KINDS.REACTION, KINDS.REPORT, KINDS.FEED_COMMENT];
+const KINDS_SOCIAL = [KINDS.REACTION, KINDS.REPORT, KINDS.FEED_COMMENT, KINDS.LABEL];
 const CHUNK = 100;
 const COLLAPSE_REPORTS = 3;
+const MARK_REPORTS = 2;
+
+/** What a post can be marked as; 'none' in a moderator's mark means "fine as it is". */
+export const MARKS = ['adult', 'ad'];
+/** The NIP-32 namespace of marks. */
+export const MARK_NAMESPACE = 'wjs/mark';
+
+/** The mark an event carries ('adult', 'ad', 'none'), or null. */
+export function markOf(ev) {
+  const l = ev?.tags?.find((t) => t[0] === 'l' && t[2] === MARK_NAMESPACE)?.[1];
+  return MARKS.includes(l) || l === 'none' ? l : null;
+}
+
+/** The tags that make a report or a label event a mark (NIP-32). */
+export const markTags = (mark) => [
+  ['L', MARK_NAMESPACE],
+  ['l', mark, MARK_NAMESPACE],
+];
+
+const newer = (x, y) => !y || x.at > y.at || (x.at === y.at && x.id < y.id);
 
 export class Social {
   /**
@@ -25,7 +55,9 @@ export class Social {
     this.kind = kind;
     this.addresses = new Set();
     this.likes = new Map(); // entry address -> Map(pk -> { on, at, id })
-    this.reports = new Map(); // entry address -> Map(pk -> at)
+    this.reports = new Map(); // entry address -> Map(pk -> at): reports that fold
+    this.markReports = new Map(); // entry address -> Map(pk -> { mark, at, id }): reports that ask for a mark, the newest per person
+    this.marks = new Map(); // entry address -> Map(pk -> { mark, at, id }): kind 1985 marks, the newest per person (only moderators' count)
     this.comments = new Map(); // entry address -> Map(comment address -> event)
     this.subs = [];
     this.listeners = new Set();
@@ -75,10 +107,20 @@ export class Social {
       const cur = this.likes.get(a).get(ev.pubkey);
       if (cur && (cur.at > ev.created_at || (cur.at === ev.created_at && cur.id <= ev.id))) return;
       this.likes.get(a).set(ev.pubkey, { on: ev.content === '+', at: ev.created_at, id: ev.id });
-    } else if (ev.kind === KINDS.REPORT) {
-      if (!this.reports.has(a)) this.reports.set(a, new Map());
-      if (this.reports.get(a).has(ev.pubkey)) return;
-      this.reports.get(a).set(ev.pubkey, ev.created_at);
+    } else if (ev.kind === KINDS.REPORT || ev.kind === KINDS.LABEL) {
+      const mark = markOf(ev);
+      if (ev.kind === KINDS.LABEL || (mark && mark !== 'none')) {
+        if (!mark) return;
+        const map = ev.kind === KINDS.LABEL ? this.marks : this.markReports;
+        if (!map.has(a)) map.set(a, new Map());
+        const next = { mark, at: ev.created_at, id: ev.id };
+        if (!newer(next, map.get(a).get(ev.pubkey))) return;
+        map.get(a).set(ev.pubkey, next);
+      } else {
+        if (!this.reports.has(a)) this.reports.set(a, new Map());
+        if (this.reports.get(a).has(ev.pubkey)) return;
+        this.reports.get(a).set(ev.pubkey, ev.created_at);
+      }
     } else {
       const ca = addressOf(ev);
       if (!this.comments.has(a)) this.comments.set(a, new Map());
@@ -126,14 +168,44 @@ export class Social {
     return [...(this.comments.get(address)?.values() || [])].filter((ev) => !isBlocked(ev.pubkey)).sort((x, y) => x.created_at - y.created_at || (x.id < y.id ? -1 : 1));
   }
 
-  /** Did I report it? */
+  /** Did I report it (to fold it, or asking for a mark)? */
   reportedByMe(address) {
-    return Boolean(this.reports.get(address)?.has(this.pk));
+    return Boolean(this.reports.get(address)?.has(this.pk) || this.markReports.get(address)?.has(this.pk));
+  }
+
+  /**
+   * The newest review of an entry by a moderator of the space: their newest mark, or a report of theirs
+   * asking for one. Moderators count whoever blocked them: a mark is the space's, not one person's view.
+   * @returns {{ mark: string, at: number, id: string } | null}
+   */
+  review(address) {
+    let best = null;
+    for (const map of [this.marks, this.markReports])
+      for (const [pk, m] of map.get(address) || []) if (isModerator(this.space, pk) && newer(m, best)) best = m;
+    return best;
+  }
+
+  /**
+   * What an entry is marked as beyond what its writer set, and by whom: the newest review by a moderator
+   * ('none' clears), else two reports by people I have not blocked asking for the same mark (18+ first).
+   * @param {string} address
+   * @param {(pk: string) => boolean} [isBlocked]
+   * @returns {{ mark: string, by: 'moderator' | 'reports' } | null}
+   */
+  marked(address, isBlocked = () => false) {
+    const review = this.review(address);
+    if (review) return review.mark === 'none' ? null : { mark: review.mark, by: 'moderator' };
+    /** @type {Record<string, number>} */
+    const count = { adult: 0, ad: 0 };
+    for (const [pk, m] of this.markReports.get(address) || []) if (!isBlocked(pk) && m.mark in count) count[m.mark]++;
+    const mark = MARKS.find((x) => count[x] >= MARK_REPORTS);
+    return mark ? { mark, by: 'reports' } : null;
   }
 
   /**
    * Why an entry is folded away, or null: a report by one of the space's moderators is enough on its own,
-   * else three reports by people I have not blocked. My own entries are never folded for me.
+   * else three reports by people I have not blocked made after a moderator last reviewed it. My own
+   * entries are never folded for me.
    * @param {{ pubkey: string, address: string }} entry
    * @param {(pk: string) => boolean} [isBlocked]
    */
@@ -141,12 +213,36 @@ export class Social {
     if (entry.pubkey === this.pk) return null;
     const all = this.reports.get(entry.address);
     if (!all) return null;
+    const since = this.review(entry.address)?.at ?? -1;
     let n = 0;
-    for (const pk of all.keys()) {
+    for (const [pk, at] of all) {
       if (pk !== this.pk && isBlocked(pk)) continue;
       if (isModerator(this.space, pk)) return 'moderator';
-      n++;
+      if (at > since) n++;
     }
     return n >= COLLAPSE_REPORTS ? 'reports' : null;
+  }
+
+  /**
+   * For a moderator: how many reports on an entry wait for a review (made after a moderator last reviewed
+   * it, by people who are not moderators); none once a moderator reported it.
+   * @param {string} address
+   */
+  pending(address) {
+    const reports = this.reports.get(address);
+    if (reports && [...reports.keys()].some((pk) => isModerator(this.space, pk))) return 0;
+    const since = this.review(address)?.at ?? -1;
+    let n = 0;
+    for (const [pk, at] of reports || []) if (!isModerator(this.space, pk) && at > since) n++;
+    for (const [pk, m] of this.markReports.get(address) || []) if (!isModerator(this.space, pk) && m.at > since) n++;
+    return n;
+  }
+
+  /** The newest report or mark on an entry: a moderator's mark is stamped after it, so it reviews everything seen. */
+  lastAt(address) {
+    let at = 0;
+    for (const t of this.reports.get(address)?.values() || []) at = Math.max(at, t);
+    for (const map of [this.markReports, this.marks]) for (const m of map.get(address)?.values() || []) at = Math.max(at, m.at);
+    return at;
   }
 }

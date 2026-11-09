@@ -159,3 +159,69 @@ test('comments are sealed with the entry’s key; likes and reports are counted;
   assert.equal(social.collapsed(entry), 'moderator', 'one report by a moderator is enough');
   social.stop();
 });
+
+test('marks: two reports ask for 18+, a moderator marks, “fine” clears and settles the reports, the writer’s mark stands', async () => {
+  const n = net();
+  const [ada, bea, cyd, dan, mod] = [person('ada'), person('bea'), person('cyd'), person('dan'), person('mod')];
+  const [modded] = resolveSpaces({ id: 'hub', spaces: [{ id: 'grow', moderators: [mod.pk] }] });
+  const as = (who) => new FeedData(n, who, { space: modded, audiences: () => audiencesOf(who) });
+  const ev = await as(ada).post({ text: 'my plants', audience: 'space' });
+  const entry = await as(bea).openEntry(ev);
+  const social = new Social(n, dan, { space: modded }).start();
+  const modSocial = new Social(n, mod, { space: modded }).start();
+  social.watch([entry.address]);
+  modSocial.watch([entry.address]);
+  const tick = () => new Promise((r) => setTimeout(r, 5));
+
+  const r1 = await as(bea).report(entry, 'adult', 'grown-up stuff');
+  assert.deepEqual(
+    r1.tags.filter((t) => ['p', 'e', 'L', 'l'].includes(t[0])),
+    [
+      ['p', ada.pk, 'other'],
+      ['e', entry.id, 'other'],
+      ['L', 'wjs/mark'],
+      ['l', 'adult', 'wjs/mark'],
+    ],
+    'a NIP-56 report of type other carrying the mark',
+  );
+  await tick();
+  assert.equal(social.marked(entry.address), null, 'one report is not enough');
+  assert.equal(social.collapsed(entry), null, 'a report asking for a mark does not fold');
+  assert.equal(modSocial.pending(entry.address), 1, 'it waits for a moderator');
+  await as(cyd).report(entry, 'adult');
+  await tick();
+  assert.deepEqual(social.marked(entry.address), { mark: 'adult', by: 'reports' }, 'two reports mark it');
+  assert.equal(social.marked(entry.address, (pk) => pk === cyd.pk), null, 'not with a report by someone I blocked');
+
+  const m = await as(mod).mark(entry, 'ad', modSocial.lastAt(entry.address));
+  assert.ok(m.created_at > r1.created_at, 'stamped after the reports it reviews');
+  assert.equal(m.kind, KINDS.LABEL);
+  assert.ok(m.tags.some((t) => t[0] === 'l' && t[1] === 'ad' && t[2] === 'wjs/mark'));
+  assert.ok(m.tags.some((t) => t[0] === 'a' && t[1] === entry.address));
+  await tick();
+  assert.deepEqual(social.marked(entry.address), { mark: 'ad', by: 'moderator' }, 'a moderator decides');
+  assert.equal(modSocial.pending(entry.address), 0, 'the reports are reviewed');
+
+  // three reports after the review fold it; a moderator's "fine" lifts the fold and clears the mark
+  for (const who of [bea, cyd, person()])
+    await n.db.put(sign({ kind: KINDS.REPORT, created_at: m.created_at + 1, tags: [['p', ada.pk, 'spam'], ['a', entry.address]], content: '' }, who.sk));
+  await tick();
+  assert.equal(social.collapsed(entry), 'reports');
+  assert.equal(modSocial.pending(entry.address), 3);
+  await as(mod).mark(entry, 'none', modSocial.lastAt(entry.address));
+  await tick();
+  assert.equal(social.marked(entry.address), null, 'fine as it is');
+  assert.equal(social.collapsed(entry), null, 'the reports before the review no longer fold it');
+  assert.equal(modSocial.pending(entry.address), 0);
+
+  // a mark by someone who is not a moderator counts for nothing
+  await as(bea).mark(entry, 'adult', Number.MAX_SAFE_INTEGER - 10);
+  await tick();
+  assert.equal(social.marked(entry.address), null);
+
+  // the writer's own mark is inside the seal: the page reads it from the entry, moderators leave it be
+  const own = await as(bea).openEntry(await as(ada).post({ text: 'for adults', audience: 'space', label: 'adult' }));
+  assert.equal(own.label, 'adult');
+  social.stop();
+  modSocial.stop();
+});

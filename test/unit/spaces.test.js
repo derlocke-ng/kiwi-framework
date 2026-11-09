@@ -157,3 +157,10 @@ test('an owned space takes the relays’ newest definition over the config; a sp
   assert.equal(s.get('nope'), null);
   s.stop();
 });
+
+test('moderators may be configured as npubs, as people copy them from their account page', async () => {
+  const { nip19: n19 } = await import('../../shared/nostr.mjs');
+  const pk = 'c'.repeat(64);
+  const [s] = resolveSpaces({ id: 'hub', spaces: [{ id: 'grow', moderators: [n19.npubEncode(pk), 'd'.repeat(64), 'npub1nonsense', pk] }] });
+  assert.deepEqual(s.moderators, [pk, 'd'.repeat(64)], 'decoded, the broken one left out, once each');
+});

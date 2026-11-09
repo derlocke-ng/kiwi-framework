@@ -10,9 +10,11 @@
 // space reads only those, a feed on no space only entries in none. Comments
 // are sealed with the entry's key, so whoever reads the entry reads its
 // comments; likes and reports are plain (relays see who liked what, not what
-// it says).
+// it says). An entry its writer did not mark 18+ or as an ad can be marked by
+// reports and by the space's moderators (shared/social.js, Marks).
 import { addressOf, isHex64, KINDS, makeAddressable, now, open, seal, sign, stamp } from '../../../shared/events.js';
 import { keyTag, SpaceSeal } from '../../../shared/sealed.js';
+import { MARKS, markTags } from '../../../shared/social.js';
 import { fail, randomId } from '../../../shared/util.js';
 
 export { keyTag };
@@ -216,14 +218,44 @@ export class FeedData {
     return ev;
   }
 
-  /** Report an entry (NIP-56): to the space's moderators, the relays and other people. */
+  /**
+   * Report an entry (NIP-56): to the space's moderators, the relays and other people. `type` 'adult' or
+   * 'ad' asks for a mark instead of a fold: a report of type other carrying the mark (NIP-32).
+   */
   async report(entry, type, note = '') {
+    const mark = MARKS.includes(type) ? type : null;
+    const kind = mark ? 'other' : type;
     const ev = sign(
       {
         kind: KINDS.REPORT,
         created_at: now(),
-        tags: [['p', entry.pubkey, type], ['e', entry.id, type], ['a', entry.address], ['k', String(KINDS.FEED_ENTRY)], ...this.tags()],
+        tags: [
+          ['p', entry.pubkey, kind],
+          ['e', entry.id, kind],
+          ['a', entry.address],
+          ['k', String(KINDS.FEED_ENTRY)],
+          ...(mark ? markTags(mark) : []),
+          ...this.tags(),
+        ],
         content: String(note || '').slice(0, 500),
+      },
+      this.identity.sk,
+    );
+    await this.net.sync.publish(ev, { wait: 'one' });
+    return ev;
+  }
+
+  /**
+   * A moderator's mark on an entry (NIP-32, kind 1985): 'adult', 'ad', or 'none' (fine as it is). It is
+   * stamped after `after`, the newest report or mark seen on it (Social.lastAt), so it reviews all of them.
+   */
+  async mark(entry, mark, after = 0) {
+    const ev = sign(
+      {
+        kind: KINDS.LABEL,
+        created_at: Math.max(now(), after + 1),
+        tags: [...markTags(mark), ['a', entry.address], ['p', entry.pubkey], ['k', String(KINDS.FEED_ENTRY)], ...this.tags()],
+        content: '',
       },
       this.identity.sk,
     );

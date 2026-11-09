@@ -64,7 +64,7 @@ A client merges by the addressable rule and caches the last object locally so sc
 
 **Block list**: a [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) mute list, kind **10000** (replaceable), with no public tags. The private part is the content: NIP-44 v2 encryption, with the conversation key of the user's own key pair (`getConversationKey(sk, pk)`), of the JSON array of tags `["p", <pubkey>]` or `["p", <pubkey>, <reason>]`. Other NIP-51 clients read the same list; relays and other people learn nothing. Apps check it before showing a post, accepting a message, a friend request or a share.
 
-**Report**: [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md), kind **1984**. Tags `["p", <pubkey>, <type>]` and, when about one event, `["e", <id>, <type>]`; apps that report addressable events add `["a", <address>]` and `["k", <kind>]`. Types: `spam`, `illegal`, `impersonation`, `nudity`, `malware`, `profanity`, `other`. Content is an optional note, at most 500 characters. Reports are public and signed; relay operators act on them, and clients may hide what many trusted people reported.
+**Report**: [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md), kind **1984**. Tags `["p", <pubkey>, <type>]` and, when about one event, `["e", <id>, <type>]`; apps that report addressable events add `["a", <address>]` and `["k", <kind>]`. Types: `spam`, `illegal`, `impersonation`, `nudity`, `malware`, `profanity`, `other`. Content is an optional note, at most 500 characters. A report may carry NIP-32 tags asking for a mark instead (§13, *Marks*). Reports are public and signed; relay operators act on them, and clients may hide what many trusted people reported.
 
 ## 5. People: friends, circles, sharing
 
@@ -256,6 +256,13 @@ so every device holding the key `sk` derives every audience key it ever used. Th
 `k` is the key `kid` names: the space key for an entry to the space, else one of the author's audience keys. A reader without the key does not show the entry. An entry with a `label` (for adults, or an ad) is shown to people with an account on the reading hub only; everyone else sees that it is there. Editing republishes under the same `d` (keeping `at`), possibly under another key; deleting publishes `seal(k, { "del": 1, "u": <ms> })` under the same key.
 
 **Comments**: kind **30822** (addressable), `["d", <random id>]`, `["a", <entry address>]`, the entry's space `a` tag, `["key", <the entry's kid>]`, content `seal(k, { "text": <≤ 1000>, "name", "at" })` with the entry's key; deleted like entries. **Likes**: NIP-25 kind 7, `+` (an empty content takes it back; the newest per person counts), with `["a", <entry address>]`, `["p", <author>]`, `["k", "30820"]`. **Reports**: §4, with `["a", <entry address>]`, `["e", <entry id>, <type>]`, `["k", "30820"]`. A report by one of the space's moderators folds an entry away on its own; otherwise three reports by people the reader has not blocked do. Likes, reports and who commented on what are visible to relays; what an entry or a comment says is not.
+
+**Marks.** An entry whose writer did not label it can still be marked for adults or as an ad, which has the same effect as the writer's `label` (`shared/social.js`):
+
+- A person asks for a mark with a §4 report of type `other` carrying [NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md) tags `["L", "wjs/mark"]`, `["l", "adult" | "ad", "wjs/mark"]`. Such a report does not count towards folding. Two of them for the same mark, by people the reader has not blocked, mark the entry (18+ before ad).
+- A moderator of the space marks with a NIP-32 label event, kind **1985**: `["L", "wjs/mark"]`, `["l", "adult" | "ad" | "none", "wjs/mark"]`, `["a", <entry address>]`, `["p", <author>]`, `["k", "30820"]`, the space's `a` tag; empty content. `none` means "fine as it is". A moderator's report asking for a mark counts as such a label. Only labels by the space's moderators (§12) count; the newest decides, by `created_at`, then the lower id.
+- A moderator's label is a review: it is stamped after every report and label the moderator's device has seen on the entry, and from then on it decides the mark (`none` clears any), and only reports made after it count towards folding. So `none` also lifts a fold that reports caused; a moderator's own report still folds.
+- The writer's own `label` stands whatever the marks say. A hub shows its moderators the entries with reports made since the last review.
 
 ## 14. The market
 

@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { device, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, run, sleep, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -325,7 +325,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.ok(await R1.$('#copyRoom'), 'the link can be copied');
   await R2.reload();
   await R2.waitForSelector('#roomComposer textarea');
-  assert.equal(await R2.$('#enterRoom'), null, 'a reload puts bob straight back in, no name asked');
+  assert.ok(await absent(R2, '#enterRoom'), 'a reload puts bob straight back in, no name asked');
   await until(async () => /bob/.test(await R2.textContent('#members')) && /ada/.test(await R2.textContent('#members')), 'bob sees the room again', 20000);
   await sleep(1500);
   assert.equal(((await R1.textContent('#members')).match(/bob/g) || []).length, 1, 'the same bob on R1, not a newcomer beside a ghost');

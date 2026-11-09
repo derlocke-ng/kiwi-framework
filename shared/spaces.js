@@ -15,7 +15,7 @@
 // publishes that definition when the relays lack it.
 import { DISTRIBUTION } from './distribution.js';
 import { addressOf, deriveKey, KINDS, keyId, makeAddressable, supersedes } from './events.js';
-import { bytesToHex, getPublicKey, hexToBytes, sha256, verifyEvent } from './nostr.mjs';
+import { bytesToHex, getPublicKey, hexToBytes, nip19, sha256, verifyEvent } from './nostr.mjs';
 
 /** A space's id: a short slug, the `d` of its definition and the word in a distribution's config. */
 export const SPACE_ID = /^[a-z0-9][a-z0-9-]{1,39}$/;
@@ -36,6 +36,18 @@ export function spaceKey(hubId, spaceId) {
 }
 
 export const spaceAddress = (owner, id) => `${KINDS.SPACE}:${owner}:${id}`;
+
+/** A moderator as configured, an npub (what a person can copy from their account page) or 64 hex characters, as hex; else null. */
+function moderatorKey(v) {
+  const s = String(v || '').trim();
+  if (HEX64.test(s)) return s;
+  try {
+    const { type, data } = nip19.decode(s);
+    return type === 'npub' && HEX64.test(String(data)) ? String(data) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The spaces of a distribution, filled in: the owner's key (or the derived one), the address, the
@@ -65,7 +77,7 @@ function resolveSpace(s, hubId) {
     relays,
     /** the network a mount on this space is on: its own relays, or null for the mount's */
     network: relays.length ? `space:${id}` : null,
-    moderators: [...new Set((Array.isArray(s.moderators) ? s.moderators : []).map(String).filter((p) => HEX64.test(p)))],
+    moderators: [...new Set((Array.isArray(s.moderators) ? s.moderators : []).map(moderatorKey).filter(Boolean))],
     adult: Boolean(s.adult),
     langs: (Array.isArray(s.langs) ? s.langs : []).map(String).filter((l) => /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(l)),
     region: String(s.region || '').slice(0, 40),

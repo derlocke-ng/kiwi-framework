@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { run, device, until, testHub } from './env.mjs';
+import { absent, device, run, testHub, until } from './env.mjs';
 import { nip13 } from '../../shared/nostr.mjs';
 
 const step = (s) => console.log(`• ${s}`);
@@ -83,7 +83,7 @@ export async function noticesSuite(env, { app, settings, name }) {
   const B = await dev('B');
   await open(B);
   await until(async () => (await titles(B)).includes('React dev wanted'), 'the note reaches B', 20000);
-  assert.equal(await B.$('.note.mine'), null, 'not B’s note');
+  assert.ok(await absent(B, '.note.mine'), 'not B’s note');
   const bNote = noteOn(B, 'React dev wanted');
   await bNote.locator('[data-act=up]').click();
   await until(async () => (await bNote.locator('.score').textContent()) === '+1', 'B’s vote counts on B', 15000);
@@ -157,7 +157,7 @@ export async function noticesSuite(env, { app, settings, name }) {
   await A.click('#postBtn');
   await A.waitForSelector('.toast-error');
   assert.match(await A.textContent('.toast-error'), /Three live notes per person/);
-  assert.equal(await A.$('#compose'), null, 'no compose form over the limit');
+  assert.ok(await absent(A, '#compose'), 'no compose form over the limit');
   assert.match(await A.textContent('#stats'), /3 live notes/);
   await A.reload();
   await A.waitForSelector('#postBtn');
@@ -173,7 +173,7 @@ export async function noticesSuite(env, { app, settings, name }) {
   const how = await B.$$eval('#how li', (els) => els.map((e) => e.textContent.trim()));
   assert.equal(how.length, 6);
   assert.ok(how.every((x) => x.length > 40 && !/^(how|db)\./.test(x)), `DevBoard's own lines and the framework's topics, translated: ${how.join(' | ')}`);
-  assert.equal(await B.$('#board #how'), null);
+  assert.ok(await absent(B, '#board #how'));
   await B.check('#defaultsForm input[name=type][value=available]', { force: true });
   await B.waitForSelector('.toast-success');
   await B.fill('#defaultsForm [name=contact]', 'hello@example.com');
@@ -205,7 +205,7 @@ export async function noticesSuite(env, { app, settings, name }) {
   await F.check('input[name=filter][value=friends]', { force: true });
   await until(async () => (await titles(F)).length === 3, 'the friends filter shows A’s notes');
   await menu(F, 'Second note', 'Report…'); // the menu no longer offers to add a friend
-  assert.equal(await F.$('.menu'), null);
+  assert.ok(await absent(F, '.menu'));
   await F.click('dialog.modal .modal-actions [data-close]');
 
   step('a German browser gets the board in German');

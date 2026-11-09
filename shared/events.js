@@ -28,6 +28,7 @@ export const KINDS = {
   RELAY_LIST: 10002, // NIP-65: the relays a person writes to and reads from, per network (shared/relaylists.js)
   INBOX_RELAYS: 10050, // NIP-17: the relays a person reads sealed notes on
   REPORT: 1984, // NIP-56
+  LABEL: 1985, // NIP-32: a space moderator marks a post 18+, an ad, or fine as it is (namespace wjs/mark, shared/social.js)
   REACTION: 7, // NIP-25: votes on DevBoard posts
   DELETION: 5, // NIP-09
   DEVBOARD_POST: 30810, // public noticeboard post, proof of work required

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { Relay } from 'nostr-tools/relay';
 import { nip19 } from 'nostr-tools';
-import { run, device, until, sleep, root } from './env.mjs';
+import { absent, device, root, run, sleep, until } from './env.mjs';
 import { assemble } from '../../scripts/build-site.mjs';
 import { decryptBlob } from '../../shared/blossom.js';
 
@@ -179,10 +179,10 @@ await run(
     assert.ok(await W.$(`${I} li.is-zero:has-text("soap")`), 'zero stock is marked');
     await W.click(`${I} li:has-text("soap") [data-step="1"]`);
     await until(async () => (await W.textContent(`${I} li:has-text("soap") .count`)) === '1', 'counted up');
-    assert.equal(await W.$(`${I} li.is-zero`), null);
+    assert.ok(await absent(W, `${I} li.is-zero`));
     await W.click(`${I} li:has-text("rice") [data-step="-1"]`);
     await until(async () => (await W.textContent(`${I} li:has-text("rice") .count`)) === '2', 'counted down');
-    assert.equal(await W.$('#readonly .add-item'), null, 'no add form when read only');
+    assert.ok(await absent(W, '#readonly .add-item'), 'no add form when read only');
     assert.ok(await W.$eval('#readonly .check input', (i) => i.disabled), 'checkboxes are disabled when read only');
 
     step('collection: pinned first, pinning, search');

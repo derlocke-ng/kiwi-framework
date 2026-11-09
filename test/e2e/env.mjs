@@ -35,6 +35,13 @@ export async function until(fn, what, ms = 10000) {
 }
 
 /** A port nothing listens on right now, so suites running side by side never collide. */
+/**
+ * Is nothing on the page matching `selector`? Assert with this, never with assert.equal(await page.$(…), null):
+ * when that fails, node's assert inspects the element handle to a depth of 1000, walks Playwright's whole
+ * connection and runs the machine out of memory instead of saying what failed.
+ */
+export const absent = async (page, selector) => (await page.$$(selector)).length === 0;
+
 export function freePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();

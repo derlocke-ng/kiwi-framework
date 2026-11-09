@@ -13,7 +13,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools/pure';
-import { run, device, until, sleep, testHub } from './env.mjs';
+import { absent, device, run, sleep, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -110,7 +110,7 @@ export async function boardsSuite(env, { app, settings, name }) {
   const C = await dev('C');
   await open(C, links.view);
   await until(async () => (await texts(C, '[data-part=active] .text')).includes('coffee'), 'items on C');
-  assert.equal(await C.$('.add-item input'), null, 'no add form for viewers');
+  assert.ok(await absent(C, '.add-item input'), 'no add form for viewers');
   assert.ok(await C.$eval('[data-part=active] .check input', (i) => i.disabled), 'checkboxes disabled for viewers');
   assert.ok((await C.textContent('#boardTags')).includes('View only'));
   const now = Math.floor(Date.now() / 1000);
@@ -616,7 +616,7 @@ export async function boardsSuite(env, { app, settings, name }) {
   await signIn(PE);
   await PA.goto(SETTINGS);
   await PA.waitForSelector('#passwordForm');
-  assert.equal(await PA.$('#passwordForm [name=oldPass]'), null, 'an account made today needs no old password: its key authors the entry');
+  assert.ok(await absent(PA, '#passwordForm [name=oldPass]'), 'an account made today needs no old password: its key authors the entry');
   const newPass = 'correct horse battery staple two';
   await PA.fill('#passwordForm [name=newPass]', newPass);
   await PA.fill('#passwordForm [name=newPass2]', newPass);
@@ -682,7 +682,7 @@ export async function boardsSuite(env, { app, settings, name }) {
   await until(async () => (await DE.textContent('.home h1')) === 'Your boards', 'home in English');
   const US = await dev('US', { locale: 'en-US' });
   await open(US);
-  assert.equal(await US.$('#langBanner'), null, 'English browsers are not asked');
+  assert.ok(await absent(US, '#langBanner'), 'English browsers are not asked');
   assert.equal(await US.textContent('.home h1'), 'Your boards');
 }
 

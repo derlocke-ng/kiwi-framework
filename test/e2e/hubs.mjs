@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { device, freePort, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, freePort, run, sleep, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -60,7 +60,7 @@ async function main(env) {
   await A.goto(env.base);
   await A.waitForSelector('#apps');
   assert.ok(await A.$('[data-app=chat] .badge.public'), 'the chat card says public');
-  assert.equal(await A.$('[data-app=boards] .badge.public'), null, 'the boards card does not');
+  assert.ok(await absent(A, '[data-app=boards] .badge.public'), 'the boards card does not');
   await A.goto(CHAT);
   await A.waitForSelector('#chatTabs');
   await connected(A);
@@ -109,7 +109,7 @@ async function main(env) {
   await A.goto(`${SETTINGS}#relays`);
   await A.waitForSelector('#relays');
   assert.ok(await A.$('#relaysLocked'), 'the lock note');
-  assert.equal(await A.$('#relayForm'), null, 'no form to edit the relays');
+  assert.ok(await absent(A, '#relayForm'), 'no form to edit the relays');
   const names = async (sel) => (await texts(A, `${sel} .relay-name`)).map((x) => x.split(' ')[0]);
   assert.deepEqual(await names('#relayList'), [`localhost:${hubPort}`], 'the hub’s own relay, alone');
   assert.deepEqual(await names('#relayListPublic'), [`localhost:${publicPort}`], 'the public relay, alone');
@@ -160,7 +160,7 @@ async function main(env) {
   await A.goto(CHAT);
   await A.waitForSelector('#chatTabs');
   await sleep(8000);
-  assert.equal(await A.$('#networkGate'), null, 'the public area is not gated');
+  assert.ok(await absent(A, '#networkGate'), 'the public area is not gated');
   await A.goto(BOARDS);
   await A.waitForSelector('#networkGate', { timeout: 30000 });
   await env.resumeNostr();

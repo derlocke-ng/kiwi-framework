@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes } from '../../shared/nostr.mjs';
 import { spaceAddress, spaceKey } from '../../shared/spaces.js';
-import { device, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, run, sleep, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -200,7 +200,7 @@ export async function marketSuite(env, { app, chat, settings, space, moderator =
   const K = await dev('K', { ...keypair(), alias: null, created: Date.now() });
   await K.goto(app);
   await K.waitForSelector('#accountGate');
-  assert.equal(await K.$('#newListing'), null);
+  assert.ok(await absent(K, '#newListing'));
   await sleep(200);
 }
 

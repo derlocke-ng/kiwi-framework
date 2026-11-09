@@ -230,6 +230,16 @@ body {
   color: var(--danger);
 }
 
+.entry-review {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .entry-folded {
   display: flex;
   flex-wrap: wrap;
