@@ -11,7 +11,7 @@ What a session needs to know to continue this repository without the conversatio
 | `derlocke-ng/kiwi-modules` | kiwi-node modules (`nostr-relay`, `hub`), the `hub` preset | **ask the owner first**, every time: no push, tag or release there without a yes |
 | `derlocke-ng/kiwi-server` | vendors kiwi-modules by tag (`tools/vendor.sh`, `VENDORED`) | **ask the owner first**, every time, a branch included |
 
-Every framework change that a hub should get ends with Armory re-pinned and deployed (below). A session pushes to kiwi-framework and Armory, which make Armory; for any other repository (kiwi-modules, kiwi-server, kiwi-stack, the catalog, anything else) it asks the owner first and pushes nothing there without a yes, explaining what the change is and why it is needed. Never open a pull request unless asked; never push a tag by hand (CI does).
+Every framework change that a hub should get ends with Armory re-pinned and deployed (below). A session pushes to kiwi-framework and Armory, which make Armory; for any other repository (kiwi-modules, kiwi-server, kiwi-stack, the catalog, anything else) it asks the owner first and pushes nothing there without a yes. When another repository needs a code change, write it up in `handoffs/<repository>-<topic>.md` here (see `handoffs/README.md`), push that, and name the file in the report: the session for that repository works from it. If the owner has connected a session on their computer (Remote Control) or approves a cloud session for the other repository, the same file is that session's brief. Never open a pull request unless asked; never push a tag by hand (CI does).
 
 ## Commands
 
@@ -82,7 +82,7 @@ The first line is a sentence saying what changed for a person using it, ending w
 
 ## Where things are
 
-`shared/` data layer (events, store, sync, relays, relaylists, peers, spaces, audiences, settings, account, people, chat, groups, moderation, pow, blossom, backup, i18n, hubconfig, distribution-check) · `ui/` React layer apps import (`kiwi.ts` is the runtime, `hooks.ts`, `AppShell.tsx`, `AccountGate.tsx`, `spaces.ts`, `useEvents.ts`, widgets) · `hub/` the start, settings and account pages · `apps/` boards, notices, chat, feed, payload, pong · `scripts/` build (`build-site.mjs` writes `hub.json`), dev server, scaffolder (`new-app.mjs`), the test relay and Blossom server · `container/` the image recipe and `entrypoint.sh` (`HUB_*` → `hub.local.json`) · `test/unit`, `test/e2e` (`env.mjs` is the harness: `setup`, `device`, `testHub`, `run`).
+`shared/` data layer (events, store, sync, relays, relaylists, peers, spaces, audiences, settings, account, people, chat, groups, moderation, pow, blossom, backup, i18n, hubconfig, distribution-check) · `ui/` React layer apps import (`kiwi.ts` is the runtime, `hooks.ts`, `AppShell.tsx`, `AccountGate.tsx`, `spaces.ts`, `useEvents.ts`, widgets) · `hub/` the start, settings and account pages · `apps/` boards, notices, chat, feed, payload, pong · `scripts/` build (`build-site.mjs` writes `hub.json`), dev server, scaffolder (`new-app.mjs`), the test relay and Blossom server · `container/` the image recipe and `entrypoint.sh` (`HUB_*` → `hub.local.json`) · `handoffs/` changes other repositories need, for their sessions · `test/unit`, `test/e2e` (`env.mjs` is the harness: `setup`, `device`, `testHub`, `run`).
 
 ## Roadmap state (keep this current)
 
