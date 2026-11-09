@@ -93,7 +93,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   await A.waitForSelector(`#mediaList li[data-server="${env.blossom.url}"]`);
   await open(A);
   assert.deepEqual(await A.$$eval('input[name=tab]', (els) => els.map((e) => e.value)), ['space', 'friends', 'mine']);
-  assert.match(await A.textContent('.feed'), /Nothing in this space yet/);
+  await until(async () => /Nothing in this space yet/.test(await A.textContent('.feed')), 'the empty feed (after the relay’s first answer)', 15000);
 
   step('an entry for the space with a photo: sealed on the relay, the photo encrypted on the media server, the text and photo shown');
   const jpeg = Buffer.from(
