@@ -278,6 +278,10 @@ function PeopleCard() {
         <span>{t('settings.yourKey')}</span> <code id="myNpub">{npub(id.pk)}</code>{' '}
         <button type="button" className="link-btn" data-act="copy-npub" onClick={() => copyText(npub(id.pk), t('account.publicKey'))}>
           {t('account.copyNpub')}
+        </button>{' '}
+        {/* the same key as 64 hex characters: what a relay's list of keys that may write wants (kiwi-modules' write_pubkeys) */}
+        <button type="button" className="link-btn" data-act="copy-hex" title={t('account.hexWhy')} onClick={() => copyText(id.pk, t('account.publicKeyHex'))}>
+          {t('account.copyHex')}
         </button>
       </p>
       <ul className="people-list" id="requestList" hidden={!incoming.length && !outgoing.length}>
