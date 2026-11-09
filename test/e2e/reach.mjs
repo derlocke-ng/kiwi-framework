@@ -4,7 +4,7 @@
 // where its events are, which the other hub reads and writes as a guest. The directory holds nothing
 // but relay lists.
 import assert from 'node:assert/strict';
-import { device, freePort, run, sleep, testHub, until } from './env.mjs';
+import { device, freePort, run, sleep, startBoard, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -73,7 +73,7 @@ async function main(env) {
   step('a board link from X carries X’s relay; B opens it on Y, reads, and edits; A sees the edit');
   await A.goto(`${X}boards/`);
   await A.waitForSelector('.home');
-  await A.click('[data-new="check"]');
+  await startBoard(A, 'check');
   await A.fill('#newBoard input[name=title]', 'Shared across hubs');
   await A.click('#newBoard [type=submit]');
   await A.waitForSelector('#boardName', { timeout: 15000 });

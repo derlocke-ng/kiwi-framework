@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react';
 import { relTime, tErr } from '../../../shared/i18n.js';
 import { store } from '../../../shared/util.js';
 import { Icon } from '../../../ui/components';
+import { openMenu } from '../../../ui/dialogs';
 import { useIdentity, useKiwi, useT } from '../../../ui/hooks';
 import { toast } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';
@@ -207,7 +208,7 @@ export function Home() {
     <section className="home">
       <div className="home-head">
         <h1>{t('home.title')}</h1>
-        <div className="home-actions">
+        <div className="home-actions phone-hide">
           <button type="button" className="btn btn-primary" data-new="check" onClick={() => make('check')}>
             <Icon name="plus" />
             <span>{t('home.newList')}</span>
@@ -221,6 +222,21 @@ export function Home() {
             <span>{t('home.openLink')}</span>
           </button>
         </div>
+        <button
+          type="button"
+          className="btn btn-primary fab fab-phone"
+          id="newBoardFab"
+          onClick={(e) =>
+            openMenu(e.currentTarget, [
+              { label: t('home.newList'), icon: 'list-checks', act: 'new-check', run: () => make('check') },
+              { label: t('home.newNote'), icon: 'notebook-pen', act: 'new-note', run: () => make('note') },
+              { label: t('home.openLink'), icon: 'link', act: 'open-link', run: () => setOpening(true) },
+            ])
+          }
+        >
+          <Icon name="plus" />
+          <span>{t('home.new')}</span>
+        </button>
       </div>
       {nudge ? (
         <div className="banner">

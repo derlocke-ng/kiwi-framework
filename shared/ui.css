@@ -408,7 +408,11 @@ select:focus {
 /* segmented control built from radios */
 .seg {
   display: inline-flex;
-  flex-wrap: wrap;
+  /* one row that scrolls sideways, as an app's tabs do, instead of a second line */
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
   padding: 3px;
   gap: 2px;
   background: var(--surface-2);
@@ -418,6 +422,11 @@ select:focus {
 
 .seg label {
   position: relative;
+  flex: none;
+}
+
+.seg::-webkit-scrollbar {
+  display: none;
 }
 
 .seg input {
@@ -849,6 +858,146 @@ select:focus {
   color: var(--muted);
   font-size: 0.85rem;
   text-align: center;
+}
+
+/* ---------- an app's frame: its bar, its main button (every app has them, panel or not) ---------- */
+
+/* An app's bar of tabs, search and filters: it stays under the top bar while the list scrolls. */
+.app-bar {
+  position: sticky;
+  top: calc(3.5rem + env(safe-area-inset-top));
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 calc(-1 * var(--gutter)) 0.75rem;
+  padding: 0.6rem var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-bar:first-child {
+  margin-top: -1rem;
+}
+
+/* a round main button for a phone only, where a wide screen has a row of buttons instead */
+.fab-phone {
+  display: none;
+}
+
+/* The main action of a list (a new entry, a new listing, a message): a button in the toolbar, a round one in reach
+   of the thumb on a phone. */
+@media (max-width: 640px) {
+  .fab-phone {
+    display: inline-flex;
+  }
+
+  .phone-hide {
+    display: none !important;
+  }
+
+  .fab {
+    position: fixed;
+    right: calc(1rem + env(safe-area-inset-right));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 30;
+    width: 3.5rem;
+    height: 3.5rem;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    box-shadow: var(--shadow-pop);
+  }
+
+  .fab .icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  body:has(.fab) .toasts {
+    bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  }
+
+  .fab span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@keyframes wjs-sheet-up {
+  from {
+    transform: translateY(48px);
+    opacity: 0.5;
+  }
+}
+
+/* ---------- like an app, not a website ---------- */
+
+/* a tap is a tap: no grey flash, no wait for a double-tap zoom, no text selected by a long press on a control */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a,
+button,
+label,
+summary,
+select {
+  touch-action: manipulation;
+}
+
+.btn,
+.icon-btn,
+.chip,
+.seg,
+.settings-tabs,
+.tool,
+.feature {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* on a touch screen a control answers the finger at once */
+@media (hover: none) {
+  .btn,
+  .icon-btn,
+  .chip {
+    transition: transform 0.08s ease-out;
+  }
+
+  .btn:active:not(:disabled),
+  .icon-btn:active:not(:disabled),
+  .chip:active {
+    transform: scale(0.95);
+  }
+}
+
+/* a page one step in (a board, a conversation) slides in over where it came from */
+.page-enter {
+  animation: wjs-page-in 0.2s ease-out;
+}
+
+@keyframes wjs-page-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0.4;
+  }
+}
+
+/* an app on a phone has no website footer: the hub is one tap away in the top bar */
+@media (max-width: 640px) {
+  .foot:not(:has(.foot-links)) {
+    display: none;
+  }
+
+  .view {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

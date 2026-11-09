@@ -43,6 +43,16 @@ body {
   color: var(--muted);
 }
 
+@media (max-width: 640px) {
+  .intro h1 {
+    font-size: 1.5rem;
+  }
+
+  .intro p {
+    font-size: 0.95rem;
+  }
+}
+
 .drop {
   display: grid;
   justify-items: center;

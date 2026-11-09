@@ -118,7 +118,7 @@ function Messages({ convs }: { convs: any[] }) {
     <>
       <div className="list-head">
         <h1>{t('chat.title')}</h1>
-        <button type="button" className="btn btn-primary" id="newMessage" onClick={() => setPicking(true)}>
+        <button type="button" className="btn btn-primary fab" id="newMessage" onClick={() => setPicking(true)}>
           <Icon name="message-circle" />
           <span>{t('chat.new')}</span>
         </button>
@@ -192,7 +192,7 @@ function GroupsTab({ convs }: { convs: any[] }) {
     <>
       <div className="list-head">
         <h1>{t('chat.groups.title')}</h1>
-        <button type="button" className="btn btn-primary" id="newGroup" onClick={() => setMaking(true)}>
+        <button type="button" className="btn btn-primary fab" id="newGroup" onClick={() => setMaking(true)}>
           <Icon name="users" />
           <span>{t('chat.group.new')}</span>
         </button>
@@ -298,15 +298,17 @@ export function Home({ tab }: { tab: 'messages' | 'groups' }) {
   }, [dm, version]);
   return (
     <section className="home">
-      <div className="seg tabs" role="tablist" id="chatTabs">
-        <label>
-          <input type="radio" name="chatTab" value="messages" checked={tab === 'messages'} onChange={() => go('#/')} />
-          <span>{t('chat.title')}</span>
-        </label>
-        <label>
-          <input type="radio" name="chatTab" value="groups" checked={tab === 'groups'} onChange={() => go('#/groups')} />
-          <span>{t('chat.groups.title')}</span>
-        </label>
+      <div className="app-bar">
+        <div className="seg tabs" role="tablist" id="chatTabs">
+          <label>
+            <input type="radio" name="chatTab" value="messages" checked={tab === 'messages'} onChange={() => go('#/')} />
+            <span>{t('chat.title')}</span>
+          </label>
+          <label>
+            <input type="radio" name="chatTab" value="groups" checked={tab === 'groups'} onChange={() => go('#/groups')} />
+            <span>{t('chat.groups.title')}</span>
+          </label>
+        </div>
       </div>
       {tab === 'groups' ? <GroupsTab convs={convs.filter((c) => c.group)} /> : <Messages convs={convs.filter((c) => !c.group)} />}
     </section>

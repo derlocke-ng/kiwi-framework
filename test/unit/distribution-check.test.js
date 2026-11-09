@@ -23,7 +23,7 @@ test('spaces: slugs, listed once, a hex owner or none, relays and moderators wel
   assert.match(checkDistribution({ ...base, spaces: [{ id: 'jobs' }, { id: 'jobs' }] }).join(), /listed twice/);
   assert.match(checkDistribution({ ...base, spaces: [{ id: 'jobs', owner: 'npub1x' }] }).join(), /owner is a 64-character hex pubkey/);
   assert.match(checkDistribution({ ...base, spaces: [{ id: 'jobs', relays: ['https://x'] }] }).join(), /relays is a list of wss/);
-  assert.match(checkDistribution({ ...base, spaces: [{ id: 'jobs', moderators: ['bob'] }] }).join(), /moderators is a list of hex pubkeys/);
+  assert.match(checkDistribution({ ...base, spaces: [{ id: 'jobs', moderators: ['bob'] }] }).join(), /moderators is a list of npubs or hex pubkeys/);
   assert.match(checkDistribution({ ...base, mounts: [{ id: 'jobs', app: 'notices', space: 'jobs' }] }).join(), /names a space "jobs" the distribution does not define/);
 });
 
@@ -35,4 +35,13 @@ test('the words are checked', () => {
   assert.match(checkDistribution({ ...base, mounts: [{ id: 'x', app: 'x', requireAccount: 'yes' }] }).join(), /requireAccount is true or false/);
   assert.deepEqual(checkDistribution({ ...base, policy: { requireAccount: true }, mounts: [{ id: 'x', app: 'x', requireAccount: true }] }), []);
   assert.match(checkDistribution({ ...base, relays: ['https://a.example'] }).join(), /relays: a list of wss/);
+});
+
+test('moderators: npubs or hex keys, for the hub and for a space', async () => {
+  const { checkDistribution: check } = await import('../../shared/distribution-check.js');
+  const npub = 'npub1u8deaf2dp524mjkg42qulxry7ltjcma7s3rmrxqln5f5nwfhxezqee93gu';
+  const base = { id: 'hub', name: 'Hub', relays: ['wss://r.example'], apps: [], mounts: [] };
+  assert.deepEqual(check({ ...base, moderators: [npub], spaces: [{ id: 'grow', moderators: [npub, 'a'.repeat(64)] }] }), []);
+  assert.ok(check({ ...base, moderators: ['bob'] }).some((p) => p.startsWith('moderators:')));
+  assert.ok(check({ ...base, spaces: [{ id: 'grow', moderators: ['npub1short'] }] }).some((p) => p.includes('moderators is a list')));
 });

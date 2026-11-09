@@ -14,7 +14,8 @@ import { Icon } from './components';
 import { useT } from './hooks';
 import { Modal } from './widgets/Modal';
 
-export type MenuItem = { label: string; icon?: string; danger?: boolean; run: () => unknown } | '-';
+/** An item of a menu; `act` names it for tests and styles (data-act), whatever the language. */
+export type MenuItem = { label: string; icon?: string; danger?: boolean; act?: string; run: () => unknown } | '-';
 
 export interface ConfirmOptions {
   title: string;
@@ -185,6 +186,7 @@ function Menu({ anchor, items, close }: { anchor: HTMLElement; items: MenuItem[]
             type="button"
             role="menuitem"
             data-i={i}
+            data-act={it.act}
             className={it.danger ? 'danger' : ''}
             onClick={() => {
               close();

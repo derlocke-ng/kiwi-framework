@@ -6,6 +6,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { tErr } from '../../../shared/i18n.js';
 import { listToMarkdown } from '../../../shared/items.js';
 import { useMount } from '../../../ui/AppShell';
+import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useKiwi, useT, useTick } from '../../../ui/hooks';
@@ -220,11 +221,9 @@ export function BoardPage({ route }: { route: { pub: string; w: string | null; k
 
   const editable = board.canEdit && ready;
   return (
-    <section className="board">
+    <section className="board page-enter">
       <div className="board-head">
-        <a className="icon-btn back" href="#/" aria-label={t('app.backToBoards')}>
-          <Icon name="chevron-left" />
-        </a>
+        <BackLink href="#/" label={t('app.backToBoards')} />
         <div className="board-titles">
           {renaming ? (
             <input

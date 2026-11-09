@@ -164,3 +164,18 @@ test('moderators may be configured as npubs, as people copy them from their acco
   const [s] = resolveSpaces({ id: 'hub', spaces: [{ id: 'grow', moderators: [n19.npubEncode(pk), 'd'.repeat(64), 'npub1nonsense', pk] }] });
   assert.deepEqual(s.moderators, [pk, 'd'.repeat(64)], 'decoded, the broken one left out, once each');
 });
+
+test('the hub’s own moderators moderate every space it defines, not one someone else owns', () => {
+  const hubMod = 'e'.repeat(64);
+  const [own, owned] = resolveSpaces({
+    id: 'hub',
+    moderators: [hubMod],
+    spaces: [
+      { id: 'grow', moderators: ['d'.repeat(64)] },
+      { id: 'gems', owner: 'f'.repeat(64) },
+    ],
+  });
+  assert.deepEqual(own.moderators, ['d'.repeat(64), hubMod]);
+  assert.ok(isModerator(own, hubMod));
+  assert.deepEqual(owned.moderators, [], 'the owner’s definition names its moderators');
+});

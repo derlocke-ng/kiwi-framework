@@ -69,6 +69,22 @@ body {
   font-size: 1.4rem;
 }
 
+/* on a phone the tab says what the list is, and the main action is the round button */
+@media (max-width: 640px) {
+  .list-head {
+    display: none;
+  }
+
+  .list-head:has(.fab) {
+    display: block;
+    margin: 0;
+  }
+
+  .list-head:has(.fab) h1 {
+    display: none;
+  }
+}
+
 .convs {
   list-style: none;
   margin: 0;

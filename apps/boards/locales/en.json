@@ -10,6 +10,7 @@
   "type.count": "Inventory",
   "type.note": "Note",
   "home.title": "Your boards",
+  "home.new": "New",
   "home.newList": "New list",
   "home.newNote": "New note",
   "home.openLink": "Open link",

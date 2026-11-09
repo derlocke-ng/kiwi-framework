@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { absent, device, freePort, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, freePort, run, sleep, startBoard, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -47,7 +47,7 @@ async function main(env) {
   await A.waitForSelector('.home');
   await connected(A);
   assert.equal(await A.$eval('#sync', (el) => el.dataset.network), 'hub', 'the boards page is on the hub’s network');
-  await A.click('[data-new="check"]');
+  await startBoard(A, 'check');
   await A.fill('#newBoard input[name=title]', 'Internal plan');
   await A.click('#newBoard [type=submit]');
   await A.waitForSelector('#boardName', { timeout: 15000 });
@@ -55,6 +55,21 @@ async function main(env) {
   await until(async () => (await onHub([{ kinds: [30700, 30701, 30702, 30703] }])).length >= 1, 'the board on the hub’s relay', 20000);
   await sleep(1500);
   assert.equal((await onPublic([{ kinds: [30700, 30701, 30702, 30703, 30791] }])).length, 0, 'nothing of the board, no settings, on the public relay');
+
+  step('your order of the apps: moved in the settings, the start page and the switcher follow it');
+  await A.goto(`${env.base}settings.html#general`);
+  await A.waitForSelector('#appToggles [data-app=chat]');
+  await A.focus('#appToggles [data-app=chat]');
+  await A.keyboard.press('Alt+ArrowUp');
+  await A.goto(env.base);
+  await A.waitForSelector('#apps');
+  const startOrder = () => A.$$eval('#apps [data-app]', (els) => els.map((e) => e.dataset.app).join());
+  await until(async () => (await startOrder()) === 'chat,boards', 'the start page in the new order');
+  await A.click('#switcher');
+  await A.waitForSelector('.switcher.open .switcher-apps');
+  const switcherOrder = await A.$$eval('.switcher-apps a', (els) => els.slice(1).map((a) => a.getAttribute('href')).filter((h) => h.endsWith('/')).map((h) => h.split('/').filter(Boolean).pop()));
+  assert.deepEqual(switcherOrder, ['chat', 'boards'], 'the switcher in the same order');
+  await A.keyboard.press('Escape');
 
   step('the chat is the public area: its page is on the public network, with a badge on the start page');
   await A.goto(env.base);

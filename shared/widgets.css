@@ -824,14 +824,8 @@ span.wjs-media.loading {
   }
 }
 
-@keyframes wjs-sheet-up {
-  from {
-    transform: translateY(48px);
-    opacity: 0.5;
-  }
-}
 
-/* The main action of a list (a new entry, a new listing): a button in the toolbar, a round one in reach of the thumb on a phone. */
+/* On a phone a panel takes the whole screen. */
 @media (max-width: 640px) {
   .panel {
     width: 100vw;
@@ -844,37 +838,6 @@ span.wjs-media.loading {
   html.panel-open,
   html.panel-open body {
     overflow: hidden;
-  }
-
-  .fab {
-    position: fixed;
-    right: calc(1rem + env(safe-area-inset-right));
-    bottom: calc(1rem + env(safe-area-inset-bottom));
-    z-index: 30;
-    width: 3.5rem;
-    height: 3.5rem;
-    padding: 0;
-    border-radius: 50%;
-    justify-content: center;
-    box-shadow: var(--shadow-pop);
-  }
-
-  .fab .icon {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  body:has(.fab) .toasts {
-    bottom: calc(5.25rem + env(safe-area-inset-bottom));
-  }
-
-  .fab span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 }
 

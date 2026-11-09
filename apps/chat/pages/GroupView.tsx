@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { DirectMessages } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
 import { relTime } from '../../../shared/i18n.js';
+import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu, pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
@@ -41,11 +42,9 @@ function Door({ pub, host, invite, name, relays }: { pub: string; host: string; 
     }
   };
   return (
-    <section className="room-enter">
+    <section className="room-enter page-enter">
       <div className="page-head">
-        <a className="icon-btn back" href="#/groups" aria-label={t('chat.back')}>
-          <Icon name="chevron-left" />
-        </a>
+        <BackLink href="#/groups" label={t('chat.back')} />
         <h1>{name || knock?.name || t('chat.group.title')}</h1>
       </div>
       {knock ? (
@@ -225,11 +224,9 @@ export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { 
   };
 
   return (
-    <section className="group" data-group={pub.slice(0, 12)} data-invite={link || ''}>
+    <section className="group page-enter" data-group={pub.slice(0, 12)} data-invite={link || ''}>
       <div className="page-head">
-        <a className="icon-btn back" href="#/groups" aria-label={t('chat.back')}>
-          <Icon name="chevron-left" />
-        </a>
+        <BackLink href="#/groups" label={t('chat.back')} />
         <div className="who">
           <h1>{name}</h1>
           <small className="muted" id="groupMembers">

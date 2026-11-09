@@ -15,6 +15,8 @@
 const RELAY = /^wss?:\/\/\S+$/;
 const SPACE_ID = /^[a-z0-9][a-z0-9-]{1,39}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
+/** A moderator as a distribution may name one: 64 hex characters or an npub (bech32: npub1 and 58 more). */
+const KEY = /^([0-9a-f]{64}|npub1[02-9ac-hj-np-z]{58})$/;
 
 /** @param {any} config @returns {string[]} problems, none when the distribution is sound */
 export function checkDistribution(config) {
@@ -35,6 +37,8 @@ export function checkDistribution(config) {
     if (m.requireAccount !== undefined && typeof m.requireAccount !== 'boolean') problems.push(`mount "${m.id}": requireAccount is true or false`);
   }
   if (publicRelays.length && !(config.mounts || []).some((m) => m.network === 'public')) problems.push('publicRelays are named, but no mount is on the public network');
+  if (config.moderators !== undefined && (!Array.isArray(config.moderators) || config.moderators.some((p) => !KEY.test(String(p)))))
+    problems.push('moderators: a list of npubs or hex pubkeys');
   const spaces = config.spaces || [];
   if (!Array.isArray(spaces)) problems.push('spaces: a list');
   const ids = new Set();
@@ -45,7 +49,7 @@ export function checkDistribution(config) {
     ids.add(id);
     if (s?.owner != null && !HEX64.test(String(s.owner))) problems.push(`space "${id}": owner is a 64-character hex pubkey, or left out`);
     if (s?.relays !== undefined && (!Array.isArray(s.relays) || s.relays.some((r) => !RELAY.test(String(r))))) problems.push(`space "${id}": relays is a list of wss:// (or ws://) URLs`);
-    if (s?.moderators !== undefined && (!Array.isArray(s.moderators) || s.moderators.some((p) => !HEX64.test(String(p))))) problems.push(`space "${id}": moderators is a list of hex pubkeys`);
+    if (s?.moderators !== undefined && (!Array.isArray(s.moderators) || s.moderators.some((p) => !KEY.test(String(p))))) problems.push(`space "${id}": moderators is a list of npubs or hex pubkeys`);
   }
   for (const m of config.mounts || []) if (m.space != null && !ids.has(String(m.space))) problems.push(`mount "${m.id}" names a space "${m.space}" the distribution does not define`);
   return problems;

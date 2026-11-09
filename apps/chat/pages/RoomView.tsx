@@ -2,6 +2,7 @@
 // Nothing is stored anywhere; leaving is the end of it for you.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hintQuery } from '../../../shared/relaylists.js';
+import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT, useTick } from '../../../ui/hooks';
@@ -69,11 +70,9 @@ export function RoomView({ secret, relays = [] }: { secret: string; relays?: str
 
   if (!joined) {
     return (
-      <section className="room-enter">
+      <section className="room-enter page-enter">
         <div className="page-head">
-          <a className="icon-btn back" href="#/" aria-label={t('chat.back')}>
-            <Icon name="chevron-left" />
-          </a>
+          <BackLink href="#/" label={t('chat.back')} />
           <h1>{t('chat.room.title')}</h1>
         </div>
         <form className="card form" id="enterRoom" onSubmit={enter}>

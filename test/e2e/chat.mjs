@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { absent, device, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, run, sleep, startBoard, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -101,7 +101,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   step('a board sent from the boards app arrives as a message with its link; the hub counts what is unread and says so');
   await A.goto(boards);
   await A.waitForSelector('.home');
-  await A.click('[data-new="check"]');
+  await startBoard(A, 'check');
   await A.fill('#newBoard input[name=title]', 'Picnic');
   await A.click('#newBoard [type=submit]');
   await A.waitForSelector('#boardName', { timeout: 15000 });

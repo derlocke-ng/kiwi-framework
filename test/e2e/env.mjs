@@ -42,6 +42,18 @@ export async function until(fn, what, ms = 10000) {
  */
 export const absent = async (page, selector) => (await page.$$(selector)).length === 0;
 
+/**
+ * "New list" or "New note" on the boards' start page: on a phone (the devices here are 420 px wide) the round
+ * button's menu, on a wide screen the button in the head.
+ */
+export async function startBoard(page, kind = 'check') {
+  const fab = await page.$('#newBoardFab');
+  if (fab && (await fab.isVisible())) {
+    await fab.click();
+    await page.click(`.menu [data-act=new-${kind}]`);
+  } else await page.click(`[data-new="${kind}"]`);
+}
+
 export function freePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();

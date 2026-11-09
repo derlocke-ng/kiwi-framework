@@ -56,10 +56,12 @@ function moderatorKey(v) {
  */
 export function resolveSpaces(config) {
   const hubId = String(config?.id || 'hub');
-  return (config?.spaces || []).filter((s) => s && SPACE_ID.test(String(s.id))).map((s) => resolveSpace(s, hubId));
+  // the hub's own moderators (its operators) moderate every space the hub defines itself, besides each space's own
+  const hubMods = Array.isArray(config?.moderators) ? config.moderators : [];
+  return (config?.spaces || []).filter((s) => s && SPACE_ID.test(String(s.id))).map((s) => resolveSpace(s, hubId, hubMods));
 }
 
-function resolveSpace(s, hubId) {
+function resolveSpace(s, hubId, hubMods = []) {
   const id = String(s.id);
   const owned = HEX64.test(String(s.owner || ''));
   const sk = owned ? null : spaceKey(hubId, id);
@@ -77,7 +79,8 @@ function resolveSpace(s, hubId) {
     relays,
     /** the network a mount on this space is on: its own relays, or null for the mount's */
     network: relays.length ? `space:${id}` : null,
-    moderators: [...new Set((Array.isArray(s.moderators) ? s.moderators : []).map(moderatorKey).filter(Boolean))],
+    // an owned space's moderators are its owner's to name (its definition); a space the hub defines also has the hub's
+    moderators: [...new Set([...(Array.isArray(s.moderators) ? s.moderators : []), ...(owned ? [] : hubMods)].map(moderatorKey).filter(Boolean))],
     adult: Boolean(s.adult),
     langs: (Array.isArray(s.langs) ? s.langs : []).map(String).filter((l) => /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(l)),
     region: String(s.region || '').slice(0, 40),

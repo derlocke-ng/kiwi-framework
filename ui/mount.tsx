@@ -4,16 +4,25 @@
 // says so instead of staying blank.
 import { type ComponentType, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { initI18n } from '../shared/i18n.js';
 import { RequireAccount } from './AccountGate';
 import { Overlays } from './dialogs';
 import { KiwiContext } from './hooks';
 import { bootKiwi, type KiwiOptions } from './kiwi';
 import { NetworkGate } from './NetworkGate';
+import { SecureGate } from './SecureGate';
 
 export async function mountPage(Page: ComponentType, options: KiwiOptions = {}): Promise<void> {
   const el = document.getElementById('root');
   if (!el) throw new Error('the page needs a <div id="root">');
   const root = createRoot(el);
+  // over plain HTTP from another machine the browser has no WebCrypto: say so, start nothing (ui/SecureGate.tsx)
+  if (!window.isSecureContext) {
+    await initI18n({ dirs: options.dirs || ['locales/'] }).catch(() => {});
+    document.documentElement.classList.add('i18n');
+    root.render(<SecureGate />);
+    return;
+  }
   try {
     const kiwi = await bootKiwi(options);
     (window as unknown as { kiwi: unknown }).kiwi = kiwi; // for a look from the console, and for the browser suites

@@ -38,3 +38,14 @@ docker run --rm -p 8080:80 \
 ## On a kiwi-node
 
 [kiwi-modules](https://github.com/derlocke-ng/kiwi-modules) has the two modules a hub needs: `nostr-relay` (strfry behind the node's reverse proxy, at `relay.<host>`, TLS from the fleet CA, reachable through the mesh) and `hub` (this image behind the proxy at `hub.<host>`, its `HUB_*` set from the module's settings, the node's own relay as the default). The `hub` preset of the node profile is the two of them behind the VPN client. A private hub is the preset as it comes; a semi-public one adds `public_relays` and `public_mounts`; a public one is `relays` naming public relays and `relays_locked: false`.
+
+## Inside a network, or on the internet
+
+The same image serves both; only `HUB_*` and the address differ. Two things hold everywhere:
+
+- **HTTPS.** The page seals and opens everything with the browser's WebCrypto, which exists in a secure context only: a hub opened over plain `http://` (other than `localhost`) says so and stops (`ui/SecureGate.tsx`). Its relays are `wss://` for the same reason: an `https` page cannot open a plain `ws://` socket.
+- **Relays people can reach.** The relays a hub names are the ones every visitor's browser connects to.
+
+**Inside a VPN** (a private hub for a household, a team): the kiwi-node `hub` preset as it comes. nginx (kiwi-modules' `reverse-proxy`) serves `hub.<host>` and `relay.<host>` with certificates from the fleet CA, which the fleet's machines trust; a phone in the VPN needs the CA installed once. `HUB_RELAYS_LOCKED=true` and `HUB_REQUIRE_HUB=true` make it private.
+
+**On the internet:** a static hub needs no machine of its own (Armory is GitHub Pages and public relays). What a machine of your own adds is a **relay**: a space names it (`spaces[].relays` in `distribution.js`, `HUB_SPACE_RELAYS` in a container), its posts then live there, and its moderators' decisions can be carried out where the posts are. For that, nginx needs a certificate browsers trust and must publish only the relay (and the hub's pages, if they are served there) on the public address, not the node's admin pages. kiwi-modules does not do either yet (the reverse proxy takes a certificate as files, `tls_fullchain`/`tls_privkey`, but has no ACME client; kiwi-server's roadmap, problem 37, on what a node publishes on a public host): `handoffs/kiwi-modules-public-hosts.md` says what is needed. Until it lands, a public relay or hub on a VPS is nginx with a certificate you renew yourself, set up by hand.

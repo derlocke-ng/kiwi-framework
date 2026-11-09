@@ -5,6 +5,7 @@ import { npub } from '../../../shared/account.js';
 import { DirectMessages, TEXT } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
 import { relTime } from '../../../shared/i18n.js';
+import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useBlocks, useIdentity, usePeople, useT } from '../../../ui/hooks';
@@ -166,11 +167,9 @@ export function Conversation({ pk, draft = '' }: { pk: string; draft?: string })
   };
 
   return (
-    <section className="conversation" data-pk={pk}>
+    <section className="conversation page-enter" data-pk={pk}>
       <div className="page-head">
-        <a className="icon-btn back" href="#/" aria-label={t('chat.back')}>
-          <Icon name="chevron-left" />
-        </a>
+        <BackLink href="#/" label={t('chat.back')} />
         <div className="who">
           <h1>{name}</h1>
           {name !== fingerprint(pk) ? <small className="muted">{fingerprint(pk)}</small> : null}

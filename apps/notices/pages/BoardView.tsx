@@ -482,7 +482,7 @@ export function BoardView({
           </p>
         </div>
       ) : null}
-      <div className="toolbar">
+      <div className="toolbar app-bar">
         <input
           className="search"
           id="search"
@@ -500,7 +500,7 @@ export function BoardView({
             </label>
           ))}
         </div>
-        <button type="button" className="btn btn-primary" id="postBtn" onClick={post}>
+        <button type="button" className="btn btn-primary fab" id="postBtn" onClick={post}>
           <Icon name="plus" />
           <span>{t('db.post')}</span>
         </button>

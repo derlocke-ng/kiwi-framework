@@ -13,7 +13,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools/pure';
-import { absent, device, run, sleep, testHub, until } from './env.mjs';
+import { absent, device, run, sleep, startBoard, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
@@ -34,7 +34,7 @@ export async function boardsSuite(env, { app, settings, name }) {
   }
 
   async function newBoard(page, kind, title) {
-    await page.click(`[data-new="${kind === 'note' ? 'note' : 'check'}"]`);
+    await startBoard(page, kind === 'note' ? 'note' : 'check');
     await page.check(`#newBoard input[name=kind][value=${kind}]`, { force: true });
     await page.fill('#newBoard input[name=title]', title);
     await page.click('#newBoard [type=submit]');
@@ -669,7 +669,7 @@ export async function boardsSuite(env, { app, settings, name }) {
   await DE.click('#langOk');
   await until(async () => !(await DE.$('#langBanner')), 'banner gone after confirming');
   assert.equal(await DE.evaluate(() => localStorage.getItem('wjs.lang')), '"de"');
-  await DE.click('[data-new=check]');
+  await startBoard(DE, 'check');
   await DE.waitForSelector('#newBoard');
   assert.notEqual(await DE.textContent('#newBoard [type=submit]'), 'Create');
   await DE.press('#newBoard input[name=title]', 'Escape');

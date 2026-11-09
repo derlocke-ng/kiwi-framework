@@ -301,10 +301,100 @@ main,
   background: #ef4444;
 }
 
-@media (max-width: 560px) {
+/* On a phone the start page is an app's list, not a website's cards: a short title, the featured tool as a
+   row, then every tool a row with its icon, name and two lines of what it does, all on one screen. */
+@media (max-width: 640px) {
+  .hero {
+    padding: 1rem 0 0.9rem;
+  }
+
+  .hero h1 {
+    font-size: 1.65rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .hero p {
+    font-size: 0.95rem;
+  }
+
   .feature {
-    flex-direction: column;
-    gap: 0.75rem;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.9rem 1rem;
+  }
+
+  .feature-icon {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .feature h2 {
+    font-size: 1.15rem;
+    margin: 0.1rem 0 0.15rem;
+  }
+
+  .feature p,
+  .tool p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    margin: 0;
+    font-size: 0.86rem;
+  }
+
+  .feature .tags,
+  .tool .tags,
+  .go {
+    display: none;
+  }
+
+  .tools {
+    grid-template-columns: 1fr;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .tools li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .tool {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.85rem;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+  }
+
+  .tool:hover {
+    transform: none;
+  }
+
+  .tool-icon {
+    grid-row: span 2;
+  }
+
+  .tool h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  /* the settings' tabs stay under the top bar while a long tab scrolls */
+  .settings-tabs {
+    position: sticky;
+    top: calc(3.5rem + env(safe-area-inset-top) + 0.5rem);
+    z-index: 10;
+    box-shadow: 0 0 0 0.5rem var(--bg);
   }
 }
 
