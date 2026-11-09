@@ -25,6 +25,8 @@ The site is built once, with the relays and policy its `distribution.js` names. 
 | `HUB_REQUIRE_ACCOUNT` | `true`: every mount asks for an account |
 | `HUB_SPACE_RELAYS` | a space's own relays, per space id, spaces separated by `;`: `jobs=wss://relay.sh3.home;gems=wss://a,wss://b`; an id with an empty list puts that space on its mount's network |
 | `HUB_MODERATORS` | npubs (or hex keys) who moderate every space the hub defines, besides those it ships with: a company hub's managers |
+| `HUB_REGISTER_POW` | bits of proof of work on a new account entry: what the hub's members relay (kiwi-modules' `nostr-relay` with `members`) asks of a sign-up, its `register_pow`; kiwi-modules' `hub` module passes it on |
+| `HUB_CALDAV` | a Nextcloud for the calendar app, e.g. `https://cloud.sh3.home`: nginx forwards `/remote.php/dav/` there (and `/.well-known/caldav` to it), and the calendar offers this hub's own address, so nothing needs CORS. The Nextcloud must be at the root of its address; it sees the hub as the client (its brute-force protection counts per address: add the hub to its `trusted_proxies` to have it count people) |
 
 Nothing set: no `hub.local.json`, the site runs as built. `hub.json` next to it is the hub as built (name, versions, relays, policy, spaces with their addresses, mounts), for catalogs and tools; it never changes at start.
 

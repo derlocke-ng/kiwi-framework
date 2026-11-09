@@ -3,7 +3,7 @@
   "app.home": "Accueil Loadout",
   "app.account": "Compte et paramètres",
   "app.relayStatus": "État des relais",
-  "app.footer": "listes &amp; notes chiffrées de bout en bout via <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
+  "app.footer": "listes & notes chiffrées de bout en bout via <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
   "app.notFound": "Rien ici",
   "app.backToBoards": "Retour à vos tableaux",
   "type.check": "Liste à cocher",

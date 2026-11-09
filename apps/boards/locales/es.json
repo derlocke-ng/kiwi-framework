@@ -3,7 +3,7 @@
   "app.home": "Inicio de Loadout",
   "app.account": "Cuenta y ajustes",
   "app.relayStatus": "Estado de los relays",
-  "app.footer": "listas &amp; notas cifradas de extremo a extremo sobre <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
+  "app.footer": "listas & notas cifradas de extremo a extremo sobre <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
   "app.notFound": "Aquí no hay nada",
   "app.backToBoards": "Volver a tus tableros",
   "type.check": "Lista",

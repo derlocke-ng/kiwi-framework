@@ -11,6 +11,7 @@ import { normalizeServer } from '../shared/blossom.js';
 import { DirectMessages } from '../shared/chat.js';
 import { deviceId, deviceName } from '../shared/device.js';
 import { DISTRIBUTION } from '../shared/distribution.js';
+import { sign } from '../shared/events.js';
 import { Groups } from '../shared/groups.js';
 import { loadHubConfig } from '../shared/hubconfig.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage, t } from '../shared/i18n.js';
@@ -146,6 +147,8 @@ export class Kiwi {
 
   /** After a sign-in, sign-out, key import or restore: everything bound to the identity starts over. */
   async restart(): Promise<void> {
+    // a relay that knows who writes (NIP-42) is told again: connections that proved the key before are made anew
+    this.whole.pool.reauthenticate?.(this.identity().pk);
     await this.startSuite();
     await this.startPeople();
     this.touchDevice();
@@ -255,7 +258,8 @@ export class Kiwi {
     const id = this.identity();
     if (!id.alias || !id.accountPk) throw new Error('no account');
     const old = { lookupPk: id.accountPk, version: id.accountVersion || 1 };
-    const { lookupPk } = await changeAccountPassword(this.hubNet, { skHex: id.sk, username: id.alias, newPassword, oldPassword, old, onProgress });
+    const pow = DISTRIBUTION.policy?.registerPow || 0; // a members' relay takes a new entry with the work it asks of a sign-up
+    const { lookupPk } = await changeAccountPassword(this.hubNet, { skHex: id.sk, username: id.alias, newPassword, oldPassword, old, pow, onProgress });
     saveIdentity({ ...this.identity(), accountPk: lookupPk, accountVersion: 2 });
     await this.suite.set({ accountPk: lookupPk });
     this.emit();
@@ -405,6 +409,14 @@ export async function bootKiwi({ current = 'hub', base = './', sprite = 'icons.s
   await loadHubConfig(base); // the host's say on relays, policy and the public area, before anything connects
   const db = await LocalStore.open('wjs');
   const pool = new RelayPool(savedNetworks());
+  // NIP-42: a relay that asks who is there is answered with the person's key (whoever is signed in when it asks).
+  // A hub with locked relays answers its own relays and its spaces' at once (they may let only members write);
+  // any other relay learns the key only when it refuses something without it.
+  const locked = DISTRIBUTION.policy?.relays === 'locked';
+  pool.setAuth(
+    (template: any) => sign(template, loadIdentity().sk),
+    locked ? Object.keys(savedNetworks()).filter((n) => n === 'hub' || n.startsWith('space:')) : [],
+  );
   const sync = new Sync(pool, db);
   await strings;
   const kiwi = new Kiwi({ db, pool, sync }, { current, base, sprite });

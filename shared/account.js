@@ -14,9 +14,15 @@
 // measure, so the old password stops opening the account on every relay that
 // follows. The first form (v1) had the lookup key as author; it is still read,
 // and a sign-in with it republishes the entry in this form and retires the old.
+//
+// A hub whose relay lets only its members write (kiwi-modules' members relay)
+// takes a new account entry from anyone as the sign-up when it carries NIP-13
+// proof of work: `policy.registerPow` bits, set where the hub runs. The work is
+// done in the shared miners (pow.js) before the entry is signed.
 
 import { generateSecretKey, getPublicKey, nip19, nip49, scryptAsync, sha256, hexToBytes, bytesToHex } from './nostr.mjs';
-import { KINDS, dTag, makeAddressable, now, open, seal, sign, deriveKey, isHex64 } from './events.js';
+import { KINDS, dTag, makeAddressable, now, open, seal, sign, stamp, deriveKey, isHex64 } from './events.js';
+import { minePow } from './pow.js';
 import { store, timeout, fail } from './util.js';
 
 export const ID_KEY = 'wjs.identity';
@@ -123,11 +129,23 @@ export async function deriveLookup(username, password, onProgress = null) {
   return { name, lookupSk, lookupPk: getPublicKey(dk.slice(0, 32)), wrapKey: dk.slice(32, 64) };
 }
 
-/** The account entry for a username and password: authored by the key it holds, at the address only the password finds. */
-export async function buildAccountEvent({ name, lookupPk, wrapKey }, skHex) {
+/**
+ * The account entry for a username and password: authored by the key it holds, at the address only the password finds.
+ * `pow` bits of proof of work go on it when the hub's relay asks for them of a sign-up (onProgress gets seconds).
+ * @param {{ name: string, lookupPk: string, wrapKey: Uint8Array }} lookup
+ * @param {string} skHex
+ * @param {{ pow?: number, onProgress?: ((seconds: number) => void) | null }} [options]
+ */
+export async function buildAccountEvent({ name, lookupPk, wrapKey }, skHex, { pow = 0, onProgress = null } = {}) {
   const content = await seal(wrapKey, { v: 2, sk: skHex, alias: name });
-  return makeAddressable(KINDS.ACCOUNT, lookupPk, content, skHex, [['v', '2']]);
+  if (!(pow > 0)) return makeAddressable(KINDS.ACCOUNT, lookupPk, content, skHex, [['v', '2']]);
+  const pubkey = getPublicKey(hexToBytes(skHex));
+  const template = { kind: KINDS.ACCOUNT, pubkey, created_at: stamp(`${KINDS.ACCOUNT}:${pubkey}:${lookupPk}`), tags: [['d', lookupPk], ['v', '2']], content };
+  return sign(await minePow(template, pow, { onProgress: ({ ms }) => onProgress?.(Math.round(ms / 1000)) }), skHex);
 }
+
+/** The proof of work a hub asks of a new account entry, in bits (0: none). */
+export const powBits = (bits) => (Number.isInteger(bits) && bits > 0 ? Math.min(bits, 32) : 0);
 
 /** The first form, authored by the lookup key (kept for the tests of the upgrade). */
 export async function buildLegacyAccountEvent({ name, lookupSk, wrapKey }, skHex) {
@@ -204,10 +222,10 @@ export async function upgradeAccount({ sync }, lookup, skHex) {
  * `old` is the current entry ({ lookupPk, version }); an entry in the first form (or of unknown form) needs
  * `oldPassword` too, since only its lookup key can retire it.
  * @param {{ pool: any, sync: any }} net
- * @param {{ skHex: string, username: string, newPassword: string, oldPassword?: string|null, old?: { lookupPk: string, version: number }|null, onProgress?: (msg: string, params?: Record<string, unknown>) => void }} options
+ * @param {{ skHex: string, username: string, newPassword: string, oldPassword?: string|null, old?: { lookupPk: string, version: number }|null, pow?: number, onProgress?: (msg: string, params?: Record<string, unknown>) => void }} options
  * @returns {Promise<{ event: object, lookupPk: string, alias: string }>}
  */
-export async function changePassword({ pool, sync }, { skHex, username, newPassword, oldPassword = null, old = null, onProgress = () => {} }) {
+export async function changePassword({ pool, sync }, { skHex, username, newPassword, oldPassword = null, old = null, pow = 0, onProgress = () => {} }) {
   checkPassword(newPassword);
   onProgress('account.progress.derive');
   const next = await deriveLookup(username, newPassword, (p) => onProgress('account.progress.derivePct', { p: Math.floor(p * 100) }));
@@ -223,7 +241,9 @@ export async function changePassword({ pool, sync }, { skHex, username, newPassw
   onProgress('account.progress.check');
   const found = await findAccount(pool, next, { ms: 5000 });
   if (found && found.sk !== skHex) throw fail('account.error.exists', 'An account with this username and password already exists. Sign in instead, or pick a different password.');
-  const event = await buildAccountEvent(next, skHex);
+  const work = powBits(pow);
+  if (work) onProgress('account.progress.work', { s: 0 });
+  const event = await buildAccountEvent(next, skHex, { pow: work, onProgress: (s) => onProgress('account.progress.work', { s }) });
   onProgress('account.progress.publish');
   try {
     await sync.publish(event, { wait: 'one' });
@@ -236,13 +256,10 @@ export async function changePassword({ pool, sync }, { skHex, username, newPassw
 }
 
 /**
- * Publish an account event for this key. Refuses when the same username and
- * password already belong to a different key.
- */
-/**
- * Publish an account for a key. Needs a relay: the event must land somewhere
+ * Publish an account for a key. Refuses when the same username and password
+ * already belong to a different key. Needs a relay: the event must land somewhere
  * other devices can find it, so this waits for the first relay to accept it
- * (the outbox delivers it to the others).
+ * (the outbox delivers it to the others). `pow`: the bits the hub asks of a sign-up.
  * @param {{ pool: import('./relays.js').RelayPool, sync: import('./sync.js').Sync }} net
  * @param {string} username
  * @param {string} password
@@ -250,7 +267,7 @@ export async function changePassword({ pool, sync }, { skHex, username, newPassw
  * @param {(msg: string, params?: Record<string, unknown>) => void} [onProgress]
  * @returns {Promise<{ event: { pubkey: string, [k: string]: any }, alias: string, lookupPk: string }>}
  */
-export async function createAccount({ pool, sync }, username, password, skHex, onProgress = () => {}) {
+export async function createAccount({ pool, sync }, username, password, skHex, onProgress = () => {}, { pow = 0 } = {}) {
   checkPassword(password);
   onProgress('account.progress.derive');
   const lookup = await deriveLookup(username, password, (p) => onProgress('account.progress.derivePct', { p: Math.floor(p * 100) }));
@@ -258,7 +275,9 @@ export async function createAccount({ pool, sync }, username, password, skHex, o
   onProgress('account.progress.check');
   const found = await findAccount(pool, lookup, { ms: 5000 });
   if (found && found.sk !== skHex) throw fail('account.error.exists', 'An account with this username and password already exists. Sign in instead, or pick a different password.');
-  const event = await buildAccountEvent(lookup, skHex);
+  const work = powBits(pow);
+  if (work) onProgress('account.progress.work', { s: 0 });
+  const event = await buildAccountEvent(lookup, skHex, { pow: work, onProgress: (s) => onProgress('account.progress.work', { s }) });
   onProgress('account.progress.publish');
   try {
     await sync.publish(event, { wait: 'one' });

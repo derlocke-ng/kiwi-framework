@@ -11,6 +11,8 @@
 //                       name, relays (the space's own network, or none: the mount's)
 //   mounts[].space      the id of one of the spaces
 //   mounts[].requireAccount, policy.requireAccount   true or false: only people with an account use it
+//   policy.registerPow  bits of proof of work on a new account entry (a members' relay takes it as the sign-up)
+//   caldav              the calendar server offered: '' (none), a path on the hub (/remote.php/dav/) or an http(s) address
 //   mounts[].sellers    a market's rule for who sells: { space, posts, likes } (posts in that feed space, each
 //                       liked by that many other people), else a moderator's approval; posts: 0 for approval only
 
@@ -33,6 +35,10 @@ export function checkDistribution(config) {
   if (policy.relays !== undefined && !['open', 'locked'].includes(policy.relays)) problems.push("policy.relays: 'open' or 'locked'");
   if (policy.requireHub !== undefined && typeof policy.requireHub !== 'boolean') problems.push('policy.requireHub: true or false');
   if (policy.requireAccount !== undefined && typeof policy.requireAccount !== 'boolean') problems.push('policy.requireAccount: true or false');
+  if (policy.registerPow !== undefined && !(Number.isInteger(policy.registerPow) && policy.registerPow >= 0 && policy.registerPow <= 32))
+    problems.push('policy.registerPow: a whole number of bits, 0 to 32');
+  if (config.caldav !== undefined && !(typeof config.caldav === 'string' && (config.caldav === '' || /^(\/|https?:\/\/)\S*$/.test(config.caldav))))
+    problems.push("caldav: '', a path on the hub such as /remote.php/dav/, or an http(s) address");
   for (const m of config.mounts || []) {
     if (m.network !== undefined && !['hub', 'public'].includes(m.network)) problems.push(`mount "${m.id}": network is 'hub' or 'public'`);
     if (m.network === 'public' && !publicRelays.length) problems.push(`mount "${m.id}" is on the public network, but the distribution names no publicRelays`);

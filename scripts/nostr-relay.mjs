@@ -6,11 +6,26 @@
 //   node scripts/nostr-relay.mjs [port] [dir]
 //
 // Environment: RELAY_NAME, RELAY_COUNTRY (NIP-11 fields shown by the apps).
+//
+// `auth: { allow(pk) }` makes it a members' relay, as a hub's public relay is
+// (kiwi-modules 0.9's nostr-relay): a connection is challenged (NIP-42) when it
+// first writes, as kiwi's strfry does (`auth.challengeOn: 'connect'` challenges
+// at once, as other relays do); anyone reads; a write is refused with "auth-required:"
+// until the connection has proved a key, and with "restricted:" when that key
+// may not write; a connection that proved a member's key writes anything, by
+// whoever it is signed (a board's key, a one-time key of a gift wrap). A gift
+// wrap to a member is taken from anyone. `auth.serviceUrl`: the relay tag an
+// AUTH answer must carry, compared exactly, as strfry does. With `auth.registerPow` (bits), a new
+// account entry (kind 30790, today's form) carrying that much proof of work is
+// taken from anyone as the sign-up, and `auth.register(pk)` makes its author a
+// member (kiwi-modules' `members: registered`).
 
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
+import { randomBytes } from 'node:crypto';
+import { getPow } from 'nostr-tools/nip13';
 import { verifyEvent } from 'nostr-tools/pure';
 import { matchFilters } from 'nostr-tools/filter';
 import { isAddressableKind, isReplaceableKind, isEphemeralKind } from 'nostr-tools/kinds';
@@ -75,17 +90,17 @@ export class EventStore {
   }
 }
 
-export function startRelay({ port = 0, dir = null, name = 'dev relay', country = 'DE' } = {}) {
+export function startRelay({ port = 0, dir = null, name = 'dev relay', country = 'DE', auth = null } = {}) {
   if (dir) fs.mkdirSync(dir, { recursive: true });
   const store = new EventStore(dir ? path.join(dir, 'events.jsonl') : null);
   const info = {
     name,
     description: 'kiwi-framework development relay',
-    supported_nips: [1, 11],
+    supported_nips: auth ? [1, 11, 42] : [1, 11],
     software: 'https://github.com/derlocke-ng/kiwi-framework',
     version: 'dev',
     relay_countries: [country],
-    limitation: { max_message_length: MAX_MESSAGE, max_subscriptions: 64, auth_required: false, payment_required: false },
+    limitation: { max_message_length: MAX_MESSAGE, max_subscriptions: 64, auth_required: Boolean(auth), restricted_writes: Boolean(auth), payment_required: false },
   };
   const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -110,8 +125,15 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
   };
 
   wss.on('connection', (ws) => {
-    const client = { ws, subs: new Map() };
+    const client = { ws, subs: new Map(), challenge: auth ? randomBytes(16).toString('hex') : null, authed: null };
     clients.add(client);
+    client.challenged = false;
+    const challenge = () => {
+      if (client.challenged) return;
+      client.challenged = true;
+      send(ws, ['AUTH', client.challenge]);
+    };
+    if (auth && auth.challengeOn === 'connect') challenge();
     ws.on('close', () => clients.delete(client));
     ws.on('error', () => clients.delete(client));
     ws.on('message', (data) => {
@@ -128,6 +150,15 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
         if (!event || typeof event !== 'object') return send(ws, ['NOTICE', 'invalid: missing event']);
         if (!verifyEvent(event)) return send(ws, ['OK', event.id || '', false, 'invalid: bad signature or id']);
         if (event.created_at > Math.floor(Date.now() / 1000) + MAX_FUTURE) return send(ws, ['OK', event.id, false, 'invalid: created_at is too far in the future']);
+        if (auth) {
+          if (!client.authed) challenge(); // the challenge comes before the refusal, as from kiwi's strfry
+          const signUp =
+            auth.registerPow > 0 && event.kind === 30790 && event.content && event.tags.some((t) => t[0] === 'v' && t[1] === '2') && getPow(event.id) >= auth.registerPow;
+          if (signUp) auth.register?.(event.pubkey);
+          const toMember = signUp || (event.kind === 1059 && event.tags.some((t) => t[0] === 'p' && auth.allow(t[1])));
+          if (!toMember && !client.authed) return send(ws, ['OK', event.id, false, 'auth-required: say who you are to write here']);
+          if (!toMember && !auth.allow(client.authed)) return send(ws, ['OK', event.id, false, 'restricted: only members write here']);
+        }
         const result = store.add(event);
         send(ws, ['OK', event.id, result.ok, result.reason]);
         if (result.stored || isEphemeralKind(event.kind)) broadcast(event);
@@ -138,6 +169,16 @@ export function startRelay({ port = 0, dir = null, name = 'dev relay', country =
         client.subs.set(id, filters);
         for (const event of store.query(filters).reverse()) send(ws, ['EVENT', id, event]);
         send(ws, ['EOSE', id]);
+      } else if (type === 'AUTH' && auth) {
+        // NIP-42: a kind 22242 event naming this connection's challenge, fresh, properly signed
+        const event = rest[0];
+        const tag = (k) => event?.tags?.find((t) => t[0] === k)?.[1];
+        const fresh = Math.abs(Math.floor(Date.now() / 1000) - Number(event?.created_at)) < 600;
+        const relayTag = auth.serviceUrl ? tag('relay') === auth.serviceUrl : Boolean(tag('relay'));
+        if (!event || event.kind !== 22242 || !verifyEvent(event) || tag('challenge') !== client.challenge || !relayTag || !fresh)
+          return send(ws, ['OK', event?.id || '', false, 'invalid: not an answer to this challenge']);
+        client.authed = event.pubkey;
+        send(ws, ['OK', event.id, true, '']);
       } else if (type === 'CLOSE') {
         client.subs.delete(rest[0]);
       } else {

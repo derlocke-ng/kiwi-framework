@@ -5,8 +5,15 @@ import path from 'node:path';
 import { LANGUAGES, pickLanguage, useCatalogs, t, tErr, relTime } from '../../shared/i18n.js';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
-// The framework's catalogs: the shared one and the hub's. A distribution tests its own and its apps' the same way.
-const DIRS = ['shared/locales', 'hub/locales'];
+// The framework's catalogs: the shared one, the hub's and each app's. A distribution tests its own the same way.
+const DIRS = [
+  'shared/locales',
+  'hub/locales',
+  ...fs
+    .readdirSync(path.join(root, 'apps'))
+    .filter((a) => fs.existsSync(path.join(root, 'apps', a, 'locales', 'en.json')))
+    .map((a) => `apps/${a}/locales`),
+];
 const read = (dir, lang) => JSON.parse(fs.readFileSync(path.join(root, dir, `${lang}.json`), 'utf8'));
 const placeholders = (s) => [...String(s).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
 const tags = (s) => [...String(s).matchAll(/<\/?[a-z]+/g)].map((m) => m[0]).sort().join(',');

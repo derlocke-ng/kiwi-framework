@@ -1,0 +1,332 @@
+/* The calendar: tokens and components from the shared design library; this file
+   holds what is the calendar's own: the list of days, the month grid, an event. */
+@import "../../shared/ui.css";
+@import "../../shared/widgets.css";
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem var(--gutter) 5rem;
+  flex: 1;
+}
+
+.cal-page .app-bar {
+  justify-content: flex-start;
+}
+
+.cal-page .app-bar .fab {
+  margin-left: auto;
+}
+
+.cal-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cal-nav strong {
+  min-width: 9.5rem;
+  text-align: center;
+}
+
+.cal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+/* ---------- the coming days ---------- */
+
+.cal-day {
+  margin-bottom: 1.25rem;
+}
+
+.cal-day h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cal-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cal-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--cal-color, var(--accent));
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.cal-event:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--cal-color, var(--accent));
+}
+
+.cal-time {
+  flex: 0 0 4.8rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.cal-what {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cal-what b {
+  overflow-wrap: anywhere;
+}
+
+.cal-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cal-where .icon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.cal-more {
+  display: block;
+  margin: 0.5rem auto 0;
+}
+
+/* ---------- a month ---------- */
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  margin-bottom: 1rem;
+}
+
+.cal-wd {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0.2rem 0;
+  text-transform: uppercase;
+}
+
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  min-height: 3.2rem;
+  padding: 0.3rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cal-cell.out {
+  background: transparent;
+  color: var(--muted);
+}
+
+.cal-cell.sel {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.cal-num {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  align-self: center;
+}
+
+.cal-cell.today .cal-num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.cal-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  min-height: 0.5rem;
+}
+
+.cal-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.cal-dots em {
+  font-style: normal;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.cal-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cal-titles span {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  padding-left: 0.3rem;
+  border-left: 3px solid var(--accent);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* a wide screen has room for titles; the dots say it on a phone */
+@media (min-width: 641px) {
+  .cal-cell {
+    min-height: 5.5rem;
+  }
+
+  .cal-num {
+    align-self: flex-start;
+  }
+
+  .cal-dots {
+    display: none;
+  }
+}
+
+/* ---------- one event ---------- */
+
+.cal-detail h2 {
+  margin: 0 0 1rem;
+  padding-left: 0.6rem;
+  border-left: 5px solid var(--cal-color, var(--accent));
+  overflow-wrap: anywhere;
+}
+
+.cal-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.6rem 0;
+}
+
+.cal-line .icon {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--muted);
+}
+
+.cal-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.cal-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: 0.3rem 0.1rem 0;
+  border-radius: 50%;
+  background: var(--cal-color, var(--accent));
+}
+
+/* ---------- the composer ---------- */
+
+.cal-when,
+.cal-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.cal-dt {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.cal-dt input {
+  min-width: 0;
+  flex: 1;
+}
+
+.cal-dt input[type="time"] {
+  flex: 0 0 6.5rem;
+}
+
+@media (max-width: 640px) {
+  .cal-when {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- settings ---------- */
+
+.cal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cal-list .check-row {
+  align-items: center;
+}
+
+.cal-list .cal-dot {
+  margin-top: 0;
+}
+
+.cal-connect .card {
+  margin-bottom: 0.75rem;
+}
+
+.cal-problem .icon {
+  color: var(--danger);
+}

@@ -64,7 +64,7 @@ test('hub.json describes the hub as built, its spaces with their addresses', () 
   const d = describeHub({ id: 'x', name: 'X', relays: ['wss://a'], mounts: [{ id: 'chat', app: 'chat', network: 'public' }, { id: 'boards', app: 'boards' }] }, { version: '1.0.0', framework: '0.15.0' });
   assert.equal(d.version, '1.0.0');
   assert.equal(d.framework, '0.15.0');
-  assert.deepEqual(d.policy, { userMounts: false, relays: 'open', requireHub: false, requireAccount: false });
+  assert.deepEqual(d.policy, { userMounts: false, relays: 'open', requireHub: false, requireAccount: false, registerPow: 0 });
   assert.deepEqual(
     d.mounts.map((m) => m.network),
     ['public', 'hub'],

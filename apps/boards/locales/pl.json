@@ -3,7 +3,7 @@
   "app.home": "Strona główna Loadout",
   "app.account": "Konto i ustawienia",
   "app.relayStatus": "Stan przekaźników",
-  "app.footer": "listy &amp; notatki szyfrowane end-to-end przez <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
+  "app.footer": "listy & notatki szyfrowane end-to-end przez <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
   "app.notFound": "Nic tu nie ma",
   "app.backToBoards": "Wróć do swoich tablic",
   "type.check": "Lista kontrolna",

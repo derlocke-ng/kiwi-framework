@@ -302,10 +302,10 @@ export async function topBar(env, url) {
  * A hub with nothing but some of the framework's own apps, one mount per entry
  * (`apps`: [{ app: 'boards', name: 'Boards', icon: 'list-checks', network?: 'public', space?: 'jobs', id?: 'jobs' }]:
  * `id` mounts the app under another route, so one app can be mounted twice); `options` set the hub's
- * name, id, relays, publicRelays, directoryRelays, policy and spaces (as in distribution.js). Resolves
+ * name, id, relays, publicRelays, directoryRelays, policy, spaces and caldav (as in distribution.js). Resolves
  * with the site's folder.
  */
-export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {}, spaces = [], media = [] } = {}) {
+export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {}, spaces = [], media = [], caldav = '' } = {}) {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-hub-'));
   const codes = [...new Map(apps.map((a) => [a.app, a])).values()]; // one app entry per app, however often it is mounted
   const config = {
@@ -321,6 +321,7 @@ export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays
     directoryRelays,
     media,
     how: null,
+    caldav,
     policy: { userMounts: false, ...policy },
     spaces,
     apps: codes.map((a) => ({ id: a.app, name: a.name, icon: a.icon, tags: [], framework: a.app })),

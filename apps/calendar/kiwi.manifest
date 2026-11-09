@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=calendar
+DESCRIPTION=Your calendar from Nextcloud or any CalDAV server: the coming days, a month, events that repeat, reminders
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# no nostr events of its own: the calendar lives on a CalDAV server; the login is in the account's settings (30791)
+KINDS=30791
+TAGS=caldav nextcloud calendar
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/calendar
+LICENSE=GPL-3.0-or-later

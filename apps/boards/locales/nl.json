@@ -3,7 +3,7 @@
   "app.home": "Loadout-startpagina",
   "app.account": "Account en instellingen",
   "app.relayStatus": "Relaystatus",
-  "app.footer": "end-to-end versleutelde lijsten &amp; notities via <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
+  "app.footer": "end-to-end versleutelde lijsten & notities via <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
   "app.notFound": "Hier is niets",
   "app.backToBoards": "Terug naar je borden",
   "type.check": "Checklist",

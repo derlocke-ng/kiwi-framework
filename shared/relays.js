@@ -88,6 +88,10 @@ export class RelayPool {
     this.connectListeners = new Set();
     this.subs = new Set();
     this.guests = new Map(); // url -> { relay, users, idle }
+    // NIP-42: who signs a relay's challenge (the person's key, set by the runtime), and the networks whose relays
+    // are answered as soon as they ask (a hub with locked relays: its relay may let only its members write)
+    this.authSigner = null;
+    this.eagerAuth = new Set();
     for (const [network, urls] of Object.entries(Array.isArray(networks) ? { hub: networks } : networks)) {
       this.networks[network] = [];
       for (const url of urls) this.add(url, network);
@@ -138,6 +142,7 @@ export class RelayPool {
     const have = this.relays.get(url);
     if (have) {
       have.networks.add(network);
+      this.wireAuth(have);
       for (const sub of this.subs) this.attach(sub, have); // a subscription of this network may have skipped the relay
       return;
     }
@@ -146,6 +151,7 @@ export class RelayPool {
     // tried: a first connection attempt has finished (until then the page says it is connecting, not offline)
     const entry = { url, relay, open: false, latency: null, connecting: false, tried: false, lastError: null, publishError: null, publishErrorAt: 0, lastOkAt: 0, networks: new Set([network]) };
     this.relays.set(url, entry);
+    this.wireAuth(entry);
     for (const sub of this.subs) this.attach(sub, entry);
     this.connect(entry);
   }
@@ -213,6 +219,80 @@ export class RelayPool {
     for (const entry of this.relays.values()) {
       if (entry.relay.connected) this.renew(entry);
       else this.connect(entry);
+    }
+  }
+
+  /**
+   * The key that answers relays' NIP-42 challenges (null: nobody answers), and the networks whose relays are
+   * answered as soon as they ask. Elsewhere a relay learns the key only when it refuses something without it.
+   * @param {((template: any) => any) | null} signer  signs a kind 22242 template with the person's key
+   * @param {string[]} [eager]
+   */
+  setAuth(signer, eager = []) {
+    this.authSigner = signer;
+    this.eagerAuth = new Set(eager);
+    for (const entry of this.relays.values()) this.wireAuth(entry);
+  }
+
+  /**
+   * nostr-tools answers a challenge by itself when the relay has `onauth`: only relays of an eager network get it.
+   * (An onauth that refuses would leave nostr-tools' auth promise pending for the rest of the connection.)
+   */
+  wireAuth(entry) {
+    const eager = Boolean(this.authSigner) && [...entry.networks].some((n) => this.eagerAuth.has(n));
+    entry.relay.onauth = eager ? (template) => this.answerAuth(entry.url, template) : undefined;
+  }
+
+  /**
+   * Sign a relay's challenge; once the relay has said yes, what it refused before goes out again. The relay tag
+   * names the relay as the hub does (no trailing slash): strfry compares it with its serviceUrl character for
+   * character, and nostr-tools' own URL ends in a slash.
+   */
+  answerAuth(url, template) {
+    const entry = this.relays.get(url);
+    if (!this.authSigner || !entry) throw new Error('no key to answer with');
+    template = { ...template, tags: (template.tags || []).map((t) => (t[0] === 'relay' ? ['relay', entry.url] : t)) };
+    // once the relay has said yes, what it refused before goes out again (the outbox flushes on "connect")
+    setTimeout(() => {
+      entry.relay.authPromise
+        ?.then(() => {
+          for (const fn of this.connectListeners) fn(url);
+        })
+        .catch(() => {});
+    }, 0);
+    const signed = this.authSigner(template);
+    // which key this connection proved: a sign-in later needs a fresh connection (reauthenticate)
+    Promise.resolve(signed)
+      .then((ev) => {
+        entry.authedAs = ev?.pubkey || null;
+      })
+      .catch(() => {});
+    return signed;
+  }
+
+  /**
+   * The person changed (a sign-in, a sign-out, a key imported): a connection that proved another key would go
+   * on writing as that one (a relay takes one answer per connection), so it is made anew and proves the new key
+   * when the relay asks again.
+   * @param {string} pk  the key now signed in
+   */
+  reauthenticate(pk) {
+    for (const entry of this.relays.values()) {
+      if (!entry.authedAs || entry.authedAs === pk) continue;
+      entry.authedAs = null;
+      if (entry.relay.connected) this.renew(entry);
+    }
+  }
+
+  /** Answer a relay's challenge now (it refused a write or a read with "auth-required:"). Resolves true once it accepted. */
+  async authenticate(url) {
+    const entry = this.relays.get(url) || this.relays.get(String(url).replace(/\/$/, ''));
+    if (!entry || !this.authSigner || !entry.relay.challenge) return false;
+    try {
+      await entry.relay.auth((template) => this.answerAuth(entry.url, template));
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -310,7 +390,14 @@ export class RelayPool {
           sub.onevent?.(event, entry.url);
         },
         oneose: () => sub.oneose?.(entry.url),
-        onclose: () => sub.handles.delete(entry.relay.url),
+        onclose: (reason) => {
+          sub.handles.delete(entry.relay.url);
+          // a relay that reads to members only: say who we are, then ask again
+          if (/^auth-required/.test(String(reason || '')))
+            this.authenticate(entry.url)
+              .then((ok) => ok && this.attach(sub, entry))
+              .catch(() => {});
+        },
       });
     } catch {
       return; // the connection dropped between the check and the send; tick() tries again when it is back
@@ -413,6 +500,8 @@ export class RelayPool {
             // "blocked:" / "invalid:" / "restricted:" are the relay's final answer; everything else is worth retrying.
             const permanent = isPermanent(error);
             failed.push({ url, error, permanent });
+            // the relay wants to know who writes (NIP-42): say so; the outbox sends it again once the relay knows
+            if (/^auth-required/.test(error)) this.authenticate(url).catch(() => {});
             if (error !== 'offline') this.notePublish(url, error);
             onResult?.(url, { ok: false, error, permanent });
           },

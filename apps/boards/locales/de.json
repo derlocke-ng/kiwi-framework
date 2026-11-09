@@ -3,7 +3,7 @@
   "app.home": "Loadout-Startseite",
   "app.account": "Konto und Einstellungen",
   "app.relayStatus": "Relay-Status",
-  "app.footer": "Ende-zu-Ende-verschlüsselte Listen &amp; Notizen über <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
+  "app.footer": "Ende-zu-Ende-verschlüsselte Listen & Notizen über <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
   "app.notFound": "Hier ist nichts",
   "app.backToBoards": "Zurück zu deinen Boards",
   "type.check": "Checkliste",

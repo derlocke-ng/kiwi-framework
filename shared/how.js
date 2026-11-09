@@ -31,6 +31,7 @@ export const HOW_TOPICS = [
   'privateMessages', // NIP-17 messages (the chat)
   'spaces', // a mount serves one space: posts name it, a space's relays carry only its posts (spaces.js)
   'audiences', // posts sealed for friends, a circle or only me; keys handed out and rotated (audiences.js)
+  'caldav', // the calendar on a CalDAV server, the login in the account, reminders while a page is open (caldav.js)
 ];
 
 /** Starting lists for each kind of app. */
@@ -43,6 +44,7 @@ export const HOW = {
   chat: ['privateMessages', 'friends', 'blocks', 'media', 'offline'],
   blog: ['signed', 'media', 'offline'],
   rooms: ['direct', 'linkKeys'], // live rooms: file drops, games
+  calendar: ['caldav', 'settings'], // a calendar on a CalDAV server
 };
 
 /** The i18n key of an item: a topic ('media') or an app's own key ('db.how.1'). */

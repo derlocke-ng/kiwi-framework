@@ -26,6 +26,11 @@
 //            relays: 'open' (a person may use their own) or 'locked' (the hub's are fixed)
 //            requireHub: true for a private hub: its pages wait while none of its relays is reachable
 //            requireAccount: true: every mount asks for an account (username and password), not only a key
+//            registerPow: bits of proof of work on a new account entry, which a members' relay takes as the
+//            sign-up (usually set where the hub runs: hub.local.json, HUB_REGISTER_POW); 0: none
+//   caldav   the calendar server the calendar app offers (shared/caldav.js): a path on this hub that its
+//            container forwards to a Nextcloud (/remote.php/dav/, set with HUB_CALDAV), or an address of
+//            a server that allows the hub's origin; '' offers none
 //   spaces   the communities the mounts serve (shared/spaces.js); mounts[].space names one
 //   mounts[].requireAccount  true: this mount asks for an account (ui/AccountGate.tsx says why)
 //   mounts[].network  'hub' (default) or 'public' (shared/distribution-check.js has the rules)
@@ -46,7 +51,8 @@ export const DISTRIBUTION = {
   media: [],
   /** @type {string[] | null} */
   how: null,
-  policy: { userMounts: false, relays: 'open', requireHub: false, requireAccount: false },
+  caldav: '',
+  policy: { userMounts: false, relays: 'open', requireHub: false, requireAccount: false, registerPow: 0 },
   spaces: [],
   apps: [],
   mounts: [],

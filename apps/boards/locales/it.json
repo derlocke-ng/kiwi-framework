@@ -3,7 +3,7 @@
   "app.home": "Home di Loadout",
   "app.account": "Account e impostazioni",
   "app.relayStatus": "Stato dei relay",
-  "app.footer": "liste &amp; note cifrate end-to-end su <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
+  "app.footer": "liste & note cifrate end-to-end su <a href=\"https://nostr.com\" target=\"_blank\" rel=\"noopener\">nostr</a>",
   "app.notFound": "Qui non c’è niente",
   "app.backToBoards": "Torna alle tue bacheche",
   "type.check": "Lista di controllo",

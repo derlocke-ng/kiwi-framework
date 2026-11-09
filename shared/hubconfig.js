@@ -3,7 +3,7 @@
 // and their networks), for tools and catalogs to read. A host may serve
 // `hub.local.json` beside it with what the deployment decides: its own
 // relays (inside a VPN), the public area's relays, the policy, which mounts
-// are public, which ask for an account, a space's relays. The page reads it before it connects, so one
+// are public, which ask for an account, a space's relays, the calendar server. The page reads it before it connects, so one
 // built site (one container image) serves many networks;
 // container/entrypoint.sh writes it from the container's environment.
 // Anything malformed is ignored.
@@ -28,12 +28,16 @@ export function applyHubConfig(local) {
   if (publicRelays) applied.publicRelays = DISTRIBUTION.publicRelays = publicRelays;
   const directoryRelays = relayList(local.directoryRelays);
   if (directoryRelays) applied.directoryRelays = DISTRIBUTION.directoryRelays = directoryRelays;
+  // the calendar server the calendar offers: the container's forwarding to a Nextcloud (HUB_CALDAV), or an address
+  if (typeof local.caldav === 'string' && (local.caldav === '' || /^(\/|https?:\/\/)\S*$/.test(local.caldav))) applied.caldav = DISTRIBUTION.caldav = local.caldav;
   if (local.policy && typeof local.policy === 'object') {
     const policy = { ...(DISTRIBUTION.policy || {}) };
     if (['open', 'locked'].includes(local.policy.relays)) policy.relays = local.policy.relays;
     if (typeof local.policy.requireHub === 'boolean') policy.requireHub = local.policy.requireHub;
     if (typeof local.policy.userMounts === 'boolean') policy.userMounts = local.policy.userMounts;
     if (typeof local.policy.requireAccount === 'boolean') policy.requireAccount = local.policy.requireAccount;
+    // the proof of work (bits) the hub's relay asks of a new account entry, the sign-up of a members' relay
+    if (Number.isInteger(local.policy.registerPow) && local.policy.registerPow >= 0 && local.policy.registerPow <= 32) policy.registerPow = local.policy.registerPow;
     applied.policy = DISTRIBUTION.policy = policy;
   }
   if (Array.isArray(local.publicMounts) && local.publicMounts.every((m) => typeof m === 'string')) {
@@ -104,7 +108,7 @@ export function describeHub(config, { version = '', framework = '' } = {}) {
     relays: [...(config.relays || [])],
     publicRelays: [...(config.publicRelays || [])],
     directoryRelays: [...(config.directoryRelays || [])],
-    policy: { userMounts: false, relays: 'open', requireHub: false, requireAccount: false, ...(config.policy || {}) },
+    policy: { userMounts: false, relays: 'open', requireHub: false, requireAccount: false, registerPow: 0, ...(config.policy || {}) },
     // the spaces as built: their addresses are what another hub names to serve the same space
     spaces: resolveSpaces(config).map((s) => ({ id: s.id, address: s.address, owner: s.owner, owned: s.owned, name: s.name, description: s.description, relays: [...s.relays], moderators: [...s.moderators], adult: s.adult })),
     mounts: (config.mounts || []).map((m) => ({

@@ -38,6 +38,8 @@ Login is one request for two addresses: `{ kinds: [30790], "#d": [lookupPk] }` a
 
 **Retiring a password.** The user's key authors today's entry, so it can replace it: an empty event at the same address with `["retired","1"]` (newest wins on every relay), followed by a kind **5** deletion with `["a", "30790:<user pubkey>:<lookupPk>"]`. A password change publishes the new password's entry and retires the old; a sign-in with a first-form entry republishes it in today's form and retires the first form (an empty event and a kind 5 signed by the lookup key, which only that sign-in holds). An empty entry opens nothing.
 
+**Proof of work on a sign-up.** A hub whose relay lets only its members write (kiwi-modules' `nostr-relay` with `members`) takes a new account entry from anyone as the sign-up when it carries [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) proof of work: `["nonce", <n>, <bits>]` and an id with that many leading zero bits. The hub names the bits in `policy.registerPow` (`hub.local.json`, `HUB_REGISTER_POW`, the relay's `register_pow`); a new account's entry and a password change's carry it, nothing else changes.
+
 Keys travel in other forms: `nsec`, 64 hex characters, or an `ncryptsec` ([NIP-49](https://github.com/nostr-protocol/nips/blob/master/49.md), log n = 16) for an encrypted export.
 
 ## 3. Settings that follow the account
@@ -57,6 +59,7 @@ One event per namespace. Namespaces and their keys today:
 | `people` | see §5 |
 | `loadout` | the boards app's own preferences |
 | `devboard` | `saved` (addresses), `type` (`"hiring"` \| `"available"`), `contact` |
+| `calendar` | `server` (the CalDAV address: a path on the hub such as `/remote.php/dav/`, or an http(s) address), `username`, `password` (an app password), `hidden` (calendar URLs not shown), `calendar` (the one new events go to), `reminder` (minutes before, the usual choice); §15 |
 
 A client merges by the addressable rule and caches the last object locally so screens draw before relays answer. Unknown keys are preserved on write.
 
@@ -180,6 +183,8 @@ With `key`, the stored bytes are `iv (12 bytes) || AES-256-GCM ciphertext and ta
 
 ## 10. Relays
 
+**Saying who you are (NIP-42).** A relay that lets only its members write challenges a connection (`["AUTH", <challenge>]`; kiwi's strfry when the connection first writes) and refuses writes with `auth-required:` until the connection has answered, `restricted:` when the key may not write. A hub's page answers with a kind **22242** event signed by the person's key, with `["challenge", …]` and `["relay", <url>]`, the URL as the hub names the relay (no trailing slash: strfry compares it with its `serviceUrl` character for character). It answers at once on the relays of a locked hub's own network and its spaces, elsewhere only after a relay refused something with `auth-required:`, and then sends again what was refused. Once a connection has proved a member's key, everything it sends is taken, whoever signed it (a board's key, a group's, a gift wrap's one-time key).
+
 A user's relay list is local today (`wjs.relays`), defaulting to the distribution's. Planned: [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) relay lists (kind 10002) and the NIP-17 inbox list (kind 10050), so two people on different relay sets still reach each other; links then carry relay hints. Devices heal relays: on every (re)connect, a device compares each watched author's events with the relay's and republishes what is missing, at most every ten minutes per relay and author, 150 ms apart.
 
 ## 11. Reserved and planned
@@ -206,6 +211,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 - **v1, extended** (0.18): spaces (§12): the definition event, the `a` tag a note carries, the `s=` and `h=` of a link. A note in no space is what it was; a board on a space shows only notes that name it.
 - **v1, extended** (0.19): audiences and the feed (§13): the audience keys and their rumor (kind 7805), the space key, feed entries (30820) and comments (30822). No existing format changed.
 - **v1, extended** (0.20): the market (§14): listings (30830), search labels (NIP-32 `l` tags keyed with the space key); a feed entry's `label`; a chat link's `?text=` draft. No existing format changed.
+- **v1, extended** (0.24): proof of work on a new account entry (§2), answering a relay's AUTH (§10), the calendar's settings and what it writes to a CalDAV server (§3, §15). No existing format changed.
 
 
 ## 9. Relay lists, inboxes and hints
@@ -290,3 +296,24 @@ label = hex(HKDF-SHA-256(<space key>, info = "wjs/label/v1|" + <word>))[0..16)
 A buyer asks `{ "kinds": [30830], "#a": [<space>], "#l": [<labels>] }` for the words of their search, any of which matches: a buyer in Austria looking for seeds asks for `cat:seeds|to:AT`, `cat:seeds|to:EU` and `cat:seeds|to:WW`. Anyone who knows the space's address computes the same labels: they keep a listing's category and countries off plain view, as the space key keeps its content, and do not make them secret. A listing to friends or a circle carries no labels.
 
 **Contact.** A buyer writes to a seller in the chat; a chat link may carry a draft, `#/dm/<pubkey>?text=<the message>`, which the chat puts in its composer unsent. The listing's `contact` is shown on request.
+
+## 15. The calendar (CalDAV)
+
+The calendar app keeps nothing on nostr but its settings (§3, namespace `calendar`): the calendar is the person's CalDAV server (Nextcloud first). The page talks to it directly, or through the hub when the hub's container forwards `/remote.php/dav/` to a Nextcloud beside it (`HUB_CALDAV`; `hub.local.json` then says `"caldav": "/remote.php/dav/"`, the address the app offers). A server on another origin must answer CORS for the hub's origin: methods `GET PUT DELETE PROPFIND REPORT OPTIONS`, headers `Authorization Content-Type Depth If-Match If-None-Match Prefer`, exposed `ETag`. Requests carry HTTP Basic authorization (an app password), no cookies.
+
+Reading: RFC 4791 discovery (`/.well-known/caldav`, `current-user-principal`, `calendar-home-set`), the calendars that hold `VEVENT`, then a `calendar-query` with a time range and a `calendar-multiget`. A series is expanded on the device (RRULE, RDATE, EXDATE, overridden occurrences by `RECURRENCE-ID`); a `TZID` without a `VTIMEZONE` in the object is read with the browser's rules for that zone.
+
+Writing (`PUT` with `If-None-Match: *` for a new object, `If-Match: <etag>` for a change, `DELETE` with `If-Match`), one `VEVENT` per object, `<uid>.ics`:
+
+| property | written |
+|---|---|
+| `PRODID` | `-//kiwi-framework//calendar//EN` (a new object) |
+| `UID`, `DTSTAMP`, `CREATED`, `LAST-MODIFIED`, `SEQUENCE` | as RFC 5545 has them; `SEQUENCE` goes up on a change |
+| `DTSTART`, `DTEND` | a whole-day event as `VALUE=DATE`, the end exclusive; otherwise the wall clock with `TZID=<the device's IANA zone>` and a `VTIMEZONE` for it made from the browser's rules (each offset change of the year as a yearly rule, the n-th or last weekday of its month); UTC where the browser names no zone |
+| `RRULE` | `FREQ=DAILY \| WEEKLY \| MONTHLY \| YEARLY` as chosen; a rule set elsewhere is kept as it is |
+| `EXDATE` | one occurrence taken out of a series, in `DTSTART`'s form |
+| `VALARM` | `ACTION:DISPLAY`, `DESCRIPTION:<title>`, `TRIGGER:-PT<n>M` (`PT0S` at the start); kept as they are when an edit does not touch the reminder |
+| `SUMMARY`, `LOCATION`, `DESCRIPTION` | as typed; an empty one is removed |
+
+A change keeps every property it does not set (attendees, categories, a client's own). Moving a series or changing how it repeats drops its `EXDATE`s and overridden occurrences, which would no longer fit. Reminders go off on a device while a page of the calendar is open there, each once (`wjs.calendar.fired` in local storage), a missed one up to fifteen minutes late; other clients of the same calendar show them as they do.
+

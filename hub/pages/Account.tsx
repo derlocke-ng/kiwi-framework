@@ -217,7 +217,8 @@ export function Account({ full = false }: { full?: boolean }) {
         checkPassword(pass);
         if (pass !== String(f.get('pass2') || '')) throw new Error(t('account.passwordsMismatch'));
         setProgress(t('account.progress.create'));
-        const { alias, lookupPk } = await createAccount(kiwi.net, String(f.get('alias') || ''), pass, current.sk, onProgress);
+        const pow = DISTRIBUTION.policy?.registerPow || 0; // the proof of work the hub's relay asks of a sign-up
+        const { alias, lookupPk } = await createAccount(kiwi.net, String(f.get('alias') || ''), pass, current.sk, onProgress, { pow });
         next = { ...current, alias, accountPk: lookupPk, accountVersion: 2, since };
       } else if (mode === 'signin') {
         setProgress(t('account.progress.signIn'));

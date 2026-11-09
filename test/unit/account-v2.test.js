@@ -54,6 +54,21 @@ test('create, sign in, change the password without the old one, the old password
   await assert.rejects(changePassword(r, { skHex: sk, username: user, newPassword: 'second password!', old: { lookupPk: changed.lookupPk, version: 2 } }), /password you have/);
 });
 
+test('a hub that asks for proof of work gets it on a new entry and on a password change; the entry still opens', async () => {
+  const { getPow } = await import('nostr-tools/nip13');
+  const r = relay();
+  const steps = [];
+  const made = await createAccount(r, 'pow_user', 'first password!', sk, (msg) => steps.push(msg), { pow: 8 });
+  assert.ok(getPow(made.event.id) >= 8, 'the entry carries the work');
+  assert.ok(made.event.tags.some((t) => t[0] === 'nonce'), 'with its nonce');
+  assert.ok(steps.includes('account.progress.work'), 'the person sees the work being done');
+  assert.equal((await login(r.pool, 'pow_user', 'first password!')).sk, sk, 'and it opens as any entry');
+  const changed = await changePassword(r, { skHex: sk, username: 'pow_user', newPassword: 'second password!', old: { lookupPk: made.lookupPk, version: 2 }, pow: 8 });
+  assert.ok(getPow(changed.event.id) >= 8, 'the new password’s entry too');
+  const plain = await createAccount(relay(), 'plain_user', 'first password!', sk);
+  assert.ok(!plain.event.tags.some((t) => t[0] === 'nonce'), 'no work where the hub asks for none');
+});
+
 test('an entry in the first form signs in, is carried to today’s form, and is retired with the old password on a change', async () => {
   const r = relay();
   const lookup = await deriveLookup(user, 'legacy password!');
