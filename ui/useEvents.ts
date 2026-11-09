@@ -73,6 +73,8 @@ export function useEvents({ filters, pageSize = 20, accept, hideBlocked = true }
     const bump = () => alive && setVersion((v) => v + 1);
     // 1. what this device holds
     net.db.query(filters).then((list: NostrEvent[]) => {
+      // an answer for filters this list no longer shows (they changed while the store was asked) must not land in it
+      if (!alive) return;
       let changed = false;
       for (const ev of list) changed = add(ev) || changed;
       if (changed) bump();

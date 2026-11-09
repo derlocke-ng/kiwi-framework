@@ -37,6 +37,12 @@ export async function marketSuite(env, { app, chat, settings, space, moderator =
   const withAccount = (alias, keys = keypair()) => ({ ...keys, alias, accountPk: bytesToHex(generateSecretKey()), accountVersion: 2, created: Date.now() });
   const dev = (name, identity) => device(env, name, init, { relay: env.nostrUrl, identity });
   const titles = (page) => texts(page, '#listings .listing-title');
+  // the grid says nothing reaches here; when it does not, what it shows instead is what the failure reports
+  const emptyHere = async (page) => {
+    const text = (await page.textContent('.market-page')) || '';
+    if (/Nothing here reaches/.test(text)) return true;
+    throw new Error(`the grid shows: ${(await page.$$eval('#listings .listing-title', (els) => els.map((e) => e.textContent))).join(' | ') || text.replace(/\s+/g, ' ').slice(-160)}`);
+  };
   const cardOf = (page, title) => page.locator('.listing-card', { has: page.locator('.listing-title', { hasText: title }) });
 
   async function open(page, url = app) {
@@ -128,14 +134,14 @@ export async function marketSuite(env, { app, chat, settings, space, moderator =
   await open(B);
   await until(async () => (await titles(B)).includes('Five autoflower seeds'), 'the listing reaches Austria (EU)', 20000);
   await B.selectOption('#country', 'US');
-  await until(async () => /Nothing here reaches/.test(await B.textContent('.market-page')), 'nothing for the US', 15000);
+  await until(() => emptyHere(B), 'nothing for the US', 15000);
   await B.selectOption('#country', 'AT');
   await B.selectOption('#category', 'cuttings');
-  await until(async () => /Nothing here reaches/.test(await B.textContent('.market-page')), 'no cuttings', 15000);
+  await until(() => emptyHere(B), 'no cuttings', 15000);
   await B.selectOption('#category', 'seeds');
   await until(async () => (await titles(B)).includes('Five autoflower seeds'), 'seeds again', 15000);
   await B.check('#pickup');
-  await until(async () => /Nothing here reaches/.test(await B.textContent('.market-page')), 'no pickup in Austria', 15000);
+  await until(() => emptyHere(B), 'no pickup in Austria', 15000);
   await B.uncheck('#pickup');
   await until(async () => (await titles(B)).includes('Five autoflower seeds'), 'back', 15000);
   await B.fill('#search', 'mixed');
