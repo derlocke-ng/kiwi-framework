@@ -1,6 +1,6 @@
 # A hub as a container
 
-What a kiwi-node (or any machine with podman or docker) runs to host a hub: the distribution's site, built in the image, served by nginx, configured for its network by environment variables at start.
+What a kiwi master (or any machine with podman or docker) runs to host a hub: the distribution's site, built in the image, served by nginx, configured for its network by environment variables at start.
 
 | file | what |
 |---|---|
@@ -36,9 +36,9 @@ docker run --rm -p 8080:80 \
   ghcr.io/you/your-hub
 ```
 
-## On a kiwi-node
+## On a kiwi master
 
-[kiwi-modules](https://github.com/derlocke-ng/kiwi-modules) has the two modules a hub needs: `nostr-relay` (strfry behind the node's reverse proxy, at `relay.<host>`, TLS from the fleet CA, reachable through the mesh) and `hub` (this image behind the proxy at `hub.<host>`, its `HUB_*` set from the module's settings, the node's own relay as the default). The `hub` preset of the node profile is the two of them behind the VPN client. A private hub is the preset as it comes; a semi-public one adds `public_relays` and `public_mounts`; a public one is `relays` naming public relays and `relays_locked: false`.
+[kiwi-modules](https://github.com/derlocke-ng/kiwi-modules) has the two modules a hub needs, for a master since 0.6.0 (the machine made to face the internet; a node's role is its LAN): `nostr-relay` (strfry behind the master's reverse proxy, at `relay.<host>`) and `hub` (this image behind the proxy at `hub.<host>`, its `HUB_*` set from the module's settings, the master's own relay as the default). A master lists them in its `modules:` (`examples/hub.yaml` there). As it comes the hub is private: its relay reachable through the mesh only, TLS from the fleet CA. A semi-public one adds `public_relays` and `public_mounts`; a public one sets `reverse-proxy.public` (below).
 
 ## Inside a network, or on the internet
 
@@ -47,6 +47,6 @@ The same image serves both; only `HUB_*` and the address differ. Two things hold
 - **HTTPS.** The page seals and opens everything with the browser's WebCrypto, which exists in a secure context only: a hub opened over plain `http://` (other than `localhost`) says so and stops (`ui/SecureGate.tsx`). Its relays are `wss://` for the same reason: an `https` page cannot open a plain `ws://` socket.
 - **Relays people can reach.** The relays a hub names are the ones every visitor's browser connects to.
 
-**Inside a VPN** (a private hub for a household, a team): the kiwi-node `hub` preset as it comes. nginx (kiwi-modules' `reverse-proxy`) serves `hub.<host>` and `relay.<host>` with certificates from the fleet CA, which the fleet's machines trust; a phone in the VPN needs the CA installed once. `HUB_RELAYS_LOCKED=true` and `HUB_REQUIRE_HUB=true` make it private.
+**Inside a VPN** (a private hub for a household, a team): `hub` and `nostr-relay` on a master as they come. nginx (kiwi-modules' `reverse-proxy`, in the WireGuard server's namespace) serves `hub.<host>` and `relay.<host>` to the mesh with certificates from the fleet CA, which the fleet's machines trust; a phone in the VPN needs the CA installed once. `HUB_RELAYS_LOCKED=true` and `HUB_REQUIRE_HUB=true` make it private.
 
-**On the internet:** a static hub needs no machine of its own (Armory is GitHub Pages and public relays). What a machine of your own adds is a **relay**: a space names it (`spaces[].relays` in `distribution.js`, `HUB_SPACE_RELAYS` in a container), its posts then live there, and its moderators' decisions can be carried out where the posts are. For that, nginx needs a certificate browsers trust and must publish only the relay (and the hub's pages, if they are served there) on the public address, not the node's admin pages. kiwi-modules does not do either yet (the reverse proxy takes a certificate as files, `tls_fullchain`/`tls_privkey`, but has no ACME client; kiwi-server's roadmap, problem 37, on what a node publishes on a public host): `handoffs/kiwi-modules-public-hosts.md` says what is needed. Until it lands, a public relay or hub on a VPS is nginx with a certificate you renew yourself, set up by hand.
+**On the internet:** a static hub needs no machine of its own (Armory is GitHub Pages and public relays). What a machine of your own adds is a **relay**: a space names it (`spaces[].relays` in `distribution.js`, `HUB_SPACE_RELAYS` in a container), its posts then live there, and its moderators' decisions can be carried out where the posts are. kiwi-modules 0.7 publishes a hub and its relay from a master: `reverse-proxy.public` publishes 80 and 443 from the WireGuard server's namespace, a site whose name is outside the fleet's domain (`hub_domain`, `relay_domain`) answers the internet and every other site, the admin pages among them, the mesh only; Let's Encrypt gives the public names their certificates and renews them (`acme_email`, `acme_staging` to try). Which names a hub uses is its owner's call. What a public relay accepts is still open: `handoffs/kiwi-modules-relay-write-policy.md`.

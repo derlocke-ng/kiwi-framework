@@ -4,7 +4,7 @@ For the session on `derlocke-ng/kiwi-modules`. Ask the owner before pushing, tag
 
 ## Why
 
-From kiwi-framework 0.23 a hub's container reads `HUB_MODERATORS`: npubs (or hex keys) who moderate every space the hub defines, besides the moderators its distribution ships with (`container/entrypoint.sh` writes them to `hub.local.json` as `moderators`; `shared/hubconfig.js` applies them). A company hub on a kiwi-node names its managers this way: they fold posts, mark them, approve sellers on a market, and later manage the work board. Armory's own moderators are in its `distribution.js`; this is for hubs that run the same image elsewhere.
+From kiwi-framework 0.23 a hub's container reads `HUB_MODERATORS`: npubs (or hex keys) who moderate every space the hub defines, besides the moderators its distribution ships with (`container/entrypoint.sh` writes them to `hub.local.json` as `moderators`; `shared/hubconfig.js` applies them). A company hub on a kiwi master names its managers this way: they fold posts, mark them, approve sellers on a market, and later manage the work board. Armory's own moderators are in its `distribution.js`; this is for hubs that run the same image elsewhere.
 
 ## What to change
 
@@ -15,7 +15,7 @@ From kiwi-framework 0.23 a hub's container reads `HUB_MODERATORS`: npubs (or hex
 
 ## How to test
 
-`kiwi-modules render examples/hub.yaml` with `moderators: [npub1…]` set: the hub's environment has `HUB_MODERATORS=npub1…`; golden files updated. On a node: `curl https://hub.<host>/hub.local.json` shows `"moderators": ["npub1…"]`, and that key's account sees the Reported tab in a feed on one of the hub's spaces.
+`kiwi-modules render examples/hub.yaml` with `moderators: [npub1…]` set: the hub's environment has `HUB_MODERATORS=npub1…`; golden files updated. On a master: `curl https://hub.<host>/hub.local.json` shows `"moderators": ["npub1…"]`, and that key's account sees the Reported tab in a feed on one of the hub's spaces.
 
 ## Done when
 
