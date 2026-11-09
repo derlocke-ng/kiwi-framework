@@ -354,5 +354,9 @@
   "files.save": "Salva {name}",
   "files.preview": "File: {name}",
   "files.error.tooBig": "Il file è troppo grande da inviare (al massimo {max}).",
-  "files.error.changed": "Il file non è quello che è stato inviato."
+  "files.error.changed": "Il file non è quello che è stato inviato.",
+  "vault.error.short": "La frase segreta richiede almeno {n} caratteri.",
+  "vault.error.wrong": "Non è la frase segreta.",
+  "vault.error.broken": "Questa cassaforte non si può leggere.",
+  "how.vault": "I segreti che richiedono più della password del tuo account, come i codici a due fattori, sono conservati in una cassaforte nelle tue impostazioni, sigillata da una frase segreta propria (scrypt e AES-GCM, nel tuo browser). La frase segreta non lascia mai il dispositivo; senza di essa nessuno può aprire la cassaforte, e non si può recuperare."
 }

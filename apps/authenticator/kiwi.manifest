@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=authenticator
+DESCRIPTION=Two-factor codes (TOTP) for your accounts elsewhere, on every device you sign in on, sealed with a passphrase of their own
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# no nostr events of its own: the vault is a value in the account's settings (30791), sealed with its own passphrase
+KINDS=30791
+TAGS=totp 2fa authenticator otp
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/authenticator
+LICENSE=GPL-3.0-or-later

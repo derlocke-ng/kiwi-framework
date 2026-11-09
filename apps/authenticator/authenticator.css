@@ -1,0 +1,266 @@
+/* The authenticator: tokens and components from the shared design library;
+   this file holds what is its own: the lock screens, the code cards, the add
+   sheet. */
+@import "../../shared/ui.css";
+@import "../../shared/widgets.css";
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem var(--gutter) 5rem;
+  flex: 1;
+}
+
+/* the lock screens: one card in the middle */
+.au-lock {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 440px;
+  margin: 1.5rem auto 0;
+}
+
+.au-lock h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.au-lock h2 .icon {
+  color: var(--accent);
+}
+
+/* the bar: the count (or the search), lock, add */
+.au-page .app-bar .search,
+.au-page .app-bar .au-count {
+  flex: 1;
+  min-width: 0;
+}
+
+.au-page .app-bar .search {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+/* the codes */
+.au-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.au-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.au-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.3rem;
+  padding: 0.8rem 0.4rem 0.75rem 1rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.au-main:hover .au-code {
+  color: var(--accent);
+}
+
+.au-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.au-code {
+  font-family: var(--mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  font-size: clamp(1.7rem, 7vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.au-time {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.au-time > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+
+.au-card.soon .au-time > span {
+  background: var(--danger, #c0392b);
+}
+
+.au-card.soon .au-code {
+  opacity: 0.7;
+}
+
+.au-card .icon-btn {
+  margin: 0.45rem 0.4rem 0 0;
+}
+
+.au-foot {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+/* adding: the ways in, what was read */
+.au-ways {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.way {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.way:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.way > .icon {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.1rem;
+  color: var(--accent);
+}
+
+.way > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.au-more {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.au-more summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.au-three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.au-found {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  max-height: 40vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.au-preview code {
+  font-size: 1.4rem;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.au-camera {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.au-camera video {
+  width: 100%;
+  max-height: 55vh;
+  border-radius: var(--radius-sm);
+  background: #000;
+  object-fit: cover;
+}
+
+/* an account's QR code */
+.qr-box {
+  display: grid;
+  place-items: center;
+  margin: 0.75rem 0;
+}
+
+.qr {
+  width: min(240px, 70vw);
+  height: auto;
+  border-radius: 10px;
+}
+
+.qr-bg {
+  fill: #fff;
+}
+
+.qr-fg {
+  fill: #000;
+}
+
+/* the settings' rows of buttons */
+.au-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.au-buttons label.btn {
+  cursor: pointer;
+}

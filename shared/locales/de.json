@@ -345,5 +345,9 @@
   "files.save": "{name} speichern",
   "files.preview": "Datei: {name}",
   "files.error.tooBig": "Die Datei ist zu groß zum Senden (höchstens {max}).",
-  "files.error.changed": "Die Datei ist nicht die, die gesendet wurde."
+  "files.error.changed": "Die Datei ist nicht die, die gesendet wurde.",
+  "vault.error.short": "Die Passphrase braucht mindestens {n} Zeichen.",
+  "vault.error.wrong": "Das ist nicht die Passphrase.",
+  "vault.error.broken": "Dieser Tresor lässt sich nicht lesen.",
+  "how.vault": "Geheimnisse, die mehr brauchen als das Passwort deines Kontos, etwa Zwei-Faktor-Codes, liegen in einem Tresor in deinen Einstellungen, versiegelt mit einer eigenen Passphrase (scrypt und AES-GCM, in deinem Browser). Die Passphrase verlässt das Gerät nie; ohne sie kann niemand den Tresor öffnen, und sie lässt sich nicht wiederherstellen."
 }

@@ -1,6 +1,6 @@
 {
   "name": "kiwi-framework",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "The engine and the parts of a federated community hub on nostr: identity and accounts, relays, store and sync, settings, people, moderation, the design kit, the app shell, build and scaffolding. A distribution adds its name, relays and apps.",
   "license": "GPL-3.0-or-later",
   "repository": "github:derlocke-ng/kiwi-framework",
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check",
     "lint:fix": "biome check --write",
-    "test:e2e": "node test/e2e/widgets.mjs && node test/e2e/boards.mjs && node test/e2e/notices.mjs && node test/e2e/payload.mjs && node test/e2e/pong.mjs && node test/e2e/chat.mjs && node test/e2e/hubs.mjs && node test/e2e/reach.mjs && node test/e2e/members.mjs && node test/e2e/spaces.mjs && node test/e2e/feed.mjs && node test/e2e/market.mjs && node test/e2e/calendar.mjs && node test/e2e/scaffold.mjs",
+    "test:e2e": "node test/e2e/widgets.mjs && node test/e2e/boards.mjs && node test/e2e/notices.mjs && node test/e2e/payload.mjs && node test/e2e/pong.mjs && node test/e2e/chat.mjs && node test/e2e/hubs.mjs && node test/e2e/reach.mjs && node test/e2e/members.mjs && node test/e2e/spaces.mjs && node test/e2e/feed.mjs && node test/e2e/market.mjs && node test/e2e/calendar.mjs && node test/e2e/authenticator.mjs && node test/e2e/scaffold.mjs",
     "probe": "node scripts/blossom-probe.mjs"
   },
   "dependencies": {
@@ -35,6 +35,7 @@
     "dompurify": "3.4.16",
     "esbuild": "^0.28.2",
     "ical.js": "2.2.1",
+    "jsqr": "1.4.0",
     "lucide-static": "1.52.0",
     "marked": "18.1.0",
     "playwright-core": "1.63.0",

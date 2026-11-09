@@ -363,5 +363,9 @@
   "files.save": "Zapisz {name}",
   "files.preview": "Plik: {name}",
   "files.error.tooBig": "Plik jest za duży, żeby go wysłać (najwyżej {max}).",
-  "files.error.changed": "To nie jest plik, który został wysłany."
+  "files.error.changed": "To nie jest plik, który został wysłany.",
+  "vault.error.short": "Fraza dostępu wymaga co najmniej {n} znaków.",
+  "vault.error.wrong": "To nie jest ta fraza dostępu.",
+  "vault.error.broken": "Tego sejfu nie da się odczytać.",
+  "how.vault": "Sekrety, które wymagają czegoś więcej niż hasło do konta, takie jak kody dwuskładnikowe, są przechowywane w sejfie w twoich ustawieniach, zapieczętowanym własną frazą dostępu (scrypt i AES-GCM, w twojej przeglądarce). Fraza nigdy nie opuszcza urządzenia; bez niej nikt nie otworzy sejfu, a nie da się jej odzyskać."
 }

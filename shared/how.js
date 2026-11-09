@@ -32,6 +32,7 @@ export const HOW_TOPICS = [
   'spaces', // a mount serves one space: posts name it, a space's relays carry only its posts (spaces.js)
   'audiences', // posts sealed for friends, a circle or only me; keys handed out and rotated (audiences.js)
   'caldav', // the calendar on a CalDAV server, the login in the account, reminders while a page is open (caldav.js)
+  'vault', // secrets sealed with a passphrase of their own, in the account's settings (vault.js)
 ];
 
 /** Starting lists for each kind of app. */
@@ -46,6 +47,7 @@ export const HOW = {
   rooms: ['direct', 'linkKeys'], // live rooms: file drops, games
   calendar: ['caldav', 'settings'], // a calendar on a CalDAV server
   files: ['media', 'linkKeys', 'privateMessages', 'direct'], // a file share: links, to people, direct (Payload)
+  authenticator: ['vault', 'settings', 'encrypted'], // two-factor codes from secrets in a vault
 };
 
 /** The i18n key of an item: a topic ('media') or an app's own key ('db.how.1'). */

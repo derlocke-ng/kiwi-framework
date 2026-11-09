@@ -345,5 +345,9 @@
   "files.save": "{name} opslaan",
   "files.preview": "Bestand: {name}",
   "files.error.tooBig": "Het bestand is te groot om te sturen (hoogstens {max}).",
-  "files.error.changed": "Dit is niet het bestand dat gestuurd is."
+  "files.error.changed": "Dit is niet het bestand dat gestuurd is.",
+  "vault.error.short": "De wachtzin heeft minstens {n} tekens nodig.",
+  "vault.error.wrong": "Dat is niet de wachtzin.",
+  "vault.error.broken": "Deze kluis is niet te lezen.",
+  "how.vault": "Geheimen die meer nodig hebben dan het wachtwoord van je account, zoals tweestapscodes, worden bewaard in een kluis in je instellingen, verzegeld met een eigen wachtzin (scrypt en AES-GCM, in je browser). De wachtzin verlaat het apparaat nooit; zonder hem kan niemand de kluis openen, en hij is niet te herstellen."
 }

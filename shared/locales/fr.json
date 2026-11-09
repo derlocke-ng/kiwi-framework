@@ -354,5 +354,9 @@
   "files.save": "Enregistrer {name}",
   "files.preview": "Fichier : {name}",
   "files.error.tooBig": "Le fichier est trop gros pour être envoyé ({max} au plus).",
-  "files.error.changed": "Ce fichier n’est pas celui qui a été envoyé."
+  "files.error.changed": "Ce fichier n’est pas celui qui a été envoyé.",
+  "vault.error.short": "La phrase secrète demande au moins {n} caractères.",
+  "vault.error.wrong": "Ce n’est pas la phrase secrète.",
+  "vault.error.broken": "Ce coffre ne peut pas être lu.",
+  "how.vault": "Les secrets qui demandent plus que le mot de passe de ton compte, comme les codes de double authentification, sont gardés dans un coffre dans tes réglages, scellé par sa propre phrase secrète (scrypt et AES-GCM, dans ton navigateur). La phrase secrète ne quitte jamais l’appareil ; sans elle personne ne peut ouvrir le coffre, et elle ne peut pas être récupérée."
 }

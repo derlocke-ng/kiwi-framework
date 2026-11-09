@@ -59,6 +59,7 @@ One event per namespace. Namespaces and their keys today:
 | `people` | see §5 |
 | `loadout` | the boards app's own preferences |
 | `devboard` | `saved` (addresses), `type` (`"hiring"` \| `"available"`), `contact` |
+| `authenticator` | `vault`: the authenticator's two-factor secrets, sealed again with a passphrase of their own (§16) |
 | `calendar` | `server` (the CalDAV address: a path on the hub such as `/remote.php/dav/`, or an http(s) address), `username`, `password` (an app password), `hidden` (calendar URLs not shown), `calendar` (the one new events go to), `reminder` (minutes before, the usual choice); §15 |
 
 A client merges by the addressable rule and caches the last object locally so screens draw before relays answer. Unknown keys are preserved on write.
@@ -213,6 +214,21 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 30820, 30822, 7805 | in use: feed entries and comments, audience keys (§13) |
 | 34550 | in use: space definitions (§12) |
 
+## 16. The authenticator: a vault with its own passphrase
+
+The authenticator keeps its accounts' TOTP secrets in its settings (§3, namespace `authenticator`, key `vault`), so every device of the person has them; the settings event is sealed to the person's key as always, and the value is sealed once more with a key only the vault's passphrase gives (the owner's choice: the account's password alone does not open it). `shared/vault.js`:
+
+| field | value |
+|---|---|
+| `v` | `1` |
+| `kdf` | `{ "name": "scrypt", "N": 65536, "r": 8, "p": 1, "salt": <16 random bytes, base64url> }` |
+| `iv` | 12 random bytes, base64url, new for every write |
+| `data` | base64url of AES-256-GCM(key, iv, UTF-8 JSON `{ "v": 1, "items": [<entry>, …] }`) |
+
+The key is scrypt of the passphrase (Unicode NFKC, UTF-8) with that salt, 32 bytes, worked out off the main thread; it and the passphrase stay in the page's memory while the vault is open and nowhere else. A wrong passphrase is a failed decryption. A new passphrase is a new salt and key over the same items; another device with the vault open finds it cannot read the new value and locks. A removed vault is `vault: null`. Writes are whole values under the settings' newest-wins rule: two devices saving at the same moment keep the later one.
+
+An entry: `{ "id", "issuer", "account", "secret" (base32, RFC 4648, at least 10 bytes), "algorithm" ("SHA1" | "SHA256" | "SHA512"), "digits" (6–8), "period" (seconds, 10–300) }`. Codes are RFC 6238 TOTP (RFC 4226 truncation), made on the device. Accounts come in as `otpauth://totp/` links (Key Uri Format: `secret`, `issuer`, `algorithm`, `digits`, `period`; the label `issuer:account`), as a QR code holding one, or as a Google Authenticator export (`otpauth-migration://offline?data=`, its protocol buffer: TOTP entries only), and go out the same way: an account's QR code, a list of links, or a backup file `{ "type": "kiwi-authenticator-backup", "v": 1, "vault": <the record above> }`.
+
 ## Changes
 
 - **v1** (October 2026): this document, written from the code of kiwi-framework 0.1.0 and Armory. No event format changed.
@@ -223,6 +239,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 - **v1, extended** (0.20): the market (§14): listings (30830), search labels (NIP-32 `l` tags keyed with the space key); a feed entry's `label`; a chat link's `?text=` draft. No existing format changed.
 - **v1, extended** (0.24): proof of work on a new account entry (§2), answering a relay's AUTH (§10), the calendar's settings and what it writes to a CalDAV server (§3, §15). No existing format changed.
 - **v1, changed** (0.25): Payload's direct transfers and pong's games moved from gun to the ephemeral kinds 21700–21702 (§8, the formats defined); Payload's links (§9). Rooms of earlier versions on gun do not meet rooms on nostr: both sides need 0.25.
+- **v1, extended** (0.26): the authenticator's vault (§3, §16). No existing format changed.
 
 
 ## 9. Relay lists, inboxes and hints

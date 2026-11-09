@@ -354,5 +354,9 @@
   "files.save": "Guardar {name}",
   "files.preview": "Ficheiro: {name}",
   "files.error.tooBig": "O ficheiro é demasiado grande para enviar (no máximo {max}).",
-  "files.error.changed": "O ficheiro não é o que foi enviado."
+  "files.error.changed": "O ficheiro não é o que foi enviado.",
+  "vault.error.short": "A frase-senha precisa de pelo menos {n} caracteres.",
+  "vault.error.wrong": "Essa não é a frase-senha.",
+  "vault.error.broken": "Este cofre não pode ser lido.",
+  "how.vault": "Os segredos que precisam de mais do que a palavra-passe da tua conta, como os códigos de dois fatores, ficam num cofre nas tuas definições, selado com uma frase-senha própria (scrypt e AES-GCM, no teu navegador). A frase-senha nunca sai do dispositivo; sem ela ninguém abre o cofre, e não pode ser recuperada."
 }

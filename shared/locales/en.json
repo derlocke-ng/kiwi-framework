@@ -345,5 +345,9 @@
   "files.save": "Save {name}",
   "files.preview": "File: {name}",
   "files.error.tooBig": "The file is too big to send (at most {max}).",
-  "files.error.changed": "The file is not the one that was sent."
+  "files.error.changed": "The file is not the one that was sent.",
+  "vault.error.short": "The passphrase needs at least {n} characters.",
+  "vault.error.wrong": "That is not the passphrase.",
+  "vault.error.broken": "This vault cannot be read.",
+  "how.vault": "Secrets that need more than your account’s password, such as two-factor codes, are kept in a vault in your settings, sealed with a passphrase of their own (scrypt and AES-GCM, in your browser). The passphrase never leaves the device; without it nobody can open the vault, and it cannot be recovered."
 }

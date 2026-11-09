@@ -324,7 +324,7 @@ await run(
     await W.waitForSelector('#howDemo');
     await W.click('#howDemo summary');
     const kinds = await W.$$eval('#howKind option', (os) => os.map((o) => o.value));
-    assert.deepEqual(kinds, ['hub', 'boards', 'notices', 'feed', 'market', 'chat', 'blog', 'rooms', 'calendar', 'files']);
+    assert.deepEqual(kinds, ['hub', 'boards', 'notices', 'feed', 'market', 'chat', 'blog', 'rooms', 'calendar', 'files', 'authenticator']);
     for (const kind of kinds) {
       await W.selectOption('#howKind', kind);
       const lines = await W.$$eval('#howDemo li', (els) => els.map((e) => [e.dataset.how, e.textContent.trim()]));

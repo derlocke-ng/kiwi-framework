@@ -96,7 +96,7 @@ export function checkPassword(pass) {
 
 /** The lookup key pair and wrapping key for a username + password. Slow on purpose. */
 /** scrypt in a worker where there is one (the page stays responsive), on this thread otherwise (tests). */
-function scryptOffThread(password, salt, params, onProgress) {
+export function scryptOffThread(password, salt, params, onProgress) {
   const opts = onProgress ? { ...params, onProgress } : params; // scrypt refuses a null callback
   if (typeof Worker !== 'function') return scryptAsync(password, salt, opts);
   return new Promise((resolve, reject) => {

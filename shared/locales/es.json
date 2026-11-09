@@ -354,5 +354,9 @@
   "files.save": "Guardar {name}",
   "files.preview": "Archivo: {name}",
   "files.error.tooBig": "El archivo es demasiado grande para enviarlo (como mucho {max}).",
-  "files.error.changed": "El archivo no es el que se envió."
+  "files.error.changed": "El archivo no es el que se envió.",
+  "vault.error.short": "La frase de contraseña necesita al menos {n} caracteres.",
+  "vault.error.wrong": "Esa no es la frase de contraseña.",
+  "vault.error.broken": "Esta caja fuerte no se puede leer.",
+  "how.vault": "Los secretos que necesitan algo más que la contraseña de tu cuenta, como los códigos de doble factor, se guardan en una caja fuerte en tus ajustes, sellada con su propia frase de contraseña (scrypt y AES-GCM, en tu navegador). La frase nunca sale del dispositivo; sin ella nadie puede abrir la caja fuerte, y no se puede recuperar."
 }
