@@ -25,6 +25,8 @@ npm run test:e2e                         # all of them, in that order
 WJS_DEBUG=1 node test/e2e/<suite>.mjs    # the sync layer logs every publish and answer; printed when a step fails
 ```
 
+Everything the suites need runs locally (relays, media servers, several hubs); never point a test at a public relay or server. When something can only be checked on a real deployment (the image with `HUB_*` behind a kiwi-node's proxy, a phone against a public hub), ask the owner: they can set up a public or VPN'd test hub.
+
 Run browser suites one after another, never two in parallel in one container (the widgets suite flakes under load, nothing else does). A suite that fails prints each device's console, its relay sockets, the addressable events it holds and what the relay holds: read those before guessing. CI (`.github/workflows/test.yml`) runs the same four things and, on `main`, tags `v<package.json version>` and publishes a release with the commit message as notes when that tag does not exist yet.
 
 ## A release
