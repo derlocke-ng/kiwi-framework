@@ -14,7 +14,7 @@
 // address and other nostr clients find a definition, and the hub itself
 // publishes that definition when the relays lack it.
 import { DISTRIBUTION } from './distribution.js';
-import { addressOf, KINDS, makeAddressable, supersedes } from './events.js';
+import { addressOf, deriveKey, KINDS, keyId, makeAddressable, supersedes } from './events.js';
 import { bytesToHex, getPublicKey, hexToBytes, sha256, verifyEvent } from './nostr.mjs';
 
 /** A space's id: a short slug, the `d` of its definition and the word in a distribution's config. */
@@ -85,6 +85,17 @@ export const spaceNetworks = () => Object.fromEntries(SPACES.filter((s) => s.net
 export function setSpaceRelays(space, relays) {
   space.relays = relayList(relays);
   space.network = space.relays.length ? `space:${space.id}` : null;
+}
+
+/**
+ * The key "the space" as an audience is sealed with: derived from the space's address, which is public, so
+ * everyone using a hub that serves the space reads what is posted to it, and relays, crawlers and other
+ * clients see ciphertext. Not a secret: a way to keep a community's posts off plain view.
+ * @returns {{ k: Uint8Array, kid: string }}
+ */
+export function spaceReadKey(space) {
+  const k = deriveKey(bytesToHex(sha256(te.encode(space.address))), 'wjs/space/read/v1');
+  return { k, kid: keyId(k) };
 }
 
 /** Does `pk` moderate this space: its owner, or one of the moderators named? */

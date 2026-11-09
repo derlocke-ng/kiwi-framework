@@ -1,6 +1,7 @@
 // The framework's React layer: what an app imports. Everything an app needs
 // from the runtime comes through here, never from shared/ directly.
 
+export { pendingReturn, RequireAccount, rememberReturn, takeReturn } from './AccountGate';
 export type { AppSettingsProps, AppShellProps } from './AppShell';
 export { AppSettings, AppShell, LanguageBanner, useMount } from './AppShell';
 export type { Brand } from './components';
@@ -10,6 +11,7 @@ export { closeMenus, confirmDialog, Overlays, openMenu, pickPeople } from './dia
 export {
   KiwiContext,
   useAppSettings,
+  useAudiences,
   useBlocks,
   useGroups,
   useIdentity,

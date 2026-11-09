@@ -10,6 +10,7 @@
 //   spaces[]            id (a slug), owner (a hex pubkey, or none: the hub's own, with a derived key),
 //                       name, relays (the space's own network, or none: the mount's)
 //   mounts[].space      the id of one of the spaces
+//   mounts[].requireAccount, policy.requireAccount   true or false: only people with an account use it
 
 const RELAY = /^wss?:\/\/\S+$/;
 const SPACE_ID = /^[a-z0-9][a-z0-9-]{1,39}$/;
@@ -27,9 +28,11 @@ export function checkDistribution(config) {
   const policy = config.policy || {};
   if (policy.relays !== undefined && !['open', 'locked'].includes(policy.relays)) problems.push("policy.relays: 'open' or 'locked'");
   if (policy.requireHub !== undefined && typeof policy.requireHub !== 'boolean') problems.push('policy.requireHub: true or false');
+  if (policy.requireAccount !== undefined && typeof policy.requireAccount !== 'boolean') problems.push('policy.requireAccount: true or false');
   for (const m of config.mounts || []) {
     if (m.network !== undefined && !['hub', 'public'].includes(m.network)) problems.push(`mount "${m.id}": network is 'hub' or 'public'`);
     if (m.network === 'public' && !publicRelays.length) problems.push(`mount "${m.id}" is on the public network, but the distribution names no publicRelays`);
+    if (m.requireAccount !== undefined && typeof m.requireAccount !== 'boolean') problems.push(`mount "${m.id}": requireAccount is true or false`);
   }
   if (publicRelays.length && !(config.mounts || []).some((m) => m.network === 'public')) problems.push('publicRelays are named, but no mount is on the public network');
   const spaces = config.spaces || [];

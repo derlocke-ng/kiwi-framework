@@ -320,5 +320,12 @@
   "account.signOutOthersConfirm": "Jedes andere Gerät meldet sich bei seiner nächsten Verbindung ab. Dieses bleibt angemeldet.",
   "account.signOutOthersDone": "Die anderen Geräte melden sich bei ihrer nächsten Verbindung ab.",
   "account.signOutDevice": "Abmelden",
-  "how.spaces": "Jedes Brett, jeder Feed und jeder Markt hier dient einem Space: einer benannten Gemeinschaft mit Regeln, Moderatoren und, wenn sie welche hat, eigenen Relays. Beiträge nennen ihren Space, darum vermischen sich die Beiträge eines Space nie mit denen eines anderen, und zwei Hubs, die denselben Space nennen, teilen ihn."
+  "how.spaces": "Jedes Brett, jeder Feed und jeder Markt hier dient einem Space: einer benannten Gemeinschaft mit Regeln, Moderatoren und, wenn sie welche hat, eigenen Relays. Beiträge nennen ihren Space, darum vermischen sich die Beiträge eines Space nie mit denen eines anderen, und zwei Hubs, die denselben Space nennen, teilen ihn.",
+  "how.audiences": "Beiträge für Freunde oder einen Kreis sind mit einem Schlüssel versiegelt, den nur dessen Mitglieder bekommen, jeweils in einer versiegelten Nachricht. Wenn jemand geht (du entfreundest oder blockierst die Person oder nimmst sie aus dem Kreis), nutzen die nächsten Beiträge einen neuen Schlüssel, den sie nie bekommt; was sie vorher lesen konnte, bleibt für sie lesbar. „Nur ich“ nutzt einen Schlüssel, den niemand sonst je bekommt.",
+  "gate.account.title": "{app} braucht ein Konto",
+  "gate.account.why": "{app} ist auf diesem Hub für Leute mit Konto.",
+  "gate.account.text": "Ein Konto ist ein Benutzername und ein Passwort für deinen Schlüssel, damit er auf jedes Gerät mitkommt, auf dem du dich anmeldest. Keine E-Mail, keine Telefonnummer, nichts über dich außer dem Namen, den du wählst. Es dauert einen Moment in den Einstellungen, und dann kommst du hierher zurück.",
+  "gate.account.keyText": "Du nutzt einen Schlüssel ohne Konto. Gib ihm in den Einstellungen einen Benutzernamen und ein Passwort (ein neues Konto behält deinen Schlüssel), und dann kommst du hierher zurück.",
+  "gate.account.go": "Anmelden oder Konto erstellen",
+  "gate.account.home": "Zurück zu {hub}"
 }

@@ -17,6 +17,8 @@
 //   network  (a mount's) 'hub', the hub's own relays, or 'public', the public area's relays (shared/relays.js)
 //   space    (a mount's) the id of one of the distribution's spaces (shared/spaces.js): the community
 //            it serves; its posts carry the space's address and live on the space's relays when it has some
+//   requireAccount  (a mount's) true: only people with an account (username and password) use it here;
+//            a key alone gets a page that says why (ui/AccountGate.tsx). policy.requireAccount: every mount
 import { DISTRIBUTION } from './distribution.js';
 import { spaceById } from './spaces.js';
 
@@ -47,6 +49,11 @@ export const networkOfPage = (current) => (mountById(current)?.network === 'publ
  * (`space:<id>`), any other page its people's network.
  */
 export const contentNetworkOf = (current) => mountById(current)?.space?.network || networkOfPage(current);
+/** Does this page ask for an account (username and password), not only a key? Hub pages never do: that is where one is made. */
+export function accountRequired(current) {
+  const m = mountById(current);
+  return Boolean(m && (m.requireAccount || DISTRIBUTION.policy?.requireAccount));
+}
 /** The space a page's mount serves, or null. */
 export const spaceOfPage = (current) => mountById(current)?.space || null;
 /** The mount of `appId` that serves the space at `address`, or null: where a link into that space opens on this hub. */

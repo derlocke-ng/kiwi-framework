@@ -329,5 +329,12 @@
   "account.signOutOthersConfirm": "Ogni altro dispositivo si disconnette alla prossima connessione. Questo resta connesso.",
   "account.signOutOthersDone": "Gli altri dispositivi si disconnetteranno alla prossima connessione.",
   "account.signOutDevice": "Disconnetti",
-  "how.spaces": "Ogni bacheca, feed o mercato qui serve uno spazio: una comunità con un nome, regole, moderatori e, quando li ha, relay propri. I post nominano il loro spazio, così i post di uno spazio non si mescolano mai con quelli di un altro, e due hub che nominano lo stesso spazio lo condividono."
+  "how.spaces": "Ogni bacheca, feed o mercato qui serve uno spazio: una comunità con un nome, regole, moderatori e, quando li ha, relay propri. I post nominano il loro spazio, così i post di uno spazio non si mescolano mai con quelli di un altro, e due hub che nominano lo stesso spazio lo condividono.",
+  "how.audiences": "I post per gli amici o per una cerchia sono sigillati con una chiave che ricevono solo i suoi membri, ognuno in una nota sigillata. Quando qualcuno esce (lo togli dagli amici, lo blocchi o lo togli dalla cerchia), i post successivi usano una nuova chiave che non riceve mai; ciò che poteva leggere prima resta leggibile per lui. “Solo io” usa una chiave che nessun altro riceve mai.",
+  "gate.account.title": "{app} chiede un account",
+  "gate.account.why": "Su questo hub {app} è per chi ha un account.",
+  "gate.account.text": "Un account è un nome utente e una password per la tua chiave, così ti segue su ogni dispositivo su cui accedi. Niente email, niente numero di telefono, niente su di te tranne il nome che scegli. Ci vuole un attimo nelle impostazioni, e poi torni qui.",
+  "gate.account.keyText": "Usi una chiave senza account. Dalle un nome utente e una password nelle impostazioni (creare un account mantiene la tua chiave), e poi torni qui.",
+  "gate.account.go": "Accedi o crea un account",
+  "gate.account.home": "Torna a {hub}"
 }

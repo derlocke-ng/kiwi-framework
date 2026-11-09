@@ -16,6 +16,8 @@ export const KINDS = {
   SETTINGS: 30791, // per-account settings, encrypted to yourself
   GROUP_INFO: 30720, // chat group: name, host, closed; signed by the group's key, sealed, host-signed inside
   SPACE: 34550, // NIP-72 community definition: a space (shared/spaces.js); posts in it carry ["a", <its address>]
+  FEED_ENTRY: 30820, // the feed: an entry, sealed to an audience or the space (`key` tag: the key's id)
+  FEED_COMMENT: 30822, // the feed: a comment on an entry (["a", <entry address>]), sealed with the entry's key
   // Ephemeral (20000–29999): relays pass them on and forget them.
   P2P_PRESENCE: 21700,
   P2P_SIGNAL: 21701,
@@ -43,6 +45,7 @@ export const KINDS = {
   FRIEND_ACCEPT: 7802,
   FRIEND_REMOVE: 7803,
   SHARE: 7804,
+  AUDIENCE_KEY: 7805, // to one person: the key of an audience of the writer's ({ kid, k }), shared/audiences.js
 };
 
 export const now = () => Math.floor(Date.now() / 1000);
@@ -168,4 +171,7 @@ export async function open(keyBytes, payload) {
 export const deriveKey = (secretHex, label) => hkdf(sha256, hexToBytes(secretHex), undefined, te.encode(label), 32);
 
 /** Short, human-comparable fingerprint of a public key. */
+/** A key's id: the first 16 hex characters of its SHA-256. What an event sealed with it names in its `key` tag. */
+export const keyId = (k) => bytesToHex(sha256(k)).slice(0, 16);
+
 export const fingerprint = (pk) => String(pk || '').slice(0, 12).replace(/(.{4})(?=.)/g, '$1-');

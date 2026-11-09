@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=feed
+DESCRIPTION=A feed of entries with photos for a community, friends, a circle or only you; sealed before they leave the browser
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# the nostr event kinds it reads and writes
+KINDS=30820 30822 7 1984 7805
+TAGS=nostr feed photos encrypted spaces
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/feed
+LICENSE=GPL-3.0-or-later

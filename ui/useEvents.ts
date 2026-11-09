@@ -101,11 +101,13 @@ export function useEvents({ filters, pageSize = 20, accept, hideBlocked = true }
     };
   }, [key, net, pageSize, add]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `version` and `blocks` changes re-read the store
+  // the block list is one object that changes inside: what it holds is the dependency, so a block hides at once
+  const blocked = hideBlocked && blocks ? (blocks.list() as { pubkey: string }[]).map((b) => b.pubkey).join() : '';
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `version` and `blocked` changes re-read the store
   const sorted = useMemo(() => {
     const list = [...store.current.values()].filter((ev) => !(hideBlocked && blocks?.isBlocked(ev.pubkey)));
     return list.sort((a, b) => b.created_at - a.created_at || (a.id < b.id ? -1 : 1));
-  }, [version, blocks, hideBlocked]);
+  }, [version, blocked, hideBlocked]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for `filters`
   const loadMore = useCallback(() => {

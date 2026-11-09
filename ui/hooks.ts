@@ -152,6 +152,13 @@ export function useGroups(): any {
   return groups;
 }
 
+/** Who can read what I post, and the keys others gave me (shared/audiences.js), re-rendering when a key arrives. */
+export function useAudiences(): any {
+  const kiwi = useKiwi();
+  useKiwiTick();
+  return kiwi.audiences;
+}
+
 /** The space this page's mount serves, as the relays describe it (shared/spaces.js); null for a mount on no space. */
 export function useSpace(): any | null {
   const kiwi = useKiwi();

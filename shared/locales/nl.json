@@ -320,5 +320,12 @@
   "account.signOutOthersConfirm": "Elk ander apparaat meldt zich af bij zijn volgende verbinding. Dit apparaat blijft aangemeld.",
   "account.signOutOthersDone": "De andere apparaten melden zich af bij hun volgende verbinding.",
   "account.signOutDevice": "Afmelden",
-  "how.spaces": "Elk bord, elke feed en elke markt hier dient één space: een benoemde gemeenschap met regels, moderatoren en, als ze die heeft, eigen relays. Berichten noemen hun space, dus de berichten van één space raken nooit vermengd met die van een andere, en twee hubs die dezelfde space noemen, delen hem."
+  "how.spaces": "Elk bord, elke feed en elke markt hier dient één space: een benoemde gemeenschap met regels, moderatoren en, als ze die heeft, eigen relays. Berichten noemen hun space, dus de berichten van één space raken nooit vermengd met die van een andere, en twee hubs die dezelfde space noemen, delen hem.",
+  "how.audiences": "Berichten voor vrienden of een kring worden verzegeld met een sleutel die alleen de leden krijgen, elk in een verzegeld bericht. Als iemand vertrekt (je ontvriendt of blokkeert diegene, of haalt diegene uit de kring), gebruiken de volgende berichten een nieuwe sleutel die diegene nooit krijgt; wat diegene eerder kon lezen, blijft leesbaar. “Alleen ik” gebruikt een sleutel die niemand anders ooit krijgt.",
+  "gate.account.title": "{app} vraagt om een account",
+  "gate.account.why": "Op deze hub is {app} voor mensen met een account.",
+  "gate.account.text": "Een account is een gebruikersnaam en een wachtwoord voor je sleutel, zodat die meegaat naar elk apparaat waarop je inlogt. Geen e-mail, geen telefoonnummer, niets over jou behalve de naam die je kiest. Het kost even in de instellingen, en daarna kom je hier terug.",
+  "gate.account.keyText": "Je gebruikt een sleutel zonder account. Geef hem in de instellingen een gebruikersnaam en een wachtwoord (een account aanmaken houdt je sleutel), en daarna kom je hier terug.",
+  "gate.account.go": "Inloggen of een account aanmaken",
+  "gate.account.home": "Terug naar {hub}"
 }

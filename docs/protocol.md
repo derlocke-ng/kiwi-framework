@@ -191,7 +191,8 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
-| market and feed kinds | to be assigned in the 307xx/308xx ranges when those apps land |
+| market kinds | to be assigned in the 307xx/308xx ranges when the market lands |
+| 30820, 30822, 7805 | in use: feed entries and comments, audience keys (§13) |
 | 34550 | in use: space definitions (§12) |
 
 ## Changes
@@ -200,6 +201,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 - **v1, clarified**: `created_at` of a new version is after every version the device has seen, not only the ones it signed (fixes edits from a device with a slow clock being dropped). No format changed.
 - **v1, extended**: the media object and Blossom authorization (§9); the suite keys `appOrder` and `mediaServers`. No existing format changed.
 - **v1, extended** (0.18): spaces (§12): the definition event, the `a` tag a note carries, the `s=` and `h=` of a link. A note in no space is what it was; a board on a space shows only notes that name it.
+- **v1, extended** (0.19): audiences and the feed (§13): the audience keys and their rumor (kind 7805), the space key, feed entries (30820) and comments (30822). No existing format changed.
 
 
 ## 9. Relay lists, inboxes and hints
@@ -228,3 +230,28 @@ The space's address is `34550:<owner>:<id>`. **A space nobody owns** is one a hu
 **A space's relays** are a network of their own on a hub (shared/relays.js, `space:<id>`): a mount on the space reads and writes them and nothing else, its people's lists, settings and sealed notes stay on the hub's or the public network, and no relay list (§9) is published on them. A space without relays lives on its mount's network.
 
 **A link into a space** carries `s=<space address>` and `h=<the page it was made on, without its hash>` in the fragment's query besides the `r=` hints (§9): `<app url>#/n/<author>/<d>?s=34550%3A…%3Ajobs&h=https%3A%2F%2Fhub.example%2Fjobs%2F&r=relay.example`. A hub that opens it on a mount of the same app that serves another space goes to its mount for that space; a hub with none says whose space it is and offers `h=` as the way back. The link names the app, the space and the item; the host in `h=` is a courtesy, not the address.
+
+## 13. Audiences and the feed
+
+**Audiences.** A person's audiences are `me`, `friends` and each circle (`c:<circle id>`, §5). Each has an epoch, starting at 1 when it is first used; its key is
+
+```
+k   = HKDF-SHA-256(sk, info = "wjs/audience/v1/<audience>/<epoch>"), 32 bytes, no salt
+kid = hex(sha256(k))[0..16)
+```
+
+so every device holding the key `sk` derives every audience key it ever used. The epochs, and whom each audience's current key went to, are in the person's account settings (§3, `d` = `audiences`: `ep:<audience>` the epoch, `to:<audience>` `{ "e": <epoch>, "pks": [<pubkey>…] }`). The current key goes to each member once, as a rumor of kind **7805** `AUDIENCE_KEY` in a gift wrap to them alone (§5): `{ "kid": <kid>, "k": <hex of k> }`. A reader checks that `kid` is the key's hash and keeps the key under `got:<author>` in their own `audiences` settings (`{ <kid>: <hex> }`, the last twelve per author). When someone who was given the current key is no longer a member (unfriended, blocked, taken out of the circle), the next use starts a new epoch and its key goes to those still in. Members added later are given the current key. `me` is never given to anyone.
+
+**The space key** (§12): `k = HKDF-SHA-256(sha256(<space address>), info = "wjs/space/read/v1")`, `kid` as above. It is public knowledge to anyone who has the address: a way to keep a community's posts off plain view, not a secret.
+
+**Entries.**
+
+| | |
+|---|---|
+| kind | **30820** (addressable) |
+| tags | `["d", <random id>]`, `["a", <space address>, <relay>]` (on a mount on a space, §12), `["key", <kid>]` |
+| content | `seal(k, { "v": 1, "text": <≤ 5000, markdown>, "media": [<media object, §9>…] (≤ 6, each with its own key), "tags": [<hashtag>…] (≤ 10, lowercase), "name": <the writer's alias, ≤ 40>, "at": <ms of the first version> })` |
+
+`k` is the key `kid` names: the space key for an entry to the space, else one of the author's audience keys. A reader without the key does not show the entry. Editing republishes under the same `d` (keeping `at`), possibly under another key; deleting publishes `seal(k, { "del": 1, "u": <ms> })` under the same key.
+
+**Comments**: kind **30822** (addressable), `["d", <random id>]`, `["a", <entry address>]`, the entry's space `a` tag, `["key", <the entry's kid>]`, content `seal(k, { "text": <≤ 1000>, "name", "at" })` with the entry's key; deleted like entries. **Likes**: NIP-25 kind 7, `+` (an empty content takes it back; the newest per person counts), with `["a", <entry address>]`, `["p", <author>]`, `["k", "30820"]`. **Reports**: §4, with `["a", <entry address>]`, `["e", <entry id>, <type>]`, `["k", "30820"]`. A report by one of the space's moderators folds an entry away on its own; otherwise three reports by people the reader has not blocked do. Likes, reports and who commented on what are visible to relays; what an entry or a comment says is not.

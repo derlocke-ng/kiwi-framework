@@ -31,5 +31,8 @@ test('the words are checked', () => {
   assert.match(checkDistribution({ ...base, mounts: [{ id: 'x', app: 'x', network: 'vpn' }] }).join(), /'hub' or 'public'/);
   assert.match(checkDistribution({ ...base, policy: { relays: 'fixed' } }).join(), /'open' or 'locked'/);
   assert.match(checkDistribution({ ...base, policy: { requireHub: 'yes' } }).join(), /true or false/);
+  assert.match(checkDistribution({ ...base, policy: { requireAccount: 1 } }).join(), /policy.requireAccount: true or false/);
+  assert.match(checkDistribution({ ...base, mounts: [{ id: 'x', app: 'x', requireAccount: 'yes' }] }).join(), /requireAccount is true or false/);
+  assert.deepEqual(checkDistribution({ ...base, policy: { requireAccount: true }, mounts: [{ id: 'x', app: 'x', requireAccount: true }] }), []);
   assert.match(checkDistribution({ ...base, relays: ['https://a.example'] }).join(), /relays: a list of wss/);
 });

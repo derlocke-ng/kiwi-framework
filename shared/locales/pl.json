@@ -338,5 +338,12 @@
   "account.signOutOthersConfirm": "Każde inne urządzenie wyloguje się przy następnym połączeniu. To pozostaje zalogowane.",
   "account.signOutOthersDone": "Inne urządzenia wylogują się przy następnym połączeniu.",
   "account.signOutDevice": "Wyloguj",
-  "how.spaces": "Każda tablica, kanał czy rynek tutaj obsługuje jedną przestrzeń: nazwaną społeczność z zasadami, moderatorami i, gdy je ma, własnymi przekaźnikami. Wpisy wskazują swoją przestrzeń, więc wpisy jednej przestrzeni nigdy nie mieszają się z wpisami innej, a dwa huby wskazujące tę samą przestrzeń dzielą ją."
+  "how.spaces": "Każda tablica, kanał czy rynek tutaj obsługuje jedną przestrzeń: nazwaną społeczność z zasadami, moderatorami i, gdy je ma, własnymi przekaźnikami. Wpisy wskazują swoją przestrzeń, więc wpisy jednej przestrzeni nigdy nie mieszają się z wpisami innej, a dwa huby wskazujące tę samą przestrzeń dzielą ją.",
+  "how.audiences": "Wpisy dla znajomych lub kręgu są pieczętowane kluczem, który dostają tylko jego członkowie, każdy w zapieczętowanej wiadomości. Gdy ktoś odchodzi (usuwasz go ze znajomych, blokujesz albo wyjmujesz z kręgu), kolejne wpisy używają nowego klucza, którego nigdy nie dostanie; to, co mógł przeczytać wcześniej, pozostaje dla niego czytelne. „Tylko ja” używa klucza, którego nikt inny nigdy nie dostaje.",
+  "gate.account.title": "{app} wymaga konta",
+  "gate.account.why": "Na tym hubie {app} jest dla osób z kontem.",
+  "gate.account.text": "Konto to nazwa użytkownika i hasło do twojego klucza, dzięki czemu idzie z tobą na każde urządzenie, na którym się zalogujesz. Bez e-maila, bez numeru telefonu, nic o tobie poza wybraną nazwą. Zajmuje chwilę w ustawieniach, a potem wracasz tutaj.",
+  "gate.account.keyText": "Używasz klucza bez konta. Nadaj mu w ustawieniach nazwę użytkownika i hasło (utworzenie konta zachowuje twój klucz), a potem wracasz tutaj.",
+  "gate.account.go": "Zaloguj się lub utwórz konto",
+  "gate.account.home": "Wróć do {hub}"
 }

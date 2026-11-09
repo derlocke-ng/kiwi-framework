@@ -21,6 +21,8 @@ The site is built once, with the relays and policy its `distribution.js` names. 
 | `HUB_REQUIRE_HUB` | `true`: the hub's pages wait while none of its relays is reachable (inside a VPN) |
 | `HUB_PUBLIC_MOUNTS` | the mounts on the public network, by id: `uplink` |
 | `HUB_USER_MOUNTS` | `true`: a person may follow a space the hub does not ship |
+| `HUB_ACCOUNT_MOUNTS` | the mounts that ask for an account (username and password), by id: `tradingpost`; someone on a key alone is told why and sent to sign in or register |
+| `HUB_REQUIRE_ACCOUNT` | `true`: every mount asks for an account |
 | `HUB_SPACE_RELAYS` | a space's own relays, per space id, spaces separated by `;`: `jobs=wss://relay.sh3.home;gems=wss://a,wss://b`; an id with an empty list puts that space on its mount's network |
 
 Nothing set: no `hub.local.json`, the site runs as built. `hub.json` next to it is the hub as built (name, versions, relays, policy, spaces with their addresses, mounts), for catalogs and tools; it never changes at start.

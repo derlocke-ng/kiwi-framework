@@ -286,7 +286,7 @@ export async function topBar(env, url) {
  * name, id, relays, publicRelays, directoryRelays, policy and spaces (as in distribution.js). Resolves
  * with the site's folder.
  */
-export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {}, spaces = [] } = {}) {
+export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays = [], publicRelays = [], directoryRelays = [], policy = {}, spaces = [], media = [] } = {}) {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-test-hub-'));
   const codes = [...new Map(apps.map((a) => [a.app, a])).values()]; // one app entry per app, however often it is mounted
   const config = {
@@ -300,7 +300,7 @@ export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays
     relays,
     publicRelays,
     directoryRelays,
-    media: [],
+    media,
     how: null,
     policy: { userMounts: false, ...policy },
     spaces,
@@ -312,6 +312,7 @@ export async function testHub(apps, { id = 'test-hub', name = 'Test hub', relays
       featured: i === 0,
       ...(a.network ? { network: a.network } : {}),
       ...(a.space ? { space: a.space } : {}),
+      ...(a.requireAccount ? { requireAccount: true } : {}),
     })),
   };
   fs.writeFileSync(path.join(dist, 'distribution.js'), `export const DISTRIBUTION = ${JSON.stringify(config)};\n`);

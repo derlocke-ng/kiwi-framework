@@ -11,13 +11,15 @@
 #   HUB_REQUIRE_HUB     true: the hub's pages wait while none of its relays is reachable
 #   HUB_PUBLIC_MOUNTS   the mounts on the public network, e.g. uplink
 #   HUB_USER_MOUNTS     true: a person may follow a space the hub does not ship
+#   HUB_ACCOUNT_MOUNTS  the mounts that ask for an account (username and password), e.g. tradingpost
+#   HUB_REQUIRE_ACCOUNT true: every mount asks for an account
 #   HUB_SPACE_RELAYS    a space's own relays, per space id, spaces separated by ';':
 #                       jobs=wss://relay.sh3.home;gems=wss://a,wss://b (an empty list: the mount's network)
 set -eu
 root=${HUB_ROOT:-/usr/share/nginx/html}
 out="$root/hub.local.json"
 
-if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}${HUB_SPACE_RELAYS:-}" ]; then
+if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}${HUB_SPACE_RELAYS:-}${HUB_ACCOUNT_MOUNTS:-}${HUB_REQUIRE_ACCOUNT:-}" ]; then
     rm -f "$out"
     exit 0
 fi
@@ -46,6 +48,7 @@ bool() { # true/yes/1/on -> true, anything else -> false
     if [ -n "${HUB_PUBLIC_RELAYS+x}" ]; then printf "$sep"'  "publicRelays": %s' "$(json_list "${HUB_PUBLIC_RELAYS:-}")"; sep=',\n'; fi
     if [ -n "${HUB_DIRECTORY_RELAYS:-}" ]; then printf "$sep"'  "directoryRelays": %s' "$(json_list "$HUB_DIRECTORY_RELAYS")"; sep=',\n'; fi
     if [ -n "${HUB_PUBLIC_MOUNTS+x}" ]; then printf "$sep"'  "publicMounts": %s' "$(json_list "${HUB_PUBLIC_MOUNTS:-}")"; sep=',\n'; fi
+    if [ -n "${HUB_ACCOUNT_MOUNTS+x}" ]; then printf "$sep"'  "accountMounts": %s' "$(json_list "${HUB_ACCOUNT_MOUNTS:-}")"; sep=',\n'; fi
     if [ -n "${HUB_SPACE_RELAYS:-}" ]; then
         spaces=''
         ssep=''
@@ -66,6 +69,7 @@ bool() { # true/yes/1/on -> true, anything else -> false
     if [ -n "${HUB_RELAYS_LOCKED:-}" ]; then policy="$policy$psep\"relays\": \"$([ "$(bool "$HUB_RELAYS_LOCKED")" = true ] && printf locked || printf open)\""; psep=', '; fi
     if [ -n "${HUB_REQUIRE_HUB:-}" ]; then policy="$policy$psep\"requireHub\": $(bool "$HUB_REQUIRE_HUB")"; psep=', '; fi
     if [ -n "${HUB_USER_MOUNTS:-}" ]; then policy="$policy$psep\"userMounts\": $(bool "$HUB_USER_MOUNTS")"; psep=', '; fi
+    if [ -n "${HUB_REQUIRE_ACCOUNT:-}" ]; then policy="$policy$psep\"requireAccount\": $(bool "$HUB_REQUIRE_ACCOUNT")"; psep=', '; fi
     if [ -n "$policy" ]; then printf "$sep"'  "policy": { %s }' "$policy"; sep=',\n'; fi
     printf '\n}\n'
 } > "$out"

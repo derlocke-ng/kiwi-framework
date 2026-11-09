@@ -6,6 +6,7 @@
 
 import { changePassword as changeAccountPassword, forgetIdentity, ID_KEY, loadIdentity, saveIdentity } from '../shared/account.js';
 import { contentNetworkOf, MOUNT_IDS, networkOfPage, orderedMounts, spaceOfPage } from '../shared/apps.js';
+import { Audiences } from '../shared/audiences.js';
 import { normalizeServer } from '../shared/blossom.js';
 import { DirectMessages } from '../shared/chat.js';
 import { deviceId, deviceName } from '../shared/device.js';
@@ -86,6 +87,8 @@ export class Kiwi {
   reach!: any;
   /** the hub's spaces as the relays know them (shared/spaces.js) */
   spaces!: any;
+  /** who can read what I post: friends, circles, only me; the keys others gave me (shared/audiences.js) */
+  audiences!: any;
   version = 0;
   private listeners = new Set<() => void>();
   private offSuite: (() => void) | null = null;
@@ -277,6 +280,7 @@ export class Kiwi {
     this.people?.stop();
     this.messages?.stop();
     this.groups?.stop();
+    this.audiences?.stop();
     this.offBlocks?.();
     this.offConnect?.();
     const id = this.identity();
@@ -296,8 +300,12 @@ export class Kiwi {
     this.messages = new DirectMessages(id, this.hubNet, { isBlocked, peers: this.peers, reach: this.reach });
     this.groups = new Groups(id, this.hubNet, { isBlocked, inbox: this.messages, network: this.network }); // registers for knocks and keys before the inbox replays
     this.groups.friendCheck = (pk: string) => Boolean(this.people?.isFriend(pk));
+    // registers for audience keys before the inbox replays, like the groups
+    this.audiences = new Audiences(id, this.hubNet, { inbox: this.messages, people: this.people, isBlocked });
+    this.audiences.onChange(() => this.emit());
     await this.messages.start();
     await this.groups.start();
+    await this.audiences.start();
     this.offBlocks = this.blocks.onChange(() => this.messages.purgeBlocked().catch(() => {}));
     this.emit();
   }

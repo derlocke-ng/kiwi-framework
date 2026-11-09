@@ -19,6 +19,7 @@ import { deviceId } from '../../shared/device.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { fingerprint } from '../../shared/events.js';
 import { has, relTime, tErr } from '../../shared/i18n.js';
+import { pendingReturn, takeReturn } from '../../ui/AccountGate';
 import { Icon } from '../../ui/components';
 import { useIdentity, useKiwi, useKiwiTick, useT } from '../../ui/hooks';
 import { copyText, download, toast, toastError } from '../../ui/toast';
@@ -245,6 +246,9 @@ export function Account({ full = false }: { full?: boolean }) {
       form.reset();
       if (next.alias) toast(t('hub.welcome', { alias: String(next.alias) }), 'success');
       else toast(t('hub.keyInUse', { fp: fingerprint(String(next.pk)) }), 'success');
+      // a mount that asks for an account sent the person here: with one now, they go back
+      const back = next.accountPk ? takeReturn() : null;
+      if (back) location.href = back.url;
     } catch (err) {
       setError(tErr(err));
       setBusy(false);
@@ -268,8 +272,15 @@ export function Account({ full = false }: { full?: boolean }) {
       toastError(err);
     }
   };
+  const back = id.accountPk ? null : pendingReturn(); // a mount that asks for an account sent the person here
   const authForm = (
     <>
+      {back ? (
+        <p className="banner return-note" id="returnNote">
+          <Icon name="key-round" />
+          <span>{t('account.returnNote', { app: back.name })}</span>
+        </p>
+      ) : null}
       <div className="seg" role="tablist">
         {(['signin', 'create', 'import'] as Mode[]).map((m) => (
           <label key={m}>

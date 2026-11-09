@@ -22,6 +22,7 @@ const INBOX_DAYS = 30; // gift wraps carry a date randomised up to two days back
 export const TEXT = 4000;
 const SEEN_MAX = 4000;
 const NAME = 40; // a writer's name inside a message, as long as an alias
+const PEOPLE_KINDS = [KINDS.FRIEND_REQUEST, KINDS.FRIEND_ACCEPT, KINDS.FRIEND_REMOVE, KINDS.SHARE]; // People unwraps these itself
 
 export class DirectMessages {
   /**
@@ -96,8 +97,11 @@ export class DirectMessages {
     const told = relaysTag(rumor);
     if (told.length && isHex64(rumor.pubkey) && rumor.pubkey !== this.pk) this.peers?.learnRelays?.(rumor.pubkey, network, told);
     if (rumor.kind !== KINDS.CHAT_MESSAGE) {
-      // another module's rumor: the groups' knocks and keys come through here; People's are its own
-      for (const fn of this.rumorHandlers.get(rumor.kind) || []) fn(rumor, ev, network);
+      // another module's rumor: the groups' knocks and keys, the audiences' keys come through here; People's are its own
+      const handlers = this.rumorHandlers.get(rumor.kind);
+      for (const fn of handlers || []) fn(rumor, ev, network);
+      // a kind nothing on this page handles stays unmarked: a later version that knows it still gets it on its next start
+      if (!handlers?.size && !PEOPLE_KINDS.includes(rumor.kind)) return;
       return this.markSeen(ev.id);
     }
     const from = rumor.pubkey;
@@ -199,15 +203,19 @@ export class DirectMessages {
     return () => this.rumorHandlers.get(kind)?.delete(fn);
   }
 
-  /** A rumor of another kind to one person, wrapped for them (on their network) and for my other devices. */
-  async sendRumor(toPk, kind, body) {
+  /**
+   * A rumor of another kind to one person, wrapped for them (on their network) and, unless `self` is false,
+   * for my other devices. `wait` (default): resolves once a relay has the reader's copy; false: once it is
+   * stored and owed to the relays (the outbox delivers it when they are reachable).
+   */
+  async sendRumor(toPk, kind, body, { self = true, wait = true } = {}) {
     const network = this.networkOf(toPk);
     const rumor = { kind, created_at: now(), tags: [['p', toPk], ...this.relaysFor(network)], content: JSON.stringify(body) };
     const { sync } = this.net;
     const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
-    await whole(sync).publish(theirs, { wait: 'one', network });
+    await whole(sync).publish(theirs, { ...(wait ? { wait: 'one' } : {}), network });
     this.reach?.deliver(toPk, network, theirs).catch(() => {});
-    await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk));
+    if (self) await sync.publish(nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk));
   }
 
   /** The `relays` tag for a sealed note on `network`: where I read on it, so the reader can answer. */

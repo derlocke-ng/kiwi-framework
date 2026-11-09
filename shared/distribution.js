@@ -25,6 +25,9 @@
 //   policy   userMounts: may a user follow a space this hub does not ship?
 //            relays: 'open' (a person may use their own) or 'locked' (the hub's are fixed)
 //            requireHub: true for a private hub: its pages wait while none of its relays is reachable
+//            requireAccount: true: every mount asks for an account (username and password), not only a key
+//   spaces   the communities the mounts serve (shared/spaces.js); mounts[].space names one
+//   mounts[].requireAccount  true: this mount asks for an account (ui/AccountGate.tsx says why)
 //   mounts[].network  'hub' (default) or 'public' (shared/distribution-check.js has the rules)
 export const DISTRIBUTION = {
   id: 'kiwi',
@@ -43,7 +46,8 @@ export const DISTRIBUTION = {
   media: [],
   /** @type {string[] | null} */
   how: null,
-  policy: { userMounts: false, relays: 'open', requireHub: false },
+  policy: { userMounts: false, relays: 'open', requireHub: false, requireAccount: false },
+  spaces: [],
   apps: [],
   mounts: [],
 };

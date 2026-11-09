@@ -112,5 +112,8 @@
   },
   "settings.spacePublish": "Opublikuj definicję",
   "settings.spacePublished": "Definicja opublikowana.",
-  "settings.spaceAdult": "18+"
+  "settings.spaceAdult": "18+",
+  "hub.accountOnly": "Konto",
+  "hub.accountOnlyTitle": "Wymaga konta na tym hubie",
+  "account.returnNote": "{app} wymaga konta. Zaloguj się tutaj albo je utwórz, a wrócisz tam."
 }

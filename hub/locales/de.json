@@ -108,5 +108,8 @@
   },
   "settings.spacePublish": "Definition veröffentlichen",
   "settings.spacePublished": "Definition veröffentlicht.",
-  "settings.spaceAdult": "18+"
+  "settings.spaceAdult": "18+",
+  "hub.accountOnly": "Konto",
+  "hub.accountOnlyTitle": "Braucht ein Konto auf diesem Hub",
+  "account.returnNote": "{app} braucht ein Konto. Melde dich hier an oder erstelle eins, und du kommst dorthin zurück."
 }

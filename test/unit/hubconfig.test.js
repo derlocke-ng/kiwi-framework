@@ -29,6 +29,14 @@ test('malformed values are ignored, one by one', () => {
   restore();
 });
 
+test('a host says which mounts ask for an account, and may ask for one everywhere', () => {
+  const applied = applyHubConfig({ accountMounts: ['market'], policy: { requireAccount: true } });
+  assert.deepEqual(applied.accountMounts, ['market']);
+  assert.equal(DISTRIBUTION.policy.requireAccount, true);
+  assert.deepEqual(applyHubConfig({ accountMounts: [1, 2] }), {}, 'a list of something else changes nothing');
+  restore();
+});
+
 test('a host sets a space’s relays; the space’s network follows; malformed lists are ignored', () => {
   const [space] = resolveSpaces({ id: 'acme', spaces: [{ id: 'jobs', name: 'Jobs' }] });
   assert.equal(space.network, null, 'no relays of its own as built');
@@ -56,7 +64,7 @@ test('hub.json describes the hub as built, its spaces with their addresses', () 
   const d = describeHub({ id: 'x', name: 'X', relays: ['wss://a'], mounts: [{ id: 'chat', app: 'chat', network: 'public' }, { id: 'boards', app: 'boards' }] }, { version: '1.0.0', framework: '0.15.0' });
   assert.equal(d.version, '1.0.0');
   assert.equal(d.framework, '0.15.0');
-  assert.deepEqual(d.policy, { userMounts: false, relays: 'open', requireHub: false });
+  assert.deepEqual(d.policy, { userMounts: false, relays: 'open', requireHub: false, requireAccount: false });
   assert.deepEqual(
     d.mounts.map((m) => m.network),
     ['public', 'hub'],

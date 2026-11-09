@@ -4,6 +4,7 @@
 // says so instead of staying blank.
 import { type ComponentType, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { RequireAccount } from './AccountGate';
 import { Overlays } from './dialogs';
 import { KiwiContext } from './hooks';
 import { bootKiwi, type KiwiOptions } from './kiwi';
@@ -19,7 +20,9 @@ export async function mountPage(Page: ComponentType, options: KiwiOptions = {}):
     root.render(
       <StrictMode>
         <KiwiContext.Provider value={kiwi}>
-          <Page />
+          <RequireAccount>
+            <Page />
+          </RequireAccount>
           <Overlays />
           <NetworkGate />
         </KiwiContext.Provider>

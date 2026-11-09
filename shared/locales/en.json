@@ -320,5 +320,12 @@
   "account.signOutOthersConfirm": "Every other device signs out the next time it connects. This one stays signed in.",
   "account.signOutOthersDone": "The other devices sign out when they next connect.",
   "account.signOutDevice": "Sign out",
-  "how.spaces": "Every board, feed or market here serves one space: a named community with rules, moderators and, when it has them, relays of its own. Posts name their space, so one space’s posts never mix with another’s, and two hubs that name the same space share it."
+  "how.spaces": "Every board, feed or market here serves one space: a named community with rules, moderators and, when it has them, relays of its own. Posts name their space, so one space’s posts never mix with another’s, and two hubs that name the same space share it.",
+  "how.audiences": "Posts for friends or a circle are sealed with a key only its members are given, each in a sealed note. When someone leaves (you unfriend or block them, or take them out of the circle), the next posts use a new key they never get; what they could read before stays readable to them. “Only me” uses a key no one else is ever given.",
+  "gate.account.title": "{app} asks for an account",
+  "gate.account.why": "{app} on this hub is for people with an account.",
+  "gate.account.text": "An account is a username and a password for your key, so it comes with you to every device you sign in on. No email, no phone number, nothing about you but the name you choose. It takes a moment in the settings, and then you come back here.",
+  "gate.account.keyText": "You use a key without an account. Give it a username and a password in the settings (creating an account keeps your key), and then you come back here.",
+  "gate.account.go": "Sign in or create an account",
+  "gate.account.home": "Back to {hub}"
 }

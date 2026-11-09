@@ -1,3 +1,4 @@
+import { accountRequired } from '../../shared/apps.js';
 import { DISTRIBUTION } from '../../shared/distribution.js';
 import { LanguageBanner } from '../../ui/AppShell';
 import { AccountLink, Icon, RelayList, StatusPill, Toasts, TopBar } from '../../ui/components';
@@ -43,6 +44,11 @@ function Apps() {
                 {t('hub.public')}
               </span>
             ) : null}
+            {accountRequired(feature.id) ? (
+              <span className="badge account" title={t('hub.accountOnlyTitle')}>
+                {t('hub.accountOnly')}
+              </span>
+            ) : null}
             <h2>
               {feature.name}
               {count(feature.id)}
@@ -76,6 +82,14 @@ function Apps() {
                     {' '}
                     <span className="badge public" title={t('hub.publicArea')}>
                       {t('hub.public')}
+                    </span>
+                  </>
+                ) : null}
+                {accountRequired(a.id) ? (
+                  <>
+                    {' '}
+                    <span className="badge account" title={t('hub.accountOnlyTitle')}>
+                      {t('hub.accountOnly')}
                     </span>
                   </>
                 ) : null}
