@@ -28,6 +28,11 @@ authenticator opens the same vault and shows every entry with a 2FA secret.
   X.509 root CA (made here or brought in with its PKCS #8 key) issues server, client, server-and-client and
   intermediate certificates, for a key made here or for a CSR whose key stays where it was made
   (`shared/x509.js`); each certificate becomes an entry of its own with its key and chain.
+- **TLS certificates** (0.29, `pages/Tls.tsx`), like kiwi-server's ksslgen and more: from a CA in the vault, self-signed,
+  or a key and request for another CA whose certificate is pasted back; host and `*.host` in one step; saved as
+  `privkey.pem`, `cert.pem` and `fullchain.pem` with the nginx lines; renewed in one tap and listed in Health
+  before they run out. A CA can be limited to its domains (name constraints), brought in as it is (kiwiCA.pem
+  and kiwiCA.key; PKCS #8, #1 or SEC1 keys) and handed to devices as PEM or DER with the steps for each system.
 
 A web page cannot fill in other sites' forms; that would take a browser extension.
 

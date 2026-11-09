@@ -16,8 +16,9 @@ export const TYPE_ICON: Record<string, string> = {
   ssh: 'square-terminal',
   ca: 'award',
   cert: 'file-badge',
+  tls: 'file-badge',
 };
-export const NEW_TYPES = ['login', 'note', 'card', 'totp', 'ssh', 'ca'];
+export const NEW_TYPES = ['login', 'note', 'card', 'totp', 'ssh', 'tls', 'ca'];
 export const KEY_TYPES = ['ssh', 'ca', 'cert'];
 
 /** The line under an entry's name: who it is for, or what it is. */
@@ -25,7 +26,10 @@ export function subtitle(item: VaultItem, t: (key: string, params?: Record<strin
   if (item.type === 'card') return item.card?.number ? `•••• ${item.card.number.replace(/\D/g, '').slice(-4)}` : item.card?.brand || '';
   if (item.type === 'note') return item.notes.split('\n')[0].slice(0, 80);
   if (item.ssh) return `${item.ssh.ca ? 'CA · ' : ''}${item.ssh.fingerprint.slice(0, 22)}…`;
-  if (item.pki) return `${t(`pw.ca.kind.${item.pki.kind}`)} · ${t('pw.keys.until', { date: new Date(item.pki.notAfter).toLocaleDateString() })}`;
+  if (item.pki)
+    return item.pki.notAfter
+      ? `${t(`pw.ca.kind.${item.pki.kind}`)} · ${t('pw.keys.until', { date: new Date(item.pki.notAfter).toLocaleDateString() })}`
+      : t('pw.tls.waiting');
   return item.username || (item.urls[0] ? hostOf(item.urls[0]) : '');
 }
 

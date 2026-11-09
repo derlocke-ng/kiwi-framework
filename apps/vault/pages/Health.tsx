@@ -1,5 +1,6 @@
 // The vault's health: passwords that are weak, used for more than one entry,
-// or not changed for a year, worked out on the device; and, only when the
+// or not changed for a year, and certificates that run out within a month,
+// worked out on the device; and, only when the
 // person turned it on in the settings, passwords found in known breaches (Have
 // I Been Pwned's range search: five hex characters of each hash leave, data/breach.js).
 import { useMemo, useState } from 'react';
@@ -48,6 +49,12 @@ export function Health() {
     return logins.filter((i) => (by.get(i.password)?.length || 0) > 1);
   }, [logins]);
   const old = useMemo(() => logins.filter((i) => i.changed && Date.now() - i.changed > YEAR), [logins]);
+  // certificates and CAs that run out within a month (or have): renew them before a browser says no
+  const expiring = useMemo(
+    () =>
+      vault.items.filter((i) => i.pki?.notAfter && i.pki.notAfter - Date.now() < 30 * 86400e3).sort((a, b) => (a.pki?.notAfter || 0) - (b.pki?.notAfter || 0)),
+    [vault.items],
+  );
   const allowed = Boolean(vault.prefs.get('breachCheck', false));
   const [breached, setBreached] = useState<{ item: VaultItem; count: number }[] | null>(null);
   const [checking, setChecking] = useState<number | null>(null);
@@ -73,6 +80,15 @@ export function Health() {
       <Section id="weak" icon="triangle-alert" title={t('pw.health.weak')} items={weak} />
       <Section id="reused" icon="copy" title={t('pw.health.reused')} items={reused} />
       <Section id="old" icon="history" title={t('pw.health.old')} items={old} note={(i) => new Date(i.changed).toLocaleDateString()} />
+      <Section
+        id="expiring"
+        icon="refresh-cw"
+        title={t('pw.health.expiring')}
+        items={expiring}
+        note={(i) =>
+          (i.pki?.notAfter || 0) < Date.now() ? t('pw.health.expired') : t('pw.keys.until', { date: new Date(i.pki?.notAfter || 0).toLocaleDateString() })
+        }
+      />
       <div className="card" id="breaches">
         <h2>
           <Icon name="shield-alert" />

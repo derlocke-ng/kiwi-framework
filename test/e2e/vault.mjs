@@ -287,6 +287,7 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   step('an X.509 root CA; a server certificate openssl verifies and a TLS handshake trusts');
   await newEntry(A, 'ca');
   await A.fill('#entryForm [name=cn]', 'Test Root CA');
+  await A.click('#entryForm .pw-more summary'); // organisation, country, place: folded away
   await A.fill('#entryForm [name=o]', 'Kiwi');
   await A.selectOption('#entryForm [name=keyType]', 'ec-p256');
   await A.click('#saveEntry');
@@ -328,8 +329,148 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   assert.match(tool('openssl', 'verify', '-x509_strict', '-CAfile', save('ca3.pem', caPem), save('api.pem', await block(A, 'cert'))), /: OK/);
   await A.goto(`${app}#/`); // the certificate opened from the CA's page: back to the list directly
   await A.waitForSelector('#entryView', { state: 'detached' });
+
+  // TLS certificates in one step (0.29), like kiwi-server's ksslgen and more
+  const tlsEntry = async (mode, fill) => {
+    await newEntry(A, 'tls');
+    await A.click(`[data-mode=${mode}]`);
+    await fill();
+    await A.click('#saveEntry');
+    await A.waitForSelector('#pkiView', { timeout: 20000 });
+  };
+  const saved = async (act) => {
+    const [d] = await Promise.all([A.waitForEvent('download'), A.click(act)]);
+    return { name: d.suggestedFilename(), bytes: fs.readFileSync(await d.path()) };
+  };
+
+  step('a TLS certificate from my CA for a host and *.host, as privkey.pem, cert.pem and fullchain.pem, with nginx lines');
+  await tlsEntry('ca', async () => {
+    await A.fill('#entryForm [name=cn]', 'cloud.office.lan');
+    await A.fill('#entryForm [name=names]', '10.0.0.5');
+  });
+  assert.equal(await A.textContent('[data-field=sans] .pw-value'), 'cloud.office.lan, *.cloud.office.lan, 10.0.0.5');
+  for (const host of ['cloud.office.lan', 'mail.cloud.office.lan']) {
+    assert.match(tool('openssl', 'verify', '-x509_strict', '-CAfile', save('ca4.pem', caPem), '-verify_hostname', host, save('cloud.pem', await block(A, 'cert'))), /: OK/, host);
+  }
+  assert.equal((await saved('[data-act=save-chain]')).name, 'fullchain.pem');
+  assert.equal((await saved('[data-act=save-cert]')).name, 'cert.pem');
+  assert.equal((await saved('[data-act=save-key]')).name, 'privkey.pem');
+  assert.match(await block(A, 'nginx'), /ssl_certificate +\/etc\/ssl\/cloud\.office\.lan\/fullchain\.pem;\nssl_certificate_key \/etc\/ssl\/cloud\.office\.lan\/privkey\.pem;/);
+
+  step('renewing it: a new certificate for the same names, the old serial remembered');
+  const firstCert = await block(A, 'cert');
+  await A.click('#renewBtn');
+  await A.click('[data-ok]');
+  await until(async () => (await block(A, 'cert')) !== firstCert, 'the renewed certificate');
+  await A.waitForSelector('#previous');
+  assert.match(tool('openssl', 'verify', '-CAfile', save('ca5.pem', caPem), '-verify_hostname', 'files.cloud.office.lan', save('cloud2.pem', await block(A, 'cert'))), /: OK/);
+
+  step('a self-signed certificate a TLS client told to trust it accepts');
+  await tlsEntry('self', async () => {
+    await A.fill('#entryForm [name=cn]', '127.0.0.1');
+    await A.fill('#entryForm [name=name]', 'Self test');
+  });
+  const selfCert = await block(A, 'cert');
+  await A.click('[data-act=show-key]');
+  const selfKey = await block(A, 'key');
+  const selfOk = await new Promise((resolve, reject) => {
+    const server = tls.createServer({ key: selfKey, cert: selfCert }, (c) => c.end('hi'));
+    server.listen(0, '127.0.0.1', () => {
+      const c = tls.connect({ port: server.address().port, host: '127.0.0.1', ca: selfCert }, () => {
+        const ok = c.authorized;
+        c.end();
+        server.close();
+        resolve(ok);
+      });
+      c.on('error', (e) => (server.close(), reject(e)));
+    });
+  });
+  assert.equal(selfOk, true);
+
+  step('for another CA: a key and request; openssl as that CA signs it; a wrong certificate refused, the right one stored');
+  await tlsEntry('external', async () => {
+    await A.fill('#entryForm [name=cn]', 'api2.example.org');
+  });
+  await A.waitForSelector('#pendingHint');
+  const csrFile = save('api2.csr', await block(A, 'csr'));
+  tool('openssl', 'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', path.join(tmp, 'outside.key'), '-out', path.join(tmp, 'outside.pem'), '-subj', '/CN=Outside CA', '-days', '30');
+  fs.writeFileSync(path.join(tmp, 'ext.cnf'), 'basicConstraints=CA:FALSE\nsubjectAltName=DNS:api2.example.org,DNS:*.api2.example.org\n');
+  tool('openssl', 'x509', '-req', '-in', csrFile, '-CA', path.join(tmp, 'outside.pem'), '-CAkey', path.join(tmp, 'outside.key'), '-CAcreateserial', '-days', '30', '-extfile', path.join(tmp, 'ext.cnf'), '-out', path.join(tmp, 'api2.pem'));
+  await A.fill('#pasteForm [name=certPem]', selfCert);
+  await A.click('#pasteBtn');
+  await A.waitForSelector('#pasteError');
+  await A.fill('#pasteForm [name=certPem]', fs.readFileSync(path.join(tmp, 'api2.pem'), 'utf8') + fs.readFileSync(path.join(tmp, 'outside.pem'), 'utf8'));
+  await A.click('#pasteBtn');
+  await A.waitForSelector('#pendingHint', { state: 'detached', timeout: 15000 });
+  assert.match(await block(A, 'chain'), /BEGIN CERTIFICATE[\s\S]+BEGIN CERTIFICATE/, 'the chain that came with it');
+  assert.match(tool('openssl', 'verify', '-CAfile', path.join(tmp, 'outside.pem'), save('api2-back.pem', await block(A, 'cert'))), /: OK/);
+
+  step('a CA limited to its domains: openssl accepts what is under them and refuses the rest; the CA on devices as DER');
+  await newEntry(A, 'ca');
+  await A.fill('#entryForm [name=cn]', 'Office CA');
+  await A.fill('#entryForm [name=permitted]', 'office.lan 10.8.0.0/16');
+  await A.click('#saveEntry');
+  await A.waitForSelector('#pkiView [data-field=permitted]', { timeout: 20000 });
+  const officeCa = await block(A, 'cert');
+  const officeUrl = A.url();
+  const der = await saved('#saveCer');
+  assert.equal(der.name, 'Office-CA.cer');
+  tool('openssl', 'x509', '-in', save('office2.pem', officeCa), '-outform', 'der', '-out', path.join(tmp, 'office.der'));
+  assert.deepEqual(der.bytes, fs.readFileSync(path.join(tmp, 'office.der')));
+  for (const [host, ok] of [
+    ['nas.office.lan', true],
+    ['bank.example.com', false],
+  ]) {
+    await A.goto(officeUrl);
+    await A.waitForSelector('#issueForm');
+    await A.fill('#issueForm [name=cn]', host);
+    await A.click('#issueBtn');
+    await A.waitForSelector(`#entryView[data-entry="${host}"] #pkiView`, { timeout: 20000 });
+    const leaf = save(`${host}.pem`, await block(A, 'cert'));
+    if (ok) assert.match(tool('openssl', 'verify', '-CAfile', path.join(tmp, 'office2.pem'), leaf), /: OK/);
+    else assert.throws(() => tool('openssl', 'verify', '-CAfile', path.join(tmp, 'office2.pem'), leaf), /permitted subtree violation|name constraints/i);
+  }
+
+  step('an old CA brought in as openssl made it (a PKCS #1 key); a short-lived certificate shows in the health report');
+  tool('openssl', 'genrsa', '-traditional', '-out', path.join(tmp, 'kiwiCA.key'), '2048');
+  tool('openssl', 'req', '-x509', '-new', '-nodes', '-key', path.join(tmp, 'kiwiCA.key'), '-sha256', '-days', '3650', '-subj', '/C=NZ/ST=kiwi/L=kiwi/O=kiwi/OU=kiwi/CN=kiwiCA', '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign', '-out', path.join(tmp, 'kiwiCA.pem'));
+  await newEntry(A, 'ca');
+  await A.click('[data-mode=import]');
+  await A.fill('#entryForm [name=certPem]', fs.readFileSync(path.join(tmp, 'kiwiCA.pem'), 'utf8'));
+  await A.fill('#entryForm [name=keyPem]', fs.readFileSync(path.join(tmp, 'kiwiCA.key'), 'utf8'));
+  await A.click('#saveEntry');
+  await A.waitForSelector('#entryView[data-entry="kiwiCA"] #issueForm', { timeout: 20000 });
+  await A.fill('#issueForm [name=cn]', 'sh3.kiwi');
+  await A.click('#issueBtn');
+  await A.waitForSelector('#entryView[data-entry="sh3.kiwi"] #pkiView', { timeout: 20000 });
+  assert.match(tool('openssl', 'verify', '-CAfile', path.join(tmp, 'kiwiCA.pem'), '-verify_hostname', 'cloud.sh3.kiwi', save('sh3.pem', await block(A, 'cert'))), /: OK/);
+  await tlsEntry('self', async () => {
+    await A.fill('#entryForm [name=cn]', 'soon.lan');
+    await A.fill('#entryForm [name=days]', '10');
+  });
+  await A.goto(`${app}#/health`);
+  await A.waitForSelector('#expiring [data-entry="soon.lan"]');
+  assert.equal(await A.$$eval('#expiring [data-entry]', (els) => els.length), 1, 'only the one that runs out within a month');
+  await A.goto(`${app}#/`);
+  await A.waitForSelector('#entries');
+
   await A.click('[data-filter=keys]');
-  assert.deepEqual((await names(A)).sort(), ['Laptop', 'Old server key', 'Test Root CA', 'api.example.org', 'localhost']);
+  assert.deepEqual((await names(A)).sort(), [
+    'Laptop',
+    'Office CA',
+    'Old server key',
+    'Self test',
+    'Test Root CA',
+    'api.example.org',
+    'api2.example.org',
+    'bank.example.com',
+    'cloud.office.lan',
+    'kiwiCA',
+    'localhost',
+    'nas.office.lan',
+    'sh3.kiwi',
+    'soon.lan',
+  ]);
   await A.click('[data-filter=all]');
   const sealed = JSON.stringify(await env.relayEvents([{ authors: [identity.pk] }]));
   for (const x of ['PRIVATE KEY', 'CERTIFICATE', 'ssh-ed25519', 'Test Root CA']) assert.ok(!sealed.includes(x), `no ${x} on the relay`);

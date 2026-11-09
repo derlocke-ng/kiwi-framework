@@ -2,7 +2,10 @@
 // (with a passphrase too) and their fingerprints, keys it made are read here, and the certificates an SSH CA
 // signs here pass its signature check; openssl verifies the X.509 certificates strictly, a TLS handshake with
 // them succeeds, an intermediate's chain holds, an openssl CSR is signed with its names, a tampered one is
-// refused, and a CA brought in with a key that is not its own is refused.
+// refused, and a CA brought in with a key that is not its own is refused. Since 0.29, as kiwi-server's
+// ksslgen did and more: a CA limited by name constraints whose certificate for another domain openssl refuses,
+// host and *.host in one certificate, a self-signed certificate a TLS client can be told to trust, a key and
+// request for another CA (here openssl acting as that CA), keys in openssl's older formats, the DER form.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -12,7 +15,7 @@ import { test } from 'node:test';
 import tls from 'node:tls';
 
 const { caLines, exportPrivateKey, fingerprint, newSshKey, readPrivateKey, readPublicKey, signCert } = await import('../../shared/ssh.js');
-const { createCA, describe, issue, readCsr } = await import('../../shared/x509.js');
+const { createCA, derOf, describe, importKey, issue, newCsr, readCsr, selfSigned } = await import('../../shared/x509.js');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kiwi-pki-'));
 const file = (name, text) => {
@@ -141,4 +144,75 @@ test('X.509: an intermediate and a client certificate under it; a CSR from opens
 
   const other = await createCA({ cn: 'Other', keyType: 'ec-p256' });
   await assert.rejects(describe(root.certPem, other.keyPem), (err) => err.code === 'ca.error.keyMismatch');
+});
+
+test('X.509 like ksslgen: name constraints hold, host and *.host in one certificate, 825 days by default', async () => {
+  const ca = await createCA({ cn: 'kiwiCA', c: 'NZ', st: 'kiwi', l: 'kiwi', o: 'kiwi', ou: 'kiwi', keyType: 'rsa-2048', permitted: { dns: ['kiwi', 'example.org'], ips: ['10.8.0.0/16'] } });
+  const caFile = file('kiwiCA.pem', ca.certPem);
+  const info = await describe(ca.certPem, ca.keyPem);
+  assert.deepEqual(info.permitted, { dns: ['kiwi', 'example.org'], ips: ['10.8.0.0/16'] });
+  assert.equal(info.isCA, true);
+  assert.deepEqual([info.subject.st, info.subject.l], ['kiwi', 'kiwi']);
+  assert.match(openssl('x509', '-in', caFile, '-noout', '-ext', 'nameConstraints'), /Permitted:[\s\S]*DNS:kiwi[\s\S]*DNS:example.org[\s\S]*IP:10.8.0.0\/255.255.0.0/);
+  const host = await issue(ca, { kind: 'server', cn: 'sh3.kiwi', wildcard: true, ips: ['10.8.0.25'] });
+  const hostFile = file('sh3.pem', host.certPem);
+  assert.deepEqual((await describe(host.certPem)).sans, { dns: ['sh3.kiwi', '*.sh3.kiwi'], ips: ['10.8.0.25'], emails: [] });
+  for (const name of ['sh3.kiwi', 'cloud.sh3.kiwi']) assert.match(openssl('verify', '-x509_strict', '-CAfile', caFile, '-verify_hostname', name, hostFile), /: OK/, name);
+  assert.throws(() => openssl('verify', '-CAfile', caFile, '-verify_hostname', 'a.b.sh3.kiwi', hostFile), 'a wildcard covers one level');
+  const days = Math.round(((await describe(host.certPem)).notAfter - Date.now()) / 86400e3);
+  assert.ok(days >= 824 && days <= 825, String(days));
+  // a name outside the constraints: issued here, refused by openssl
+  const outside = await issue(ca, { kind: 'server', cn: 'bank.example.com' });
+  assert.throws(() => openssl('verify', '-CAfile', caFile, file('outside.pem', outside.certPem)), /permitted subtree violation|name constraints/i);
+});
+
+test('X.509 self-signed: a TLS client told to trust it connects', async () => {
+  const me = await selfSigned({ cn: 'localhost', ips: ['127.0.0.1'], days: 30 });
+  const info = await describe(me.certPem, me.keyPem);
+  assert.equal(info.selfSigned, true);
+  assert.equal(info.isCA, false);
+  assert.equal(await handshake(me, me.certPem), true);
+});
+
+test('X.509 for another CA: a key and request openssl verifies and signs; the certificate back matches the key', async () => {
+  const { csrPem, keyPem } = await newCsr({ cn: 'api.example.org', o: 'Example', dns: ['api.example.org'], wildcard: true });
+  const csrFile = file('mine.csr', csrPem);
+  assert.match(openssl('req', '-in', csrFile, '-noout', '-verify'), /verify OK|^$/i);
+  assert.deepEqual((await readCsr(csrPem)).san, { dns: ['api.example.org', '*.api.example.org'], ips: [], emails: [] });
+  // openssl as the outside CA
+  openssl('req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', path.join(dir, 'outca.key'), '-out', path.join(dir, 'outca.pem'), '-subj', '/CN=Outside CA', '-days', '30');
+  fs.writeFileSync(path.join(dir, 'ext.cnf'), 'basicConstraints=CA:FALSE\nsubjectAltName=DNS:api.example.org,DNS:*.api.example.org\n');
+  openssl('x509', '-req', '-in', csrFile, '-CA', path.join(dir, 'outca.pem'), '-CAkey', path.join(dir, 'outca.key'), '-CAcreateserial', '-days', '30', '-extfile', path.join(dir, 'ext.cnf'), '-out', path.join(dir, 'signed-out.pem'));
+  const back = fs.readFileSync(path.join(dir, 'signed-out.pem'), 'utf8');
+  const info = await describe(back, keyPem);
+  assert.equal(info.subject.cn, 'api.example.org');
+  const other = await newCsr({ cn: 'x' });
+  await assert.rejects(describe(back, other.keyPem), (err) => err.code === 'ca.error.keyMismatch');
+});
+
+test('X.509 keys as openssl writes them: PKCS #1, SEC1, PKCS #8; an encrypted one refused; the DER form', async () => {
+  openssl('genrsa', '-traditional', '-out', path.join(dir, 'rsa1.key'), '2048');
+  openssl('ecparam', '-name', 'prime256v1', '-genkey', '-out', path.join(dir, 'ec1.key'));
+  for (const [name, label] of [
+    ['rsa1.key', 'RSA PRIVATE KEY'],
+    ['ec1.key', 'EC PRIVATE KEY'],
+  ]) {
+    const text = fs.readFileSync(path.join(dir, name), 'utf8');
+    assert.ok(text.includes(label), name);
+    const pkcs8 = importKey(text);
+    assert.match(pkcs8, /^-----BEGIN PRIVATE KEY-----/);
+    assert.equal(openssl('pkey', '-in', file(`${name}.p8`, pkcs8), '-pubout'), openssl('pkey', '-in', path.join(dir, name), '-pubout'), `${name}: the same key`);
+    // a CA certificate openssl makes for that key, brought in with the key in its old format
+    openssl('req', '-x509', '-key', path.join(dir, name), '-out', path.join(dir, `${name}.crt`), '-subj', '/CN=Old CA', '-days', '30', '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign');
+    const caPem = fs.readFileSync(path.join(dir, `${name}.crt`), 'utf8');
+    assert.equal((await describe(caPem, text)).isCA, true);
+    const leaf = await issue({ certPem: caPem, keyPem: importKey(text) }, { kind: 'server', cn: 'old.lan' });
+    assert.match(openssl('verify', '-CAfile', path.join(dir, `${name}.crt`), file(`${name}-leaf.pem`, leaf.certPem)), /: OK/);
+  }
+  openssl('genpkey', '-algorithm', 'EC', '-pkeyopt', 'ec_paramgen_curve:P-256', '-aes256', '-pass', 'pass:secret', '-out', path.join(dir, 'enc.key'));
+  assert.throws(() => importKey(fs.readFileSync(path.join(dir, 'enc.key'), 'utf8')), (err) => err.code === 'ca.error.encryptedKey');
+  assert.throws(() => importKey('nothing'), (err) => err.code === 'ca.error.notKey');
+  const ca = await createCA({ cn: 'D', keyType: 'ec-p256' });
+  openssl('x509', '-in', file('d.pem', ca.certPem), '-outform', 'der', '-out', path.join(dir, 'd.der'));
+  assert.deepEqual(Buffer.from(derOf(ca.certPem)), fs.readFileSync(path.join(dir, 'd.der')));
 });

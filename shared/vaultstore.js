@@ -61,11 +61,21 @@ function cleanPki(p) {
   const kinds = ['root', 'intermediate', 'server', 'client', 'both'];
   return {
     kind: kinds.includes(p.kind) ? p.kind : 'server',
+    origin: ['ca', 'self', 'external'].includes(p.origin) ? p.origin : 'ca', // issued by a CA in the vault, self-signed, or by another CA
     keyType: str(p.keyType, 20),
     certPem: str(p.certPem, 30000),
     keyPem: str(p.keyPem, 20000),
     chainPem: str(p.chainPem, 60000),
-    subject: { cn: str(p.subject?.cn, 64), o: str(p.subject?.o, 64), ou: str(p.subject?.ou, 64), c: str(p.subject?.c, 2) },
+    csrPem: str(p.csrPem, 20000),
+    subject: { cn: str(p.subject?.cn, 64), o: str(p.subject?.o, 64), ou: str(p.subject?.ou, 64), c: str(p.subject?.c, 2), st: str(p.subject?.st, 64), l: str(p.subject?.l, 64) },
+    permitted: { dns: strings(p.permitted?.dns, 253, 50), ips: strings(p.permitted?.ips, 50, 50) },
+    days: Number(p.days) || 0,
+    previous: Array.isArray(p.previous)
+      ? p.previous
+          .filter((c) => c && typeof c === 'object')
+          .map((c) => ({ serial: str(c.serial, 40), notAfter: Number(c.notAfter) || 0, at: Number(c.at) || 0 }))
+          .slice(-20)
+      : [],
     sans: { dns: strings(p.sans?.dns, 253, 100), ips: strings(p.sans?.ips, 45, 100), emails: strings(p.sans?.emails, 254, 100) },
     serial: str(p.serial, 40),
     notAfter: Number(p.notAfter) || 0,

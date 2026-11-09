@@ -43,11 +43,16 @@ export interface VaultItem {
   } | null;
   pki: {
     kind: 'root' | 'intermediate' | 'server' | 'client' | 'both';
+    origin: 'ca' | 'self' | 'external';
     keyType: string;
     certPem: string;
     keyPem: string;
     chainPem: string;
-    subject: { cn: string; o: string; ou: string; c: string };
+    csrPem: string;
+    subject: { cn: string; o: string; ou: string; c: string; st: string; l: string };
+    permitted: { dns: string[]; ips: string[] };
+    days: number;
+    previous: { serial: string; notAfter: number; at: number }[];
     sans: { dns: string[]; ips: string[]; emails: string[] };
     serial: string;
     notAfter: number;

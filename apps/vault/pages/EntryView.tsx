@@ -10,7 +10,8 @@ import { toast } from '../../../ui/toast';
 import { useVault, type VaultItem } from '../../../ui/vault/VaultProvider';
 import { strength } from '../data/strength.js';
 import { CodeLine, copySecret, openable, TYPE_ICON } from './common';
-import { PkiView, SshView } from './Keys';
+import { SshView } from './Keys';
+import { PkiView } from './Tls';
 
 function Field({ id, label, value, secret = false, mono = false }: { id: string; label: string; value: string; secret?: boolean; mono?: boolean }) {
   const t = useT();

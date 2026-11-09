@@ -1,10 +1,13 @@
 // A certificate authority in the browser: X.509 certificates (RFC 5280) made
-// and signed with WebCrypto, DER written and read here. A root CA, and from it
-// server and client certificates or an intermediate CA, for a key made here or
-// for a certificate signing request (PKCS #10) whose key stays where it was
-// made. ECDSA (P-256, P-384) and RSA (2048 to 4096 bits) keys; SHA-256 (or
-// SHA-384 with P-384) signatures. The vault keeps the CA's key; nothing of it
-// goes anywhere else.
+// and signed with WebCrypto, DER written and read here. A root CA (limited to
+// some domains with name constraints, as kiwi-server's fleet CA can be), and
+// from it server and client certificates or an intermediate CA, for a key made
+// here or for a certificate signing request (PKCS #10) whose key stays where it
+// was made; a self-signed certificate; a key and a request for another CA. Keys
+// come in as PKCS #8, PKCS #1 (RSA) or SEC1 (EC), as openssl writes them.
+// ECDSA (P-256, P-384) and RSA (2048 to 4096 bits) keys; SHA-256 (or SHA-384
+// with P-384) signatures. The vault keeps the keys; nothing of them goes
+// anywhere else.
 //
 //   const ca = await createCA({ cn: 'Example Root CA', o: 'Example' });
 //   const leaf = await issue(ca, { kind: 'server', cn: 'www.example.org', dns: ['www.example.org'], days: 397 });
@@ -164,6 +167,7 @@ const OID = {
   basicConstraints: '2.5.29.19',
   authorityKeyId: '2.5.29.35',
   extKeyUsage: '2.5.29.37',
+  nameConstraints: '2.5.29.30',
   serverAuth: '1.3.6.1.5.5.7.3.1',
   clientAuth: '1.3.6.1.5.5.7.3.2',
   extensionRequest: '1.2.840.113549.1.9.14',
@@ -260,6 +264,52 @@ function sanExtension({ dns = [], ips = [], emails = [] }) {
   return names.length ? ext(OID.subjectAltName, false, seq(...names)) : null;
 }
 
+/** An address range, 10.0.0.0/8 or fd00::/8, as a name constraint wants it: the address and its mask. */
+function cidrBytes(cidr) {
+  const [ip, len] = String(cidr).split('/');
+  const addr = ipBytes(ip);
+  if (!addr) return null;
+  const bitsLen = len === undefined ? addr.length * 8 : Number(len);
+  if (!(bitsLen >= 0 && bitsLen <= addr.length * 8)) return null;
+  const mask = Uint8Array.from({ length: addr.length }, (_, i) => {
+    const n = Math.max(0, Math.min(8, bitsLen - i * 8));
+    return (0xff << (8 - n)) & 0xff;
+  });
+  return cat([addr.map((b, i) => b & mask[i]), mask]);
+}
+
+/**
+ * Name constraints (critical): the CA signs only names under these domains (a domain and everything below it,
+ * RFC 5280) and addresses in these ranges; a stolen key is then worth nothing for any other site.
+ */
+function nameConstraints({ dns = [], ips = [] }) {
+  const subtrees = [...dns.map((d) => seq(ctxPrim(2, te.encode(String(d).replace(/^\*?\./, ''))))), ...ips.map(cidrBytes).filter(Boolean).map((b) => seq(ctxPrim(7, b)))];
+  return subtrees.length ? ext(OID.nameConstraints, true, seq(ctx(0, ...subtrees))) : null;
+}
+
+const looksLikeIp = (n) => /^\d+\.\d+\.\d+\.\d+$/.test(n) || (n.includes(':') && /^[0-9a-f:]+$/i.test(n));
+const looksLikeHost = (n) => /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i.test(n);
+
+/**
+ * The names a server certificate answers to: those given, its common name when it is a host or an address, and,
+ * with `wildcard`, every name one level below it (`*.host`), as kiwi-server's certificates have them.
+ * @param {{ cn?: string, dns?: string[], ips?: string[], emails?: string[], wildcard?: boolean, kind?: string }} o
+ */
+export function namesOf(o) {
+  const dns = [...new Set((o.dns || []).map((d) => d.trim().toLowerCase()).filter(Boolean))];
+  const ips = [...new Set((o.ips || []).map((d) => d.trim()).filter(Boolean))];
+  const cn = (o.cn || '').trim();
+  if (o.kind !== 'client' && cn) {
+    if (looksLikeIp(cn)) {
+      if (!ips.includes(cn)) ips.unshift(cn);
+    } else if (looksLikeHost(cn) && !dns.includes(cn.toLowerCase())) dns.unshift(cn.toLowerCase());
+  }
+  if (o.wildcard) {
+    for (const d of [...dns]) if (!d.startsWith('*.') && !dns.includes(`*.${d}`)) dns.splice(dns.indexOf(d) + 1, 0, `*.${d}`);
+  }
+  return { dns, ips, emails: [...new Set((o.emails || []).map((e) => e.trim()).filter(Boolean))] };
+}
+
 // keyUsage bits: digitalSignature(0) keyEncipherment(2) keyCertSign(5) cRLSign(6)
 const keyUsage = (bitsSet) => {
   let byte = 0;
@@ -283,7 +333,7 @@ const randomSerial = () => {
 /**
  * A certificate signed by `issuer` (or by itself when there is none): the TBSCertificate, its signature, PEM.
  * @param {{ subject: any, spki: Uint8Array, issuerName: Uint8Array | null, issuerSpki: Uint8Array | null, signer: CryptoKey,
- *   ca: boolean, pathLen?: number | null, kind?: 'server' | 'client' | 'both' | null, san?: any, days: number }} o
+ *   ca: boolean, pathLen?: number | null, kind?: 'server' | 'client' | 'both' | null, san?: any, days: number, permitted?: any }} o
  */
 async function makeCert(o) {
   const now = new Date(Date.now() - 5 * 60_000); // a few minutes back: clocks differ
@@ -297,6 +347,7 @@ async function makeCert(o) {
     keyUsage(o.ca ? [0, 5, 6] : rsa ? [0, 2] : [0]),
     ...(o.ca ? [] : [ext(OID.extKeyUsage, false, seq(...(o.kind === 'client' ? [oid(OID.clientAuth)] : o.kind === 'both' ? [oid(OID.serverAuth), oid(OID.clientAuth)] : [oid(OID.serverAuth)])))]),
     ...(o.san ? [sanExtension(o.san)].filter(Boolean) : []),
+    ...(o.ca && o.permitted ? [nameConstraints(o.permitted)].filter(Boolean) : []),
     ext(OID.subjectKeyId, false, octets(ski)),
     ext(OID.authorityKeyId, false, seq(ctxPrim(0, aki))),
   ];
@@ -327,21 +378,81 @@ export function certParts(certPem) {
   return { subject, spki, der: p.der };
 }
 
+const subjectOf = (o) => ({ cn: o.cn, o: o.o, ou: o.ou, c: o.c, st: o.st, l: o.l });
+
 /**
- * A new root CA: its key and its self-signed certificate.
- * @param {{ cn: string, o?: string, ou?: string, c?: string, keyType?: string, days?: number, pathLen?: number | null }} o
+ * A new root CA: its key and its self-signed certificate; with `permitted`, limited to those domains and ranges.
+ * @param {{ cn: string, o?: string, ou?: string, c?: string, st?: string, l?: string, keyType?: string, days?: number, pathLen?: number | null,
+ *   permitted?: { dns?: string[], ips?: string[] } }} o
  */
-export async function createCA({ keyType = 'ec-p384', days = 3650, pathLen = null, ...subject }) {
+export async function createCA({ keyType = 'ec-p384', days = 3650, pathLen = null, permitted = null, ...rest }) {
   const key = await newKey(keyType);
-  const cert = await makeCert({ subject, spki: key.spki, issuerName: null, issuerSpki: null, signer: key.privateKey, ca: true, pathLen, days });
+  const cert = await makeCert({ subject: subjectOf(rest), spki: key.spki, issuerName: null, issuerSpki: null, signer: key.privateKey, ca: true, pathLen, days, permitted });
   return { keyPem: key.keyPem, certPem: cert.pem, serial: cert.serial, notAfter: cert.notAfter, keyType };
 }
 
 /**
+ * A self-signed certificate (no CA behind it): for a test, or a service whose certificate is trusted one by one.
+ * @param {{ cn: string, o?: string, kind?: 'server' | 'client' | 'both', dns?: string[], ips?: string[], emails?: string[], wildcard?: boolean,
+ *   days?: number, keyType?: string }} o
+ */
+export async function selfSigned(o) {
+  const key = await newKey(o.keyType || 'ec-p256');
+  const kind = o.kind || 'server';
+  const cert = await makeCert({ subject: subjectOf(o), spki: key.spki, issuerName: null, issuerSpki: null, signer: key.privateKey, ca: false, kind, san: namesOf({ ...o, kind }), days: o.days || 397 });
+  return { certPem: cert.pem, keyPem: key.keyPem, chainPem: cert.pem, serial: cert.serial, notAfter: cert.notAfter };
+}
+
+/**
+ * A key and a certificate signing request for it, for another CA (a public one, a company's): the request carries
+ * the subject and the names; the key stays here.
+ * @param {{ cn: string, o?: string, ou?: string, c?: string, st?: string, l?: string, dns?: string[], ips?: string[], emails?: string[],
+ *   wildcard?: boolean, kind?: string, keyType?: string }} o
+ */
+export async function newCsr(o) {
+  const key = await newKey(o.keyType || 'ec-p256');
+  const san = sanExtension(namesOf(o));
+  const attrs = san ? [seq(oid(OID.extensionRequest), set(seq(san)))] : [];
+  const info = seq(int(0), name(subjectOf(o)), key.spki, ctx(0, ...attrs));
+  const der = seq(info, sigAlgId(key.privateKey.algorithm), bits(await sign(key.privateKey, info)));
+  return { csrPem: pem('CERTIFICATE REQUEST', der), keyPem: key.keyPem };
+}
+
+/**
+ * A private key in PKCS #8, from PKCS #8, PKCS #1 (BEGIN RSA PRIVATE KEY) or SEC1 (BEGIN EC PRIVATE KEY), as
+ * openssl writes them; an encrypted one is refused (openssl pkey -in key.pem -out plain.pem opens it).
+ * @param {string} text
+ */
+export function importKey(text) {
+  const t = String(text);
+  if (/ENCRYPTED/.test(t)) throw Object.assign(new Error('The key is encrypted'), { code: 'ca.error.encryptedKey' });
+  const block = (label) => {
+    const m = t.match(new RegExp(`-----BEGIN ${label}-----([\\s\\S]*?)-----END ${label}-----`));
+    return m ? Uint8Array.from(atob(m[1].replace(/\s+/g, '')), (c) => c.charCodeAt(0)) : null;
+  };
+  const pkcs8 = block('PRIVATE KEY');
+  if (pkcs8) return pem('PRIVATE KEY', pkcs8);
+  const rsa = block('RSA PRIVATE KEY');
+  if (rsa) return pem('PRIVATE KEY', seq(int(0), seq(oid(OID.rsaEncryption), nullDer), octets(rsa)));
+  const ec = block('EC PRIVATE KEY');
+  if (ec) {
+    const params = children(readTlv(ec).value).find((e) => e.tag === 0xa0);
+    if (!params) throw Object.assign(new Error('The EC key names no curve'), { code: 'ca.error.keyType' });
+    const curve = oidString(readTlv(params.value).value);
+    if (curve !== OID.p256 && curve !== OID.p384) throw Object.assign(new Error('Unsupported curve'), { code: 'ca.error.keyType' });
+    return pem('PRIVATE KEY', seq(int(0), seq(oid(OID.ecPublicKey), oid(curve)), octets(ec)));
+  }
+  throw Object.assign(new Error('Not a private key'), { code: 'ca.error.notKey' });
+}
+
+/** A certificate's DER bytes (a .cer file, which some devices want for a CA). */
+export const derOf = (certPem) => certParts(certPem).der;
+
+/**
  * A certificate from a CA: for a key made here (returned with it) or for a CSR's key.
  * @param {{ keyPem: string, certPem: string, chainPem?: string }} ca
- * @param {{ kind: 'server' | 'client' | 'both' | 'ca', cn: string, o?: string, ou?: string, c?: string, dns?: string[], ips?: string[], emails?: string[],
- *   days?: number, keyType?: string, csr?: string, pathLen?: number | null }} o
+ * @param {{ kind: 'server' | 'client' | 'both' | 'ca', cn: string, o?: string, ou?: string, c?: string, st?: string, l?: string, dns?: string[], ips?: string[],
+ *   emails?: string[], wildcard?: boolean, days?: number, keyType?: string, csr?: string, pathLen?: number | null }} o
  */
 export async function issue(ca, o) {
   const issuer = certParts(ca.certPem);
@@ -349,20 +460,20 @@ export async function issue(ca, o) {
   let spki;
   let subject;
   let keyPem = '';
-  let san = { dns: o.dns || [], ips: o.ips || [], emails: o.emails || [] };
+  let san = namesOf(o);
   if (o.csr) {
     const req = await readCsr(o.csr);
     spki = req.spki;
-    subject = o.cn ? { cn: o.cn, o: o.o, ou: o.ou, c: o.c } : req.subject;
-    if (!san.dns.length && !san.ips.length && !san.emails.length) san = req.san;
+    subject = o.cn ? subjectOf(o) : req.subject;
+    if (!san.dns.length && !san.ips.length && !san.emails.length) san = namesOf({ ...req.san, wildcard: o.wildcard });
   } else {
     const key = await newKey(o.keyType || 'ec-p256');
     spki = key.spki;
     keyPem = key.keyPem;
-    subject = { cn: o.cn, o: o.o, ou: o.ou, c: o.c };
+    subject = subjectOf(o);
   }
   const isCA = o.kind === 'ca';
-  const cert = await makeCert({ subject, spki, issuerName: issuer.subject, issuerSpki: issuer.spki, signer, ca: isCA, pathLen: isCA ? (o.pathLen ?? 0) : null, kind: isCA ? null : o.kind, san: isCA ? null : san, days: o.days || 397 });
+  const cert = await makeCert({ subject, spki, issuerName: issuer.subject, issuerSpki: issuer.spki, signer, ca: isCA, pathLen: isCA ? (o.pathLen ?? 0) : null, kind: isCA ? null : o.kind, san: isCA ? null : san, days: o.days || 825 });
   return { certPem: cert.pem, keyPem, chainPem: cert.pem + (ca.chainPem || ca.certPem), serial: cert.serial, notAfter: cert.notAfter };
 }
 
@@ -372,7 +483,7 @@ const NAME_OIDS = Object.fromEntries(NAME_PARTS.map((k) => [OID[k], k]));
 
 /** A Name's parts this module writes (cn, o, ou, c, l, st), the rest left out. */
 function readName(der) {
-  const out = { cn: '', o: '', ou: '', c: '' };
+  const out = { cn: '', o: '', ou: '', c: '', st: '', l: '' };
   for (const rdn of children(readTlv(der).value)) {
     for (const atv of children(rdn.value)) {
       const [type, value] = children(atv.value);
@@ -417,22 +528,39 @@ export async function describe(certPem, keyPem = '') {
   const subjectRaw = f[o + 4].raw;
   const spki = f[o + 5].raw;
   const sans = { dns: [], ips: [], emails: [] };
+  const permitted = { dns: [], ips: [] };
+  let isCA = false;
   const extsField = f.slice(o + 6).find((x) => x.tag === 0xa3);
   if (extsField) {
     for (const e of children(readTlv(extsField.value).value)) {
       const parts = children(e.value);
-      if (oidString(parts[0].value) !== OID.subjectAltName) continue;
-      for (const g of children(readTlv(parts.at(-1).value).value)) {
-        if (g.tag === 0x82) sans.dns.push(td.decode(g.value));
-        else if (g.tag === 0x81) sans.emails.push(td.decode(g.value));
-        else if (g.tag === 0x87 && g.value.length === 4) sans.ips.push(Array.from(g.value).join('.'));
+      const id = oidString(parts[0].value);
+      const value = readTlv(parts.at(-1).value);
+      if (id === OID.subjectAltName) {
+        for (const g of children(value.value)) {
+          if (g.tag === 0x82) sans.dns.push(td.decode(g.value));
+          else if (g.tag === 0x81) sans.emails.push(td.decode(g.value));
+          else if (g.tag === 0x87 && g.value.length === 4) sans.ips.push(Array.from(g.value).join('.'));
+        }
+      } else if (id === OID.basicConstraints) {
+        isCA = children(value.value).some((x) => x.tag === 0x01 && x.value[0] !== 0);
+      } else if (id === OID.nameConstraints) {
+        const permittedTree = children(value.value).find((x) => x.tag === 0xa0);
+        for (const subtree of permittedTree ? children(permittedTree.value) : []) {
+          const [base] = children(subtree.value);
+          if (base.tag === 0x82) permitted.dns.push(td.decode(base.value));
+          else if (base.tag === 0x87 && base.value.length === 8) {
+            const ones = Array.from(base.value.subarray(4)).reduce((n, b) => n + b.toString(2).replace(/0/g, '').length, 0);
+            permitted.ips.push(`${Array.from(base.value.subarray(0, 4)).join('.')}/${ones}`);
+          }
+        }
       }
     }
   }
   if (keyPem) {
     let ok = false;
     try {
-      const signer = await importSigningKey(keyPem, spki);
+      const signer = await importSigningKey(importKey(keyPem), spki);
       const probe = te.encode('kiwi-vault key check');
       const sig = new Uint8Array(await crypto.subtle.sign(signParams(signer.algorithm), signer, probe));
       const pub = await crypto.subtle.importKey('spki', spki, spkiAlgorithm(spki), false, ['verify']);
@@ -443,7 +571,7 @@ export async function describe(certPem, keyPem = '') {
     if (!ok) throw Object.assign(new Error('The key is not this certificate’s'), { code: 'ca.error.keyMismatch' });
   }
   const same = issuerRaw.length === subjectRaw.length && issuerRaw.every((b, i) => b === subjectRaw[i]);
-  return { subject: readName(subjectRaw), sans, notBefore, notAfter, serial, keyType: keyTypeOf(spki), selfSigned: same };
+  return { subject: readName(subjectRaw), sans, notBefore, notAfter, serial, keyType: keyTypeOf(spki), selfSigned: same, isCA, permitted };
 }
 
 // ---- certificate signing requests ----
