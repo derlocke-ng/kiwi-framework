@@ -18,7 +18,10 @@ const loadSsh = () => import('../../../shared/ssh.js');
 export const fileName = (s: string) => (s || 'key').replace(/[^\w.@-]+/g, '-').replace(/^-+|-+$/g, '') || 'key';
 export const date = (ms: number | null) => (ms ? new Date(ms).toLocaleDateString() : '');
 
-/** A block of text (a key, a certificate) to copy and save, hidden until shown when it is secret. */
+/**
+ * A block of text (a key, a certificate) to copy and save, hidden until shown when it is secret. Give each a `key`
+ * as well as its id: a view that swaps blocks would otherwise hand one block's shown state to another.
+ */
 export function Block({
   id,
   label,
@@ -240,7 +243,7 @@ export function SshView({ item }: { item: VaultItem }) {
           {k.fingerprint}
         </span>
       </div>
-      <Block id="public" label={t('pw.ssh.public')} text={k.publicKey} file={`${base}.pub`} />
+      <Block key="public" id="public" label={t('pw.ssh.public')} text={k.publicKey} file={`${base}.pub`} />
       <Block
         id="private"
         label={t('pw.ssh.private')}
@@ -434,7 +437,7 @@ function SignForm({ item }: { item: VaultItem }) {
           </button>
         </div>
       </form>
-      {result ? <Block id="cert" label={t('pw.ssh.certificate')} text={result.certificate} file={result.file} /> : null}
+      {result ? <Block key="cert" id="cert" label={t('pw.ssh.certificate')} text={result.certificate} file={result.file} /> : null}
     </div>
   );
 }

@@ -474,22 +474,22 @@ export function PkiView({ item }: { item: VaultItem }) {
           <p className="hint" id="pendingHint">
             {t('pw.tls.pending')}
           </p>
-          <Block id="csr" label={t('pw.tls.request')} text={p.csrPem} file={`${base}.csr`} />
-          <Block id="key" label={t('pw.ca.privateKey')} text={p.keyPem} file="privkey.pem" secret />
+          <Block key="csr" id="csr" label={t('pw.tls.request')} text={p.csrPem} file={`${base}.csr`} />
+          <Block key="key" id="key" label={t('pw.ca.privateKey')} text={p.keyPem} file="privkey.pem" secret />
           <PasteForm item={item} />
         </>
       ) : isCa ? (
         <>
-          <Block id="cert" label={t('pw.ca.certificate')} text={p.certPem} file={`${base}.crt`} />
-          <Block id="key" label={t('pw.ca.privateKey')} text={p.keyPem} file={`${base}.key`} secret />
-          {p.kind === 'intermediate' ? <Block id="chain" label={t('pw.ca.chain')} text={p.chainPem} file={`${base}-chain.pem`} /> : null}
+          <Block key="cert" id="cert" label={t('pw.ca.certificate')} text={p.certPem} file={`${base}.crt`} />
+          <Block key="key" id="key" label={t('pw.ca.privateKey')} text={p.keyPem} file={`${base}.key`} secret />
+          {p.kind === 'intermediate' ? <Block key="chain" id="chain" label={t('pw.ca.chain')} text={p.chainPem} file={`${base}-chain.pem`} /> : null}
           <Devices item={item} />
         </>
       ) : (
         <>
-          <Block id="key" label={t('pw.tls.files.key')} text={p.keyPem} file="privkey.pem" secret />
-          <Block id="cert" label={t('pw.tls.files.cert')} text={p.certPem} file="cert.pem" />
-          <Block id="chain" label={t('pw.tls.files.chain')} text={p.chainPem} file="fullchain.pem" />
+          <Block key="key" id="key" label={t('pw.tls.files.key')} text={p.keyPem} file="privkey.pem" secret />
+          <Block key="cert" id="cert" label={t('pw.tls.files.cert')} text={p.certPem} file="cert.pem" />
+          <Block key="chain" id="chain" label={t('pw.tls.files.chain')} text={p.chainPem} file="fullchain.pem" />
           {p.keyPem && p.kind !== 'client' ? (
             <div className="pw-block" id="nginx">
               <span className="pw-label">{t('pw.tls.nginx')}</span>

@@ -331,7 +331,12 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   await A.waitForSelector('#entryView', { state: 'detached' });
 
   // TLS certificates in one step (0.29), like kiwi-server's ksslgen and more
+  const toList = async () => {
+    await A.goto(`${app}#/`);
+    await A.waitForSelector('#entryView', { state: 'detached' });
+  };
   const tlsEntry = async (mode, fill) => {
+    await toList();
     await newEntry(A, 'tls');
     await A.click(`[data-mode=${mode}]`);
     await fill();
@@ -406,6 +411,7 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   assert.match(tool('openssl', 'verify', '-CAfile', path.join(tmp, 'outside.pem'), save('api2-back.pem', await block(A, 'cert'))), /: OK/);
 
   step('a CA limited to its domains: openssl accepts what is under them and refuses the rest; the CA on devices as DER');
+  await toList();
   await newEntry(A, 'ca');
   await A.fill('#entryForm [name=cn]', 'Office CA');
   await A.fill('#entryForm [name=permitted]', 'office.lan 10.8.0.0/16');
@@ -434,6 +440,7 @@ export async function vaultSuite(env, { app, authenticator = '' }) {
   step('an old CA brought in as openssl made it (a PKCS #1 key); a short-lived certificate shows in the health report');
   tool('openssl', 'genrsa', '-traditional', '-out', path.join(tmp, 'kiwiCA.key'), '2048');
   tool('openssl', 'req', '-x509', '-new', '-nodes', '-key', path.join(tmp, 'kiwiCA.key'), '-sha256', '-days', '3650', '-subj', '/C=NZ/ST=kiwi/L=kiwi/O=kiwi/OU=kiwi/CN=kiwiCA', '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign', '-out', path.join(tmp, 'kiwiCA.pem'));
+  await toList();
   await newEntry(A, 'ca');
   await A.click('[data-mode=import]');
   await A.fill('#entryForm [name=certPem]', fs.readFileSync(path.join(tmp, 'kiwiCA.pem'), 'utf8'));
