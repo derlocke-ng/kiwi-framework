@@ -80,7 +80,8 @@ test('a listing to the space: sealed, keyed labels, no plain word on the relay, 
   const market = new MarketData(n, seller, { space, audiences: () => audiencesOf(seller) });
   const ev = await market.post(seeds, { days: 30 });
   const raw = JSON.stringify(ev);
-  for (const word of ['Five', 'seeds', '"DE"', 'signal', '€25', 'EU']) assert.ok(!raw.includes(word), `no ${word} in clear`);
+  // whole words or quoted values: a two-letter needle like EU turns up in base64 by chance
+  for (const word of ['Five', 'seeds', '"DE"', 'signal', '€25', '"EU"', '\\"EU\\"']) assert.ok(!raw.includes(word), `no ${word} in clear`);
   assert.ok(ev.tags.some((t) => t[0] === 'L' && t[1] === 'wjs/label'));
   const labels = ev.tags.filter((t) => t[0] === 'l').map((t) => t[1]);
   assert.ok(labels.length >= 6 && labels.every((l) => /^[0-9a-f]{16}$/.test(l)));

@@ -153,11 +153,11 @@ test('backups: the vault as it is, opened with its passphrase; 0.26 authenticato
   const A = device();
   const a = await new VaultStore(id, A.net).start();
   await a.unlock(key);
-  await a.put({ type: 'login', name: 'Shop', password: 'p1' });
+  await a.put({ type: 'login', name: 'Shop', password: 'p1-a-password-in-the-backup' }); // long: a short needle turns up in base64 by chance
   const gone = await a.put({ type: 'note', name: 'Gone' });
   await a.remove(gone.id);
   const file = JSON.parse(JSON.stringify(backupOf(record, a.sealed())));
-  assert.ok(!JSON.stringify(file).includes('p1'));
+  assert.ok(!JSON.stringify(file).includes('p1-a-password-in-the-backup'));
   await assert.rejects(readBackup(file, 'wrong horse battery'), (err) => err.code === 'vault.error.wrong');
   const back = await readBackup(file, PASS);
   assert.equal(back.kind, 'vault');
