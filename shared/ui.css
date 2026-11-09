@@ -809,6 +809,17 @@ select:focus {
   background: #f59e0b;
 }
 
+.wjs-status[data-state='connecting'] .wjs-status-dot {
+  background: #22c55e;
+  animation: wjs-connecting 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes wjs-connecting {
+  from {
+    opacity: 0.25;
+  }
+}
+
 /* ---------- the settings page every app has (AppSettings) ---------- */
 
 .wjs-settings {

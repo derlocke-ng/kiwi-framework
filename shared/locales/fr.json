@@ -36,6 +36,7 @@
   },
   "relay.rejected": "dernière réponse : {error} {when}",
   "sync.offline": "hors ligne",
+  "sync.connecting": "connexion…",
   "sync.toSync": {
     "one": "{n} à synchroniser",
     "many": "{n} à synchroniser",
@@ -342,5 +343,11 @@
   "gate.account.home": "Retour à {hub}",
   "photo.n": "Photo {n}",
   "photo.prev": "Précédente",
-  "photo.next": "Suivante"
+  "photo.next": "Suivante",
+  "files.attach": "Envoyer un fichier",
+  "files.uploading": "Envoi du fichier",
+  "files.save": "Enregistrer {name}",
+  "files.preview": "Fichier : {name}",
+  "files.error.tooBig": "Le fichier est trop gros pour être envoyé ({max} au plus).",
+  "files.error.changed": "Ce fichier n’est pas celui qui a été envoyé."
 }

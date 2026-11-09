@@ -4,12 +4,14 @@ import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 
 import { npub } from '../../../shared/account.js';
 import { DirectMessages, TEXT } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
+import { uploadFile } from '../../../shared/files.js';
 import { relTime } from '../../../shared/i18n.js';
 import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
-import { useBlocks, useIdentity, usePeople, useT } from '../../../ui/hooks';
+import { useBlocks, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
+import { FileCard } from '../../../ui/widgets/FileCard';
 import { useDm, useDmVersion } from '../state';
 
 const PAGE = 50;
@@ -37,18 +39,36 @@ export function Text({ text }: { text: string }) {
 /** `draft`: text the composer starts with (a link from another app: "About your listing …"), not sent until the person sends it. */
 export function Composer({
   onSend,
+  onFile,
   placeholder,
   id = 'composer',
   draft = '',
 }: {
   onSend: (text: string) => Promise<unknown>;
+  /** a file chosen with the paperclip: upload it (reporting progress, 0 to 1) and send it */
+  onFile?: (file: File, onProgress: (share: number) => void) => Promise<unknown>;
   placeholder: string;
   id?: string;
   draft?: string;
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const ref = useRef<HTMLTextAreaElement | null>(null);
+  const picker = useRef<HTMLInputElement | null>(null);
+  const attach = async (file: File) => {
+    if (!onFile || busy) return;
+    setBusy(true);
+    setProgress(0);
+    try {
+      await onFile(file, setProgress);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  };
   const submit = async (e?: FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     const ta = ref.current;
@@ -73,6 +93,32 @@ export function Composer({
   };
   return (
     <form className="composer" id={id} onSubmit={submit}>
+      {progress != null ? <progress className="upload-progress" max={1} value={progress} aria-label={t('files.uploading')} /> : null}
+      {onFile ? (
+        <>
+          <input
+            ref={picker}
+            type="file"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) void attach(f);
+            }}
+          />
+          <button
+            type="button"
+            className="icon-btn attach"
+            data-act="attach"
+            aria-label={t('files.attach')}
+            title={t('files.attach')}
+            disabled={busy}
+            onClick={() => picker.current?.click()}
+          >
+            <Icon name="paperclip" />
+          </button>
+        </>
+      ) : null}
       <textarea
         ref={ref}
         name="text"
@@ -92,6 +138,7 @@ export function Composer({
 
 export function Conversation({ pk, draft = '' }: { pk: string; draft?: string }) {
   const t = useT();
+  const kiwi = useKiwi();
   const dm = useDm();
   const version = useDmVersion(dm);
   const people = usePeople();
@@ -205,13 +252,20 @@ export function Conversation({ pk, draft = '' }: { pk: string; draft?: string })
         ) : null}
         {msgs.map((m) => (
           <div key={m.id} className={`msg ${m.from === identity.pk ? 'mine' : 'theirs'}`}>
-            <Text text={m.text} />
+            {m.file ? <FileCard file={m.file} /> : <Text text={m.text} />}
             <time dateTime={new Date(m.at * 1000).toISOString()}>{relTime(m.at * 1000)}</time>
           </div>
         ))}
         <div ref={end} />
       </div>
-      {blocked ? null : <Composer onSend={(text) => dm.send(pk, text)} placeholder={t('chat.write')} draft={draft} />}
+      {blocked ? null : (
+        <Composer
+          onSend={(text) => dm.send(pk, text)}
+          onFile={(file, onProgress) => uploadFile(file, { servers: kiwi.mediaServers(), sk: identity.sk, onProgress }).then((f) => dm.sendFile(pk, f))}
+          placeholder={t('chat.write')}
+          draft={draft}
+        />
+      )}
     </section>
   );
 }

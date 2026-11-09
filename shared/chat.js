@@ -13,6 +13,7 @@
 //   await dm.send(pk, 'hello');   dm.onChange(fn);   await net.db.messages(pk)
 
 import { KINDS, isHex64, now } from './events.js';
+import { cleanFile, fileFromRumor, fileTags } from './files.js';
 import { baseStore, whole } from './peers.js';
 import { myRelays, relaysTag } from './relaylists.js';
 import { hexToBytes, nip59 } from './nostr.mjs';
@@ -96,7 +97,7 @@ export class DirectMessages {
     // where the writer reads, as they told us inside the seal: the way back to them
     const told = relaysTag(rumor);
     if (told.length && isHex64(rumor.pubkey) && rumor.pubkey !== this.pk) this.peers?.learnRelays?.(rumor.pubkey, network, told);
-    if (rumor.kind !== KINDS.CHAT_MESSAGE) {
+    if (rumor.kind !== KINDS.CHAT_MESSAGE && rumor.kind !== KINDS.CHAT_FILE) {
       // another module's rumor: the groups' knocks and keys, the audiences' keys come through here; People's are its own
       const handlers = this.rumorHandlers.get(rumor.kind);
       for (const fn of handlers || []) fn(rumor, ev, network);
@@ -112,7 +113,11 @@ export class DirectMessages {
     // device took it: two messages in one second keep the writers' order on every device, not the relay's.
     const ms = Math.min(999, Math.max(0, Number(rumor.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
     const name = String(rumor.tags.find((x) => x[0] === 'name')?.[1] || '').slice(0, NAME); // what the writer calls themselves, sealed with the text
-    const message = { id: rumor.id, conv: other, from, name, at: rumor.created_at, t: rumor.created_at * 1000 + ms, seq: Date.now(), text: String(rumor.content || '').slice(0, TEXT), wrap: ev.id };
+    // a file message (NIP-17 kind 15) carries the file instead of text; one we cannot read is dropped
+    const file = rumor.kind === KINDS.CHAT_FILE ? fileFromRumor(rumor) : null;
+    if (rumor.kind === KINDS.CHAT_FILE && !file) return this.markSeen(ev.id);
+    const text = file ? '' : String(rumor.content || '').slice(0, TEXT);
+    const message = { id: rumor.id, conv: other, from, name, at: rumor.created_at, t: rumor.created_at * 1000 + ms, seq: Date.now(), text, ...(file ? { file } : {}), wrap: ev.id };
     if (!(await this.net.db.hasMessage(message.id))) {
       await this.net.db.putMessage(message);
       if (this.ready && from !== this.pk) for (const fn of this.messageListeners) fn(message);
@@ -132,10 +137,21 @@ export class DirectMessages {
       .trim()
       .slice(0, TEXT);
     if (!content) return null;
+    return this.deliver(toPk, KINDS.CHAT_MESSAGE, content);
+  }
+
+  /** Send a file uploaded with shared/files.js (uploadFile) to one person, as a NIP-17 file message. */
+  async sendFile(toPk, file) {
+    const f = cleanFile(file);
+    if (!f) throw new Error('not a file');
+    return this.deliver(toPk, KINDS.CHAT_FILE, f.url, fileTags(f));
+  }
+
+  async deliver(toPk, kind, content, extra = []) {
     const ms = Date.now();
     const network = this.networkOf(toPk);
-    const tags = [['p', toPk], ['ms', String(ms % 1000)], ...(this.alias ? [['name', this.alias.slice(0, NAME)]] : []), ...this.relaysFor(network)];
-    const rumor = { kind: KINDS.CHAT_MESSAGE, created_at: Math.floor(ms / 1000), tags, content };
+    const tags = [['p', toPk], ['ms', String(ms % 1000)], ...(this.alias ? [['name', this.alias.slice(0, NAME)]] : []), ...extra, ...this.relaysFor(network)];
+    const rumor = { kind, created_at: Math.floor(ms / 1000), tags, content };
     const theirs = nip59.wrapEvent(rumor, hexToBytes(this.sk), toPk);
     const mine = nip59.wrapEvent(rumor, hexToBytes(this.sk), this.pk);
     const { sync } = this.net;

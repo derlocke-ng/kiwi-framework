@@ -135,7 +135,7 @@ function Messages({ convs }: { convs: any[] }) {
                   <span className="conv-name">{name(c)}</span>
                   <span className="conv-preview">
                     {c.from === identity.pk ? `${t('chat.you')}: ` : ''}
-                    {c.text}
+                    {c.file ? t('files.preview', { name: c.file.name }) : c.text}
                   </span>
                 </span>
                 <span className="conv-meta">
@@ -261,7 +261,7 @@ function GroupsTab({ convs }: { convs: any[] }) {
                     <span className="conv-name">{groups.info(g.pub)?.name || g.name || t('chat.group.title')}</span>
                     <span className="conv-preview">
                       {c
-                        ? `${c.from === identity.pk ? t('chat.you') : c.name || fingerprint(c.from)}: ${c.text}`
+                        ? `${c.from === identity.pk ? t('chat.you') : c.name || fingerprint(c.from)}: ${c.file ? t('files.preview', { name: c.file.name }) : c.text}`
                         : t('chat.group.members', { n: groups.members(g.pub).length })}
                     </span>
                   </span>

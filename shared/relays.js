@@ -97,7 +97,11 @@ export class RelayPool {
     this.hiddenAt = 0;
     if (typeof addEventListener === 'function') {
       addEventListener('online', () => this.wake());
-      addEventListener('pageshow', () => this.wake());
+      // "Back" can show the page as it was, from the browser's back/forward cache, as an app does; the browser
+      // closed its sockets while it was put away. Shown again, every relay is connected anew at once, rather
+      // than after a ping finds a socket dead or a back-off runs out. (Closing them ourselves on pagehide would
+      // get the page thrown out of the cache: their close events arrive after it is frozen.)
+      addEventListener('pageshow', (e) => (/** @type {PageTransitionEvent} */ (e).persisted ? this.resume() : this.wake()));
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'hidden') this.hiddenAt = Date.now();
@@ -139,7 +143,8 @@ export class RelayPool {
     }
     const relay = new Relay(url, { enablePing: true, enableReconnect: true });
     relay.onnotice = (msg) => console.info(`${url}: ${msg}`);
-    const entry = { url, relay, open: false, latency: null, connecting: false, lastError: null, publishError: null, publishErrorAt: 0, lastOkAt: 0, networks: new Set([network]) };
+    // tried: a first connection attempt has finished (until then the page says it is connecting, not offline)
+    const entry = { url, relay, open: false, latency: null, connecting: false, tried: false, lastError: null, publishError: null, publishErrorAt: 0, lastOkAt: 0, networks: new Set([network]) };
     this.relays.set(url, entry);
     for (const sub of this.subs) this.attach(sub, entry);
     this.connect(entry);
@@ -173,6 +178,7 @@ export class RelayPool {
       entry.lastError = String(err?.message || err);
     } finally {
       entry.connecting = false;
+      entry.tried = true;
       this.tick();
     }
   }
@@ -194,6 +200,17 @@ export class RelayPool {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     for (const entry of this.relays.values()) {
       if (entry.relay.connected && away < STALE_AFTER) continue;
+      if (entry.relay.connected) this.renew(entry);
+      else this.connect(entry);
+    }
+  }
+
+  /** Shown again from the back/forward cache: a fresh connection to every relay, now; the page says it is connecting meanwhile. */
+  resume() {
+    this.hiddenAt = 0;
+    for (const entry of this.relays.values()) entry.tried = false;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return this.tick();
+    for (const entry of this.relays.values()) {
       if (entry.relay.connected) this.renew(entry);
       else this.connect(entry);
     }
@@ -231,8 +248,9 @@ export class RelayPool {
   status(network = null) {
     const list = [...this.relays]
       .filter(([, e]) => !network || e.networks.has(network))
-      .map(([url, e]) => ({ url, open: e.open, latency: e.latency, error: e.lastError, publishError: e.publishError, publishErrorAt: e.publishErrorAt, lastOkAt: e.lastOkAt, networks: [...e.networks] }));
-    return { network, relays: list, total: list.length, connected: list.filter((r) => r.open).length };
+      .map(([url, e]) => ({ url, open: e.open, pending: !e.open && !e.tried, latency: e.latency, error: e.lastError, publishError: e.publishError, publishErrorAt: e.publishErrorAt, lastOkAt: e.lastOkAt, networks: [...e.networks] }));
+    // connecting: relays whose first attempt (since the page started, or came back) has not finished yet
+    return { network, relays: list, total: list.length, connected: list.filter((r) => r.open).length, connecting: list.filter((r) => r.pending).length };
   }
 
   get online() {

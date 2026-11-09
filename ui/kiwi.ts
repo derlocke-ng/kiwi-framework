@@ -24,6 +24,7 @@ import { Spaces } from '../shared/spaces.js';
 import { LocalStore } from '../shared/store.js';
 import { Sync } from '../shared/sync.js';
 import { applyTheme, setAccent, setTheme, watchDeviceSettings } from '../shared/theme.js';
+import { store, watchStorage } from '../shared/util.js';
 import { toast } from './toast';
 
 export interface Identity {
@@ -416,9 +417,23 @@ export async function bootKiwi({ current = 'hub', base = './', sprite = 'icons.s
       }
     },
   });
-  addEventListener('storage', (e) => {
-    if (e.key === ID_KEY) kiwi.restart().catch(() => {});
-  });
+  // a sign-in, sign-out or new key on another page: everything bound to the identity starts over here too;
+  // a page shown again from the back/forward cache looks whether that happened while it was put away
+  let idAtHide = '';
+  const storedId = () => JSON.stringify(store.get(ID_KEY) ?? null);
+  watchStorage(
+    (e) => {
+      if (e.key === ID_KEY) kiwi.restart().catch(() => {});
+    },
+    {
+      onHide: () => {
+        idAtHide = storedId();
+      },
+      onReturn: () => {
+        if (storedId() !== idAtHide) kiwi.restart().catch(() => {});
+      },
+    },
+  );
   document.documentElement.classList.add('i18n');
   return kiwi;
 }

@@ -6,12 +6,14 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { DirectMessages } from '../../../shared/chat.js';
 import { fingerprint } from '../../../shared/events.js';
+import { uploadFile } from '../../../shared/files.js';
 import { relTime } from '../../../shared/i18n.js';
 import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu, pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
+import { FileCard } from '../../../ui/widgets/FileCard';
 import { savedNick, saveNick, useDm, useDmVersion } from '../state';
 import { Composer, Text } from './Conversation';
 
@@ -266,13 +268,18 @@ export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { 
         {msgs.map((m) => (
           <div key={m.id} className={`msg ${m.from === identity.pk ? 'mine' : 'theirs'}`}>
             {m.from === identity.pk ? null : <b className="nick">{m.name || nameOf(m.from)}</b>}
-            <Text text={m.text} />
+            {m.file ? <FileCard file={m.file} /> : <Text text={m.text} />}
             <time dateTime={new Date(m.at * 1000).toISOString()}>{relTime(m.at * 1000)}</time>
           </div>
         ))}
         <div ref={end} />
       </div>
-      <Composer id="groupComposer" onSend={(text) => groups.say(pub, text)} placeholder={t('chat.write')} />
+      <Composer
+        id="groupComposer"
+        onSend={(text) => groups.say(pub, text)}
+        onFile={(file, onProgress) => uploadFile(file, { servers: kiwi.mediaServers(), sk: identity.sk, onProgress }).then((f) => groups.sayFile(pub, f))}
+        placeholder={t('chat.write')}
+      />
     </section>
   );
 }

@@ -191,14 +191,19 @@ export function StatusPill({ href = 'settings.html#relays', id = 'sync' }: { hre
   useNetTick();
   const pending = useUnsynced();
   const s = net.pool.status();
-  const text = s.connected
-    ? `${s.connected}/${s.total}${pending ? ` · ${t('sync.toSync', { n: pending })}` : ''}`
-    : pending
-      ? `${t('sync.offline')} · ${t('sync.toSync', { n: pending })}`
-      : t('sync.offline');
+  // until the first attempts have finished (a page just opened, or shown again), it is connecting, not offline
+  const state = s.connected ? 'on' : s.connecting ? 'connecting' : 'off';
+  const text =
+    state === 'on'
+      ? `${s.connected}/${s.total}${pending ? ` · ${t('sync.toSync', { n: pending })}` : ''}`
+      : state === 'connecting'
+        ? t('sync.connecting')
+        : pending
+          ? `${t('sync.offline')} · ${t('sync.toSync', { n: pending })}`
+          : t('sync.offline');
   const title = s.connected ? t('sync.titleOn', { connected: s.connected, relays: s.total }) : t('sync.titleOff');
   return (
-    <a className="wjs-status" id={id} href={href} title={title} data-state={s.connected ? 'on' : 'off'} data-network={s.network || 'hub'}>
+    <a className="wjs-status" id={id} href={href} title={title} data-state={state} data-network={s.network || 'hub'}>
       <span className="wjs-status-dot" />
       <span className="wjs-status-text">{text}</span>
     </a>

@@ -15,6 +15,8 @@ import { pathToFileURL } from 'node:url';
 import { absent, device, run, sleep, startBoard, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
+// a photo of one pixel, for the file step
+const PNG_1PX = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const texts = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.textContent.trim()));
 
 /**
@@ -239,6 +241,57 @@ export async function chatSuite(env, { app, settings, boards }) {
   await say(A, 'after the rekey', '#groupComposer');
   await until(async () => (await groupMessages(B)).includes('after the rekey'), 'B reads with the new key', 40000);
   await until(async () => (await groupMessages(A2)).includes('after the rekey'), 'so does A’s other device', 40000);
+
+  step('files: A sends B a photo while B is away, sealed on A’s media server; B sees and saves it later; a file in the group too');
+  const groupA = await A.evaluate(() => location.hash);
+  const groupB = await B.evaluate(() => location.hash);
+  await A.goto(`${SETTINGS}#media`);
+  await A.waitForSelector('#mediaForm', { state: 'attached' });
+  if (!(await A.$eval('#media details', (d) => d.open))) await A.click('#media details summary');
+  await A.fill('#mediaForm textarea', env.blossom.url);
+  await A.click('#mediaForm [type=submit]');
+  await A.waitForSelector(`#mediaList li[data-server="${env.blossom.url}"]`);
+  await B.goto(`${env.base}hub.json`); // B is away: a page of the hub's that runs nothing
+  await talk(A, pkB);
+  const png = Buffer.from(PNG_1PX, 'base64');
+  const before = env.blossom.blobs.size;
+  await A.setInputFiles('#composer input[type=file]', { name: 'week3.png', mimeType: 'image/png', buffer: png });
+  await until(async () => (await A.$$('#messages .file-card')).length === 1, 'the file in A’s conversation', 30000);
+  assert.equal(env.blossom.blobs.size, before + 1, 'one upload');
+  const x = await A.getAttribute('#messages .file-card', 'data-file');
+  const stored = env.blossom.blobs.get(x);
+  assert.ok(stored && !Buffer.from(stored.data).includes(Buffer.from('PNG')), 'the media server holds ciphertext under its hash');
+  assert.equal(stored.type, 'application/octet-stream', 'and not the file’s type');
+  assert.ok(!JSON.stringify(await env.relayEvents([{ kinds: [1059] }])).includes(x), 'the relays never see where the file is');
+  await open(B);
+  await until(async () => (await texts(B, '#convs .conv-preview')).some((t) => t.includes('File: week3.png')), 'B’s list says a file came', 30000);
+  await talk(B, pkA);
+  await until(
+    async () => B.$eval('#messages .file-card .file-preview', (img) => img.complete && img.naturalWidth === 1).catch(() => false),
+    'the photo shows on B',
+    30000,
+  );
+  const [saved] = await Promise.all([B.waitForEvent('download'), B.click('#messages .file-card [data-act=save-file]')]);
+  assert.equal(saved.suggestedFilename(), 'week3.png');
+  assert.deepEqual(fs.readFileSync(await saved.path()), png, 'the same bytes as were sent');
+  await A.goto(`${APP}${groupA}`);
+  await A.waitForSelector('#groupComposer textarea');
+  // a page that starts over rebuilds the group from what its device holds: the members are there at once
+  await until(
+    async () => {
+      const line = await A.textContent('#groupMembers');
+      if (line.split(':')[0].trim().startsWith('2')) return true;
+      throw new Error(line);
+    },
+    'after a reload, two in on A',
+    10000,
+  );
+  await B.goto(`${APP}${groupB}`);
+  await B.waitForSelector('#groupComposer textarea');
+  await A.setInputFiles('#groupComposer input[type=file]', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('feed every third day') });
+  await until(async () => (await texts(B, '#groupMessages .file-name')).includes('notes.txt'), 'the file in the group on B', 30000);
+  const [note] = await Promise.all([B.waitForEvent('download'), B.click('#groupMessages .file-card [data-act=save-file]')]);
+  assert.equal(fs.readFileSync(await note.path(), 'utf8'), 'feed every third day');
 
   step('B leaves; the host closes; every device drops the group');
   await B.click('[data-act=menu]');

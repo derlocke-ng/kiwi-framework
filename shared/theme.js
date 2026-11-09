@@ -2,7 +2,7 @@
 // for the whole site, kept on this device (`wjs.theme`, `wjs.accent`). CSS
 // does the rest via <html data-theme> and <html data-accent> (ui.css).
 
-import { store } from './util.js';
+import { store, watchStorage } from './util.js';
 
 export const THEME_KEY = 'wjs.theme';
 export const THEMES = ['system', 'light', 'dark'];
@@ -53,8 +53,17 @@ export function applyTheme() {
  * @param {{ onTheme?: () => void, onLanguage?: (() => void) | null }} [handlers]
  */
 export function watchDeviceSettings({ onTheme = applyTheme, onLanguage = null } = {}) {
-  addEventListener('storage', (e) => {
-    if (e.key === THEME_KEY || e.key === ACCENT_KEY) onTheme();
-    if (e.key === 'wjs.lang' && onLanguage) onLanguage();
-  });
+  watchStorage(
+    (e) => {
+      if (e.key === THEME_KEY || e.key === ACCENT_KEY) onTheme();
+      if (e.key === 'wjs.lang' && onLanguage) onLanguage();
+    },
+    // back from the back/forward cache: the theme or the language may have been changed on another page meanwhile
+    {
+      onReturn: () => {
+        onTheme();
+        onLanguage?.();
+      },
+    },
+  );
 }

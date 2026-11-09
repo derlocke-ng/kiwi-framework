@@ -35,6 +35,7 @@
   },
   "relay.rejected": "laatste antwoord: {error} {when}",
   "sync.offline": "offline",
+  "sync.connecting": "verbinden…",
   "sync.toSync": {
     "one": "{n} te syncen",
     "other": "{n} te syncen"
@@ -333,5 +334,11 @@
   "gate.account.home": "Terug naar {hub}",
   "photo.n": "Foto {n}",
   "photo.prev": "Vorige",
-  "photo.next": "Volgende"
+  "photo.next": "Volgende",
+  "files.attach": "Een bestand sturen",
+  "files.uploading": "Het bestand wordt geüpload",
+  "files.save": "{name} opslaan",
+  "files.preview": "Bestand: {name}",
+  "files.error.tooBig": "Het bestand is te groot om te sturen (hoogstens {max}).",
+  "files.error.changed": "Dit is niet het bestand dat gestuurd is."
 }

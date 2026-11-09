@@ -20,6 +20,7 @@
 //   await groups.say(pub, 'hi');  groups.admit(pub, pk);  groups.kick(pub, pk)
 
 import { isHex64, KINDS, makeAddressable, now, open, seal, sign } from './events.js';
+import { cleanFile, fileFromRumor, fileTags } from './files.js';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes, verifyEvent } from './nostr.mjs';
 import { baseStore, whole } from './peers.js';
 import { hintQuery, hintsAllowed, readHints } from './relaylists.js';
@@ -197,8 +198,10 @@ export class Groups {
     const groups = this.list();
     for (const g of groups) {
       if (this.state.has(g.pub)) continue;
-      this.state.set(g.pub, { name: g.name || '', host: g.host, closed: false, open: false, members: new Map(), requests: [] });
-      for (const ev of (await db.query([{ kinds: GROUP_KINDS, authors: [g.pub] }], g.network || 'hub')).sort((a, b) => a.created_at - b.created_at)) await this.handle(ev);
+      this.state.set(g.pub, { name: g.name || '', host: g.host, closed: false, open: false, members: new Map(), gone: new Map(), requests: [] });
+      // what the store holds, in order, seen before or not: the members and the rest are this page's to rebuild
+      for (const ev of (await db.query([{ kinds: GROUP_KINDS, authors: [g.pub] }], g.network || 'hub')).sort((a, b) => a.created_at - b.created_at))
+        await this.handle(ev, { replay: true });
     }
     // one subscription per network: a group's events are asked for, and healed, on its own network alone
     const byNetwork = new Map();
@@ -236,8 +239,13 @@ export class Groups {
     return null;
   }
 
-  async handle(ev) {
-    if (this.seen.has(ev.id)) return;
+  /**
+   * One of a group's events. `replay`: from the store at start, to rebuild what the page keeps in memory (members,
+   * name, requests); it is handled even when seen before (the seen list outlives the page, the state does not), and
+   * does nothing a second time (no re-keying for an old leave, no notice for an old message).
+   */
+  async handle(ev, { replay = false } = {}) {
+    if (!replay && this.seen.has(ev.id)) return;
     const g = this.entry(ev.pubkey);
     const st = this.state.get(ev.pubkey);
     if (!g || !st) return;
@@ -253,30 +261,39 @@ export class Groups {
       if (st.name && st.name !== g.name) this.update(ev.pubkey, { name: st.name }).catch(() => {});
       if (st.closed) await this.gone(ev.pubkey, 'closed');
     } else if (ev.kind === KINDS.GROUP_JOIN) {
+      // a join from the second someone left or was removed, or before, does not bring them back: events come in
+      // any order (the store replays by the second), and a removal in the second of the join must still hold
       const known = st.members.get(inner.pubkey);
-      if (!known || known.since <= inner.created_at) st.members.set(inner.pubkey, { name: String(body.name || '').slice(0, NAME), since: inner.created_at, left: false });
+      const gone = st.gone.get(inner.pubkey) ?? -1;
+      if (inner.created_at > gone && (!known || known.since <= inner.created_at))
+        st.members.set(inner.pubkey, { name: String(body.name || '').slice(0, NAME), since: inner.created_at, left: false });
     } else if (ev.kind === KINDS.GROUP_LEAVE) {
+      st.gone.set(inner.pubkey, Math.max(st.gone.get(inner.pubkey) ?? -1, inner.created_at));
       const known = st.members.get(inner.pubkey);
       if (known && known.since <= inner.created_at) known.left = true;
-      if (this.isHost(ev.pubkey) && inner.pubkey !== this.pk && this.ready) this.rekey(ev.pubkey).catch(() => {});
+      if (this.isHost(ev.pubkey) && inner.pubkey !== this.pk && this.ready && !replay) this.rekey(ev.pubkey).catch(() => {});
     } else if (ev.kind === KINDS.GROUP_KICK) {
       if (inner.pubkey !== g.host || !isHex64(body.pk)) return this.markSeen(ev.id);
+      st.gone.set(body.pk, Math.max(st.gone.get(body.pk) ?? -1, inner.created_at));
       const known = st.members.get(body.pk);
-      if (known) known.left = true;
+      if (known && known.since <= inner.created_at) known.left = true;
       if (body.pk === this.pk) await this.gone(ev.pubkey, 'removed');
     } else if (ev.kind === KINDS.GROUP_MESSAGE) {
       if (this.isBlocked(inner.pubkey)) return this.markSeen(ev.id);
       const ms = Math.min(999, Math.max(0, Number(inner.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
+      // a file: NIP-17's file tags on the inner event, its URL as the content (shared/files.js)
+      const file = inner.tags.some((x) => x[0] === 'decryption-key') ? fileFromRumor(inner) : null;
       const message = {
         id: inner.id,
         conv: ev.pubkey,
         group: true,
+        ...(file ? { file } : {}),
         from: inner.pubkey,
         name: st.members.get(inner.pubkey)?.name || '',
         at: inner.created_at,
         t: inner.created_at * 1000 + ms,
         seq: Date.now(),
-        text: String(inner.content || '').slice(0, TEXT),
+        text: file ? '' : String(inner.content || '').slice(0, TEXT),
         wrap: ev.id,
       };
       if (!(await this.net.db.hasMessage(message.id))) {
@@ -425,7 +442,7 @@ export class Groups {
     const w = newKey();
     const g = { pub: getPublicKey(hexToBytes(w)), w, k: newKey(), keys: [], host: this.pk, name: String(name).trim().slice(0, NAME), invite: randomId(), open, joined: now(), network: this.network };
     await this.settings.set({ groups: [...this.list(), g] });
-    this.state.set(g.pub, { name: g.name, host: g.host, closed: false, open, members: new Map(), requests: [] });
+    this.state.set(g.pub, { name: g.name, host: g.host, closed: false, open, members: new Map(), gone: new Map(), requests: [] });
     await this.publishInfo(g, { name: g.name, open });
     await this.resubscribe();
     await this.join(g.pub, myName);
@@ -486,6 +503,16 @@ export class Groups {
     if (this.state.get(pub)?.closed) throw new Error('closed');
     const ms = Date.now();
     return this.publish(g, KINDS.GROUP_MESSAGE, content, { tags: [['ms', String(ms % 1000)]] });
+  }
+
+  /** Send a file uploaded with shared/files.js (uploadFile) to the group. */
+  async sayFile(pub, file) {
+    const g = this.entry(pub);
+    const f = cleanFile(file);
+    if (!g || !f) return null;
+    if (this.state.get(pub)?.closed) throw new Error('closed');
+    const ms = Date.now();
+    return this.publish(g, KINDS.GROUP_MESSAGE, f.url, { tags: [['ms', String(ms % 1000)], ...fileTags(f)] });
   }
 
   /** Leave: tell the group, forget it here and on my other devices. The host re-keys. */

@@ -40,6 +40,7 @@ export const KINDS = {
   SEAL: 13,
   // Rumor kinds inside a gift wrap; relays never see them as such.
   CHAT_MESSAGE: 14, // NIP-17: a private message, wrapped once for each reader and once for the writer's other devices
+  CHAT_FILE: 15, // NIP-17: a file message, the file encrypted on a media server, its key in the rumor (shared/files.js)
   GROUP_KNOCK: 7824, // to a group's host: someone with the invite link asks in ({ pub, invite, name })
   GROUP_KEYS: 7825, // to one person: a group's keys ({ pub, w, k, host, name }), from the host or a member who invited them
   ROOM_INVITE: 7826, // to one person: come to a live room ({ secret, name }); accepted in the chat, never a link

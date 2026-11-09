@@ -59,3 +59,32 @@ export const store = {
 
 /** An Error with a stable `code` the UI can translate (see i18n.tErr) and optional `params`. */
 export const fail = (code, message, params) => Object.assign(new Error(message), { code, params });
+
+/**
+ * Follow `storage` events (what another page of the site changed in localStorage), also across the back/forward
+ * cache: a page the browser keeps there to show it again on "back" gets no events while it is put away, so
+ * `onHide` notes what it needs as it goes and `onReturn` looks at what changed meanwhile when it is shown again.
+ * The listener is off while the page is put away. Returns a function that stops all of it.
+ * @param {(e: StorageEvent) => void} fn
+ * @param {{ onHide?: () => void, onReturn?: () => void }} [options]
+ */
+export function watchStorage(fn, { onHide, onReturn } = {}) {
+  if (typeof addEventListener !== 'function') return () => {};
+  const hide = () => {
+    removeEventListener('storage', fn);
+    onHide?.();
+  };
+  /** @param {Event} e */
+  const show = (e) => {
+    addEventListener('storage', fn);
+    if (/** @type {PageTransitionEvent} */ (e).persisted) onReturn?.();
+  };
+  addEventListener('storage', fn);
+  addEventListener('pagehide', hide);
+  addEventListener('pageshow', show);
+  return () => {
+    removeEventListener('storage', fn);
+    removeEventListener('pagehide', hide);
+    removeEventListener('pageshow', show);
+  };
+}

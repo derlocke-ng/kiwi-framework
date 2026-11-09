@@ -848,3 +848,46 @@ span.wjs-media.loading {
     animation: none;
   }
 }
+
+/* A file a message carried (ui/widgets/FileCard.tsx): a photo shows itself, any file is a row with a save button. */
+.file-card {
+  display: grid;
+  gap: 0.35rem;
+  min-width: min(16rem, 100%);
+}
+
+.file-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 20rem;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: var(--surface-2);
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.file-row > .icon {
+  flex: none;
+  color: var(--muted);
+}
+
+.file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.file-size {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+}

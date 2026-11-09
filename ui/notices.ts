@@ -30,7 +30,7 @@ export function usePeopleNotices(): void {
       const href = g ? `${base}${chat.id}/#/group/${g.secret}/${g.host}` : `${base}${chat.id}/#/groups`;
       const title = t('notify.groupMessage', { name: m.name || fingerprint(m.from), group: m.groupName || g?.name || '' });
       toast(title, 'info', 8000, { label: t('people.open'), href });
-      notifyBrowser({ title, body: m.text.slice(0, 120), url: href, tag: `group-${m.conv}`, icon });
+      notifyBrowser({ title, body: (m.file ? t('files.preview', { name: m.file.name }) : m.text).slice(0, 120), url: href, tag: `group-${m.conv}`, icon });
     });
     const offGone = groups.onGone(({ name, why }: any) => {
       if (why === 'closed') toast(t('notify.groupClosed', { group: name }), 'info', 8000);
@@ -61,7 +61,13 @@ export function usePeopleNotices(): void {
       const name = known || m.name || fingerprint(m.from);
       const href = `${base}${chat.id}/#/dm/${m.conv}`;
       toast(t('notify.message', { name }), 'info', 8000, { label: t('people.open'), href });
-      notifyBrowser({ title: t('notify.message', { name }), body: m.text.slice(0, 120), url: href, tag: `msg-${m.conv}`, icon });
+      notifyBrowser({
+        title: t('notify.message', { name }),
+        body: (m.file ? t('files.preview', { name: m.file.name }) : m.text).slice(0, 120),
+        url: href,
+        tag: `msg-${m.conv}`,
+        icon,
+      });
     });
   }, [messages, people, base, current, icon]);
   useEffect(() => {
