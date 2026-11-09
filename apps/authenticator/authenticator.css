@@ -23,24 +23,6 @@ body {
   flex: 1;
 }
 
-/* the lock screens: one card in the middle */
-.au-lock {
-  display: grid;
-  gap: 0.75rem;
-  max-width: 440px;
-  margin: 1.5rem auto 0;
-}
-
-.au-lock h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.au-lock h2 .icon {
-  color: var(--accent);
-}
-
 /* the bar: the count (or the search), lock, add */
 .au-page .app-bar .search,
 .au-page .app-bar .au-count {
@@ -251,16 +233,4 @@ body {
 
 .qr-fg {
   fill: #000;
-}
-
-/* the settings' rows of buttons */
-.au-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
-}
-
-.au-buttons label.btn {
-  cursor: pointer;
 }

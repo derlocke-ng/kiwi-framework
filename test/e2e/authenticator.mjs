@@ -4,15 +4,21 @@
 // barcode reader), a Google Authenticator export; the codes the page shows are
 // the codes RFC 6238 gives; the relay holds no secret; another device of the
 // same key opens the vault with the passphrase (a wrong one said as such), a
-// rename there shows here, a new passphrase locks the other device; the page
-// locks again after being away; a backup brought back after the vault was
-// removed. Exported for a distribution's own run (Armory's mount).
+// rename there shows here, a new passphrase asks for the current one and
+// keeps the other device open until it locks; the page locks again after being
+// away; a backup brought back after the vault was removed; 0.26's codes moved
+// into the vault on the first unlock. Exported for a distribution's own run
+// (Armory's mount).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes } from '../../shared/nostr.mjs';
 import { qrSvg } from '../../shared/qr.js';
 import { cleanEntry, totp } from '../../shared/totp.js';
+import { Relay } from 'nostr-tools/relay';
+import { selfKey } from '../../shared/account.js';
+import { KINDS, makeAddressable, seal } from '../../shared/events.js';
+import { createVault } from '../../shared/vault.js';
 import { device, run, testHub, until } from './env.mjs';
 
 const step = (s) => console.log(`• ${s}`);
@@ -114,7 +120,7 @@ export async function authenticatorSuite(env, { app }) {
   const BANK = { issuer: 'Bank', account: 'ada', secret: 'MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43U' };
   await add(A, migration([SHOP, BANK]));
   await A.click('#addFound');
-  await until(async () => (await entries(A)).join() === 'Shop,Mail,Bank', 'three accounts, Shop once');
+  await until(async () => (await entries(A)).join() === 'Bank,Mail,Shop', 'three accounts, Shop once');
   await expectCode(A, 'Bank', BANK);
 
   step('nothing secret on the relay: the vault is sealed in the account’s settings');
@@ -131,7 +137,7 @@ export async function authenticatorSuite(env, { app }) {
   await B.waitForSelector('#unlockError', { timeout: 20000 });
   await B.fill('#unlockForm [name=pass]', PASS);
   await B.click('#unlockBtn');
-  await until(async () => (await entries(B)).join() === 'Shop,Mail,Bank', 'the three accounts on B', 20000);
+  await until(async () => (await entries(B)).join() === 'Bank,Mail,Shop', 'the three accounts on B', 20000);
   await expectCode(B, 'Mail', MAIL);
 
   step('a rename on B shows on A, which has the vault open');
@@ -146,24 +152,30 @@ export async function authenticatorSuite(env, { app }) {
   await A.click('[data-entry="Bank"] [data-act=menu]');
   await A.click('[data-act=delete]');
   await A.click('[data-ok]');
-  await until(async () => (await entries(A)).join() === 'Shop EU,Mail', 'Bank deleted on A');
-  await until(async () => (await entries(B)).join() === 'Shop EU,Mail', 'and on B');
+  await until(async () => (await entries(A)).join() === 'Mail,Shop EU', 'Bank deleted on A');
+  await until(async () => (await entries(B)).join() === 'Mail,Shop EU', 'and on B');
 
-  step('a new passphrase on A locks B, which opens with the new one');
+  step('a new passphrase asks for the current one; B stays open, and after locking opens with the new one only');
   await A.goto(`${app}#/settings`);
   await A.waitForSelector('#passForm');
+  await A.fill('#passForm [name=current]', 'wrong horse battery');
   await A.fill('#passForm [name=pass]', 'a new passphrase here');
   await A.fill('#passForm [name=pass2]', 'a new passphrase here');
   await A.click('#passBtn');
-  await until(async () => !(await A.$('#passBtn[disabled]')), 'the new key worked out', 20000);
-  await B.waitForSelector('#unlockForm', { timeout: 15000 });
-  assert.ok((await B.textContent('#unlockCard')).length > 0);
+  await A.waitForSelector('#passError', { timeout: 20000 });
+  await A.fill('#passForm [name=current]', PASS);
+  await A.click('#passBtn');
+  await A.waitForSelector('#passError', { state: 'detached', timeout: 20000 });
+  await until(async () => !(await A.$('#passBtn[disabled]')) && (await A.inputValue('#passForm [name=current]')) === '', 'the new passphrase set', 20000);
+  await B.waitForTimeout(1500);
+  assert.equal((await entries(B)).join(), 'Mail,Shop EU', 'B is still open');
+  await B.click('#lockBtn');
   await B.fill('#unlockForm [name=pass]', PASS);
   await B.click('#unlockBtn');
   await B.waitForSelector('#unlockError', { timeout: 20000 });
   await B.fill('#unlockForm [name=pass]', 'a new passphrase here');
   await B.click('#unlockBtn');
-  await until(async () => (await entries(B)).join() === 'Shop EU,Mail', 'B open with the new passphrase', 20000);
+  await until(async () => (await entries(B)).join() === 'Mail,Shop EU', 'B open with the new passphrase', 20000);
 
   step('the lock button, and locking again after the page was away');
   await B.click('#lockBtn');
@@ -192,7 +204,7 @@ export async function authenticatorSuite(env, { app }) {
   await A.waitForSelector('#saveBackup');
   const [download] = await Promise.all([A.waitForEvent('download'), A.click('#saveBackup')]);
   const backup = fs.readFileSync(await download.path(), 'utf8');
-  assert.equal(JSON.parse(backup).type, 'kiwi-authenticator-backup');
+  assert.equal(JSON.parse(backup).type, 'kiwi-vault-backup');
   assert.ok(!backup.includes(SHOP.secret), 'the backup is sealed');
   await A.click('#removeVault');
   await A.click('[data-ok]');
@@ -207,12 +219,31 @@ export async function authenticatorSuite(env, { app }) {
   await A.click('#backupPassBtn');
   await A.waitForSelector('#backupPassForm', { state: 'detached', timeout: 20000 });
   await A.goto(`${app}#/`);
-  await until(async () => (await entries(A)).join() === 'Shop EU,Mail', 'the accounts back from the backup');
+  await until(async () => (await entries(A)).join() === 'Mail,Shop EU', 'the accounts back from the backup');
   await expectCode(A, 'Shop EU', SHOP);
   await B.waitForSelector('#unlockForm');
   await B.fill('#unlockForm [name=pass]', 'yet another passphrase');
   await B.click('#unlockBtn');
-  await until(async () => (await entries(B)).join() === 'Shop EU,Mail', 'B opens the new vault', 20000);
+  await until(async () => (await entries(B)).join() === 'Mail,Shop EU', 'B opens the new vault', 20000);
+
+  step('0.26: codes kept in the authenticator\'s own vault move into the vault on the first unlock, with that passphrase');
+  const sk2 = bytesToHex(generateSecretKey());
+  const old = await createVault('the old passphrase', [{ id: 'o1', ...cleanEntry(SHOP) }]);
+  const relay = await Relay.connect(env.nostrUrl);
+  await relay.publish(makeAddressable(KINDS.SETTINGS, 'authenticator', await seal(selfKey(sk2), { vault: old.record, u: Date.now() }), sk2));
+  relay.close();
+  const C = await device(env, 'C', init, { relay: env.nostrUrl, identity: { sk: sk2, pk: getPublicKey(hexToBytes(sk2)), alias: null, created: Date.now() } });
+  await C.goto(app);
+  await C.waitForSelector('#unlockForm', { timeout: 20000 });
+  await C.fill('#unlockForm [name=pass]', 'the old passphrase');
+  await C.click('#unlockBtn');
+  await until(async () => (await entries(C)).join() === 'Shop', 'the old code in the vault', 20000);
+  await expectCode(C, 'Shop', SHOP);
+  await C.reload();
+  await C.waitForSelector('#unlockForm', { timeout: 20000 });
+  await C.fill('#unlockForm [name=pass]', 'the old passphrase');
+  await C.click('#unlockBtn');
+  await until(async () => (await entries(C)).join() === 'Shop', 'moved once, opened from the vault now', 20000);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

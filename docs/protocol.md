@@ -59,7 +59,8 @@ One event per namespace. Namespaces and their keys today:
 | `people` | see §5 |
 | `loadout` | the boards app's own preferences |
 | `devboard` | `saved` (addresses), `type` (`"hiring"` \| `"available"`), `contact` |
-| `authenticator` | `vault`: the authenticator's two-factor secrets, sealed again with a passphrase of their own (§16) |
+| `vault` | `keys`: the vault's key, wrapped under its passphrase (§16); `breachCheck` (the password manager's breach check, off unless true) |
+| `authenticator` | `vault`: 0.26's codes in the vault's first form, until they move (§16) |
 | `calendar` | `server` (the CalDAV address: a path on the hub such as `/remote.php/dav/`, or an http(s) address), `username`, `password` (an app password), `hidden` (calendar URLs not shown), `calendar` (the one new events go to), `reminder` (minutes before, the usual choice); §15 |
 
 A client merges by the addressable rule and caches the last object locally so screens draw before relays answer. Unknown keys are preserved on write.
@@ -213,21 +214,56 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 30830 | in use: market listings (§14) |
 | 30820, 30822, 7805 | in use: feed entries and comments, audience keys (§13) |
 | 34550 | in use: space definitions (§12) |
+| 30792 | in use: vault entries (§16) |
 
-## 16. The authenticator: a vault with its own passphrase
+## 16. The vault: passwords and 2FA secrets under a passphrase of their own
 
-The authenticator keeps its accounts' TOTP secrets in its settings (§3, namespace `authenticator`, key `vault`), so every device of the person has them; the settings event is sealed to the person's key as always, and the value is sealed once more with a key only the vault's passphrase gives (the owner's choice: the account's password alone does not open it). `shared/vault.js`:
+The password manager and the authenticator keep their secrets in one vault (the owner's choice: synced to every device of the person, opened only with a passphrase of its own, so the account's password alone does not give them). `shared/vault.js`, `shared/vaultstore.js`.
+
+**Keys.** The settings namespace `vault` (§3) holds `keys`:
 
 | field | value |
 |---|---|
-| `v` | `1` |
+| `v` | `2` |
+| `id` | 12 random bytes, base64url: the vault (a new passphrase keeps it; a vault made anew has another) |
 | `kdf` | `{ "name": "scrypt", "N": 65536, "r": 8, "p": 1, "salt": <16 random bytes, base64url> }` |
-| `iv` | 12 random bytes, base64url, new for every write |
-| `data` | base64url of AES-256-GCM(key, iv, UTF-8 JSON `{ "v": 1, "items": [<entry>, …] }`) |
+| `iv` | 12 random bytes, base64url |
+| `key` | base64url of AES-256-GCM(passKey, iv, vaultKey), additional data `wjs-vault-key` |
 
-The key is scrypt of the passphrase (Unicode NFKC, UTF-8) with that salt, 32 bytes, worked out off the main thread; it and the passphrase stay in the page's memory while the vault is open and nowhere else. A wrong passphrase is a failed decryption. A new passphrase is a new salt and key over the same items; another device with the vault open finds it cannot read the new value and locks. A removed vault is `vault: null`. Writes are whole values under the settings' newest-wins rule: two devices saving at the same moment keep the later one.
+`passKey` is scrypt of the passphrase (Unicode NFKC, UTF-8) with that salt, 32 bytes, worked out off the main thread; `vaultKey` is 32 random bytes. A wrong passphrase is a failed decryption. A new passphrase is a new salt and a new wrapping of the same vault key (the current passphrase is asked for, as the key in memory is not extractable); entries are not sealed again, and open pages stay open. The passphrase, `passKey` and `vaultKey` stay in the page's memory while the vault is open and nowhere else. A removed vault is `keys: null`, its entries emptied (below).
 
-An entry: `{ "id", "issuer", "account", "secret" (base32, RFC 4648, at least 10 bytes), "algorithm" ("SHA1" | "SHA256" | "SHA512"), "digits" (6–8), "period" (seconds, 10–300) }`. Codes are RFC 6238 TOTP (RFC 4226 truncation), made on the device. Accounts come in as `otpauth://totp/` links (Key Uri Format: `secret`, `issuer`, `algorithm`, `digits`, `period`; the label `issuer:account`), as a QR code holding one, or as a Google Authenticator export (`otpauth-migration://offline?data=`, its protocol buffer: TOTP entries only), and go out the same way: an account's QR code, a list of links, or a backup file `{ "type": "kiwi-authenticator-backup", "v": 1, "vault": <the record above> }`.
+**Entries.** Each entry is an addressable event:
+
+| field | value |
+|---|---|
+| kind | **30792** |
+| author | the person |
+| tags | `["d", <32 random hex characters>]`, nothing else |
+| content | base64url of `version(1) ‖ iv(12) ‖ AES-256-GCM(vaultKey, iv, payload)`, additional data `wjs-vault|<d>|<version>`; version 1: UTF-8 JSON, version 2: gzip of it (longer than 1 KiB) |
+
+The additional data binds the ciphertext to its address: a relay cannot pass one entry off as another. The newest event per address wins (§1). A deleted entry is an event whose sealed value is `{ "deleted": true, "updated": <ms> }`, so a relay cannot tell a deletion from an edit; an entry emptied because the vault was removed (its passphrase lost, so nothing can be sealed) has empty content. An entry that does not open with the vault key belongs to a vault removed since and is left alone. A relay sees how many entries a person has and when they change.
+
+The value (unknown fields are kept by every version):
+
+| field | value |
+|---|---|
+| `type` | `"login"`, `"note"`, `"card"`, `"totp"` (0.28 adds keys and certificates) |
+| `name`, `username`, `password`, `notes` | strings |
+| `urls` | strings, at most 20 |
+| `totp` | `{ "secret" (base32, RFC 4648, at least 10 bytes), "algorithm" ("SHA1" \| "SHA256" \| "SHA512"), "digits" (6–8), "period" (seconds) }` or null; codes are RFC 6238 TOTP made on the device |
+| `card` | `{ "holder", "number", "exp" ("MM/YY"), "code", "brand" }` or null |
+| `fields` | `[{ "name", "value", "hidden" }]` |
+| `tags` | strings; `fav`: pinned to the top |
+| `history` | earlier passwords, newest first, at most 10: `[{ "password", "at" }]` |
+| `created`, `updated`, `changed` | milliseconds: made, last changed, password last changed |
+
+The authenticator shows every entry with a `totp`: `name` and `username` stand for the service and the account. Accounts come in as `otpauth://totp/` links (Key Uri Format: `secret`, `issuer`, `algorithm`, `digits`, `period`; the label `issuer:account`), as a QR code holding one, or as a Google Authenticator export (`otpauth-migration://offline?data=`, its protocol buffer: TOTP entries only). The password manager also reads Bitwarden's plain JSON and CSV, KeePass 2's XML and the CSV files of KeePassXC, the browsers, 1Password, LastPass, Dashlane and Proton Pass, by their column names.
+
+**Backups.** `{ "type": "kiwi-vault-backup", "v": 2, "keys": <the keys record>, "entries": [{ "d", "content" }] }`: the entries as the relays hold them, opened with that backup's passphrase. Plain exports (`{ "type": "kiwi-vault-export", "v": 1, "items": […] }`, or a CSV in Bitwarden's columns) hold every secret readable and are offered behind a warning.
+
+**The breach check** is off unless the person turns it on (`breachCheck: true` in the namespace `vault`). Then the health report asks Have I Been Pwned's range API (`GET https://api.pwnedpasswords.com/range/<first 5 hex characters of SHA-1(password), upper case>`, header `Add-Padding: true`, no credentials, no referrer) and finds the rest of the hash in the answer on the device.
+
+**The first form (0.26).** The authenticator kept its codes in the namespace `authenticator`, key `vault`: `{ "v": 1, kdf, iv, "data": AES-256-GCM(passKey, iv, JSON { "v": 1, "items": [{ "id", "issuer", "account", "secret", "algorithm", "digits", "period" }] }) }`, and its backups as `{ "type": "kiwi-authenticator-backup", "v": 1, "vault": <that record> }`. On the first unlock with its passphrase the codes move into a vault of the second form under the same passphrase (the same salt, so no second key derivation) as entries of type `totp`, and the old value becomes `null` with `moved: true`. Such backups are still read.
 
 ## Changes
 
@@ -240,6 +276,7 @@ An entry: `{ "id", "issuer", "account", "secret" (base32, RFC 4648, at least 10 
 - **v1, extended** (0.24): proof of work on a new account entry (§2), answering a relay's AUTH (§10), the calendar's settings and what it writes to a CalDAV server (§3, §15). No existing format changed.
 - **v1, changed** (0.25): Payload's direct transfers and pong's games moved from gun to the ephemeral kinds 21700–21702 (§8, the formats defined); Payload's links (§9). Rooms of earlier versions on gun do not meet rooms on nostr: both sides need 0.25.
 - **v1, extended** (0.26): the authenticator's vault (§3, §16). No existing format changed.
+- **v1, extended** (0.27): the vault's second form, one sealed event per entry (kind 30792) under a wrapped vault key, for the password manager and the authenticator (§3, §16); 0.26's codes move into it on the first unlock.
 
 
 ## 9. Relay lists, inboxes and hints

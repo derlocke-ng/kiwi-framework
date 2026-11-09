@@ -1,0 +1,12 @@
+# kiwi.manifest: this app's entry for the Kiwi Network web catalog
+NAME=vault
+DESCRIPTION=A password manager: logins, notes, cards and two-factor codes on every device you sign in on, sealed with a passphrase of their own
+VERSION=0.1.0
+CATEGORY=App
+COMPONENTS=web
+FRAMEWORK=kiwi-framework
+# the vault: one sealed event per entry (30792), its keys in the account's settings (30791)
+KINDS=30792 30791
+TAGS=passwords vault totp 2fa
+HOMEPAGE=https://github.com/derlocke-ng/kiwi-framework/tree/main/apps/vault
+LICENSE=GPL-3.0-or-later

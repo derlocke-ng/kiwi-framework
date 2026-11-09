@@ -14,6 +14,7 @@ export const KINDS = {
   DELETE: 5, // NIP-09: a retired account entry is asked to be deleted too
   ACCOUNT: 30790, // username + password login: the user's key, sealed under a password, at an address only the password finds
   SETTINGS: 30791, // per-account settings, encrypted to yourself
+  VAULT_ITEM: 30792, // the vault: one entry (a login, a note, a card, a 2FA secret), sealed with the vault's key (shared/vault.js)
   GROUP_INFO: 30720, // chat group: name, host, closed; signed by the group's key, sealed, host-signed inside
   SPACE: 34550, // NIP-72 community definition: a space (shared/spaces.js); posts in it carry ["a", <its address>]
   FEED_ENTRY: 30820, // the feed: an entry, sealed to an audience or the space (`key` tag: the key's id)

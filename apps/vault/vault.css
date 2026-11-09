@@ -1,0 +1,407 @@
+/* The password manager: tokens and components from the shared design library
+   (the lock screens and the vault's settings are in widgets.css); this file
+   holds what is its own: the list, an entry's fields, the editor, the
+   generator, the health report. */
+@import "../../shared/ui.css";
+@import "../../shared/widgets.css";
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 1rem var(--gutter) 5rem;
+  flex: 1;
+}
+
+.mono,
+.pw-value.mono,
+.pw-gen-out code {
+  font-family: var(--mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+}
+
+/* the bar: search, generator, health, lock, new */
+.pw-page .app-bar .search {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.pw-filters,
+.pw-segment {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.15rem;
+  scrollbar-width: none;
+}
+
+/* the list */
+.pw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.pw-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding-right: 0.35rem;
+}
+
+.pw-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.4rem 0.65rem 0.75rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.pw-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.6rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pw-icon .icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.pw-text {
+  min-width: 0;
+  display: grid;
+}
+
+.pw-text b,
+.pw-text .small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pw-text b .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.25rem;
+  color: var(--accent);
+  vertical-align: -0.05rem;
+}
+
+/* a live 2FA code */
+.pw-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: var(--radius-sm);
+}
+
+.pw-code-digits {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pw-code-left {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* an entry */
+.pw-entry {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.pw-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.pw-entry-head .icon-btn {
+  margin-left: auto;
+}
+
+.pw-entry-head .icon-btn.on {
+  color: var(--accent);
+}
+
+.pw-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label actions"
+    "value actions";
+  align-items: center;
+  column-gap: 0.5rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pw-field .pw-code {
+  grid-area: value;
+  justify-self: start;
+  padding-left: 0;
+}
+
+.pw-label {
+  grid-area: label;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.pw-value {
+  grid-area: value;
+  overflow-wrap: anywhere;
+}
+
+.pw-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 0.15rem;
+}
+
+.pw-notes {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pw-notes p {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pw-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0;
+}
+
+.pw-tags .chip {
+  cursor: default;
+}
+
+.pw-history {
+  margin-top: 0.6rem;
+}
+
+.pw-history summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.pw-history ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+  display: grid;
+  gap: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.pw-meta {
+  margin-top: 0.75rem;
+}
+
+/* strength: a bar and a word */
+.pw-strength {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0.2rem;
+}
+
+.pw-strength > span {
+  display: block;
+  height: 4px;
+  max-width: 10rem;
+  flex: 1 1 auto;
+  border-radius: 2px;
+  background: var(--danger, #c0392b);
+}
+
+.pw-strength.level-2 > span {
+  background: #d99a00;
+}
+
+.pw-strength.level-3 > span,
+.pw-strength.level-4 > span {
+  background: var(--accent);
+}
+
+.pw-strength em {
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* the editor */
+.pw-password-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pw-password-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pw-inline-gen {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.pw-two,
+.pw-three {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pw-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pw-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pw-more summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.pw-fields {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.pw-custom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pw-fields > .btn {
+  justify-self: start;
+}
+
+@media (max-width: 480px) {
+  .pw-custom {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pw-custom input {
+    grid-column: 1 / -1;
+  }
+}
+
+/* the generator */
+.pw-generator {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pw-gen-out {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.pw-gen-out code {
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.pw-generator input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* the generator and health pages */
+.pw-subpage {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pw-subpage h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pw-health-list {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.1rem;
+  overflow-wrap: anywhere;
+}

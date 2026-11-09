@@ -5,16 +5,19 @@
 // export brings all its accounts at once.
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { ALGORITHMS, spaced, totp } from '../../../shared/totp.js';
+import { fromAuthenticator } from '../../../shared/vaultstore.js';
 import { Icon } from '../../../ui/components';
 import { useT } from '../../../ui/hooks';
 import { toast } from '../../../ui/toast';
+import { useVault } from '../../../ui/vault/VaultProvider';
 import { Modal } from '../../../ui/widgets/Modal';
 import { entriesFrom, readQr, readQrFile } from '../data/scan.js';
-import { useVault } from '../state';
+import { useEntries } from '../state';
 
 export function AddSheet({ onClose }: { onClose: () => void }) {
   const t = useT();
   const vault = useVault();
+  const entries = useEntries();
   const [found, setFound] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState('');
@@ -38,9 +41,9 @@ export function AddSheet({ onClose }: { onClose: () => void }) {
     setFound(entries);
   };
   const add = async () => {
-    const known = new Set(vault.items.map((e) => e.secret));
+    const known = new Set(entries.map((e) => e.secret));
     const fresh = found.filter((e) => !known.has(e.secret));
-    await vault.save([...vault.items, ...fresh]);
+    await vault.store.putAll(fresh.map(fromAuthenticator));
     toast(fresh.length ? t('au.added', { n: fresh.length }) : t('au.alreadyThere'), fresh.length ? 'success' : 'info');
     onClose();
   };

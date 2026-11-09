@@ -1,8 +1,9 @@
 // The codes: one card per account, the current code large, how long it has
 // left as a shrinking bar, the next code when the current one is about to go.
-// A tap copies the code. Each card's menu renames it, shows its QR code (to move
-// it to another authenticator) or deletes it. The round button adds one; the
-// bar locks the vault and, with many accounts, searches them.
+// A tap copies the code. Each card's menu pins it to the top, renames it,
+// shows its QR code (to move it to another authenticator) or deletes it (from
+// a login of the password manager: its 2FA secret only). The round button adds
+// one; the bar locks the vault and, with many accounts, searches them.
 import { useEffect, useMemo, useState } from 'react';
 import { qrSvg } from '../../../shared/qr.js';
 import { otpauthOf, spaced, totp } from '../../../shared/totp.js';
@@ -10,8 +11,9 @@ import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useT } from '../../../ui/hooks';
 import { copyText, toast } from '../../../ui/toast';
+import { useVault } from '../../../ui/vault/VaultProvider';
 import { Modal } from '../../../ui/widgets/Modal';
-import { type Entry, useVault } from '../state';
+import { type Entry, useEntries } from '../state';
 import { AddSheet } from './AddSheet';
 
 /** The codes of all entries, computed again every second (cheap: a few HMACs). */
@@ -35,44 +37,40 @@ function useCodes(items: Entry[]) {
 export function Codes() {
   const t = useT();
   const vault = useVault();
-  const codes = useCodes(vault.items);
+  const entries = useEntries();
+  const codes = useCodes(entries);
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [showing, setShowing] = useState<Entry | null>(null);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? vault.items.filter((e) => `${e.issuer} ${e.account}`.toLowerCase().includes(q)) : vault.items;
-  }, [vault.items, query]);
+    return q ? entries.filter((e) => `${e.issuer} ${e.account}`.toLowerCase().includes(q)) : entries;
+  }, [entries, query]);
   const copy = (e: Entry) => {
     const c = codes[e.id];
     if (c) void copyText(c.code, t('au.theCode'));
   };
   const remove = async (e: Entry) => {
+    const login = e.item.type !== 'totp'; // a login of the password manager keeps everything but its 2FA secret
     if (
       !(await confirmDialog({
         title: t('au.deleteTitle', { name: e.issuer || e.account }),
-        message: t('au.deleteText'),
+        message: login ? t('au.deleteFromLogin') : t('au.deleteText'),
         confirm: t('common.delete'),
         danger: true,
       }))
     )
       return;
-    await vault.save(vault.items.filter((x) => x.id !== e.id));
+    if (login) await vault.store.put({ id: e.id, totp: null });
+    else await vault.store.remove(e.id);
     toast(t('au.deleted'), 'success');
   };
-  const move = async (e: Entry, by: number) => {
-    const list = [...vault.items];
-    const i = list.findIndex((x) => x.id === e.id);
-    const j = i + by;
-    if (i < 0 || j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    await vault.save(list);
-  };
+  const pin = (e: Entry) => vault.store.put({ id: e.id, fav: !e.item.fav });
   return (
     <div className="au-page">
       <div className="app-bar">
-        {vault.items.length > 4 ? (
+        {entries.length > 4 ? (
           <input
             className="search"
             type="search"
@@ -83,7 +81,7 @@ export function Codes() {
             onChange={(e) => setQuery(e.target.value)}
           />
         ) : (
-          <strong className="au-count">{t('au.count', { n: vault.items.length })}</strong>
+          <strong className="au-count">{t('au.count', { n: entries.length })}</strong>
         )}
         <button type="button" className="btn" id="lockBtn" onClick={() => vault.lock()}>
           <Icon name="lock" />
@@ -124,8 +122,9 @@ export function Codes() {
                       { label: t('au.copy'), icon: 'copy', act: 'copy', run: () => copy(e) },
                       { label: t('au.edit'), icon: 'pencil', act: 'edit', run: () => setEditing(e) },
                       { label: t('au.showQr'), icon: 'qr-code', act: 'qr', run: () => setShowing(e) },
-                      { label: t('au.up'), icon: 'chevron-left', act: 'up', run: () => move(e, -1) },
-                      { label: t('au.down'), icon: 'chevron-right', act: 'down', run: () => move(e, 1) },
+                      e.item.fav
+                        ? { label: t('au.unpin'), icon: 'pin-off', act: 'unpin', run: () => pin(e) }
+                        : { label: t('au.pin'), icon: 'pin', act: 'pin', run: () => pin(e) },
                       '-',
                       { label: t('common.delete'), icon: 'trash-2', act: 'delete', danger: true, run: () => remove(e) },
                     ])
@@ -163,7 +162,7 @@ function EditSheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
         id="editForm"
         onSubmit={async (ev) => {
           ev.preventDefault();
-          await vault.save(vault.items.map((x) => (x.id === entry.id ? { ...x, issuer, account } : x)));
+          await vault.store.put({ id: entry.id, name: issuer, username: account });
           onClose();
         }}
       >

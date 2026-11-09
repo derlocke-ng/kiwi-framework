@@ -48,6 +48,7 @@ export const HOW = {
   calendar: ['caldav', 'settings'], // a calendar on a CalDAV server
   files: ['media', 'linkKeys', 'privateMessages', 'direct'], // a file share: links, to people, direct (Payload)
   authenticator: ['vault', 'settings', 'encrypted'], // two-factor codes from secrets in a vault
+  passwords: ['vault', 'encrypted', 'relays', 'offline'], // a password manager on the vault
 };
 
 /** The i18n key of an item: a topic ('media') or an app's own key ('db.how.1'). */
