@@ -1,6 +1,6 @@
 // The feed's data (apps/feed/data): hashtags, what an entry may hold, routes, and an entry posted and
 // opened: for the space with the space's key, for an audience with its key, unreadable without one,
-// in this feed's space or not at all; comments with the entry's key; social counts and folding.
+// in this feed's space or not at all; comments with the entry's key; social counts and folding; diaries (0.32).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -10,7 +10,7 @@ globalThis.localStorage = {
   setItem: (k, v) => mem.set(k, String(v)),
   removeItem: (k) => mem.delete(k),
 };
-const { cleanEntry, FeedData, hashtags, parseRoute } = await import('../../apps/feed/data/feed.js');
+const { cleanDiary, cleanEntry, diaryEntries, FeedData, hashtags, parseRoute } = await import('../../apps/feed/data/feed.js');
 const { Social } = await import('../../shared/social.js');
 const { audienceKey } = await import('../../shared/audiences.js');
 const { KINDS, keyId, sign } = await import('../../shared/events.js');
@@ -224,4 +224,89 @@ test('marks: two reports ask for 18+, a moderator marks, “fine” clears and s
   assert.equal(own.label, 'adult');
   social.stop();
   modSocial.stop();
+});
+
+test('a diary holds a title (and an about, a cover); an entry names its diary and step only together', () => {
+  assert.equal(cleanDiary({ about: 'no title' }), null);
+  const photo = { url: 'https://m.example/abc', sha256: 'a'.repeat(64), size: 10, mime: 'image/jpeg', key: 'b'.repeat(64) };
+  const d = cleanDiary({ title: `  ${'t'.repeat(99)}  `, about: 'a'.repeat(2000), cover: photo, at: 10, last: 5, done: 'yes', pinned: true, label: 'adult' });
+  assert.equal(d.title.length, 80);
+  assert.equal(d.about.length, 1000);
+  assert.equal(d.cover.key, 'b'.repeat(64));
+  assert.equal(d.last, 10, 'never before its start');
+  assert.equal(d.done, false, 'only true is true');
+  assert.equal(d.pinned, true);
+  assert.equal(d.label, 'adult');
+  assert.equal(cleanDiary({ title: 'x', cover: { url: 'nope' } }).cover, undefined);
+  const e = cleanEntry({ text: 'week 3', diary: 'Ab_c-1', step: `  ${'w'.repeat(60)}`, pinned: true });
+  assert.equal(e.diary, 'Ab_c-1');
+  assert.equal(e.step.length, 40);
+  assert.equal(e.pinned, true);
+  const loose = cleanEntry({ text: 'x', diary: 'not a d!', step: 'Week 3' });
+  assert.equal(loose.diary, undefined);
+  assert.equal(loose.step, undefined, 'a step belongs to a diary');
+  const pk = 'a'.repeat(64);
+  const r = parseRoute(`#/d/${pk}/abc?s=x`);
+  assert.equal(r.page, 'diary');
+  assert.equal(r.d, 'abc');
+  assert.equal(r.params.get('s'), 'x');
+});
+
+test('a diary for friends: its entries are sealed to its audience, it moves up when added to, pins stay on edits', async () => {
+  const n = net();
+  const ada = person('ada');
+  const bea = person('bea');
+  const cid = person('cid');
+  const feed = new FeedData(n, ada, { space, audiences: () => audiencesOf(ada) });
+  const ev = await feed.saveDiary({ title: 'Northern Lights, run 2', about: 'From seed to harvest', audience: 'friends' });
+  assert.equal(ev.kind, KINDS.FEED_DIARY);
+  assert.ok(!ev.content.includes('Northern'), 'sealed');
+  const diary = await feed.openEntry(ev);
+  assert.equal(diary.diaryOf, true);
+  assert.equal(diary.audience, 'friends');
+  await assert.rejects(feed.saveDiary({ title: '  ', audience: 'friends' }), (err) => err.code === 'fd.error.noTitle');
+  // an entry into it goes to the diary's audience, whatever the composer said
+  const w1 = await feed.post({ text: 'Week 1: sprouted', audience: 'space', diary, step: 'Week 1', at: diary.at + 1000 });
+  const w2 = await feed.post({ text: 'Week 2: first leaves', audience: 'space', diary, step: 'Week 2', at: diary.at + 2000 });
+  const k = audienceKey(ada.sk, 'friends', 1);
+  const friend = new FeedData(n, bea, { space, audiences: () => audiencesOf(bea, { [`${ada.pk}:${keyId(k)}`]: k }) });
+  const stranger = new FeedData(n, cid, { space, audiences: () => audiencesOf(cid) });
+  const e1 = await friend.openEntry(w1);
+  const e2 = await friend.openEntry(w2);
+  assert.equal(e1.diary, diary.d);
+  assert.equal(e1.step, 'Week 1');
+  assert.equal(e1.audience, 'shared', 'sealed to friends, not the space');
+  assert.equal(await stranger.openEntry(w1), null);
+  assert.equal(await stranger.openEntry(ev), null, 'nor the diary');
+  const diaries = n.events.filter((x) => x.kind === KINDS.FEED_DIARY);
+  const newest = await friend.openEntry(diaries.at(-1));
+  assert.ok(newest.last > diary.last, 'added to: it moves up the lists');
+  assert.equal(newest.title, 'Northern Lights, run 2');
+  assert.deepEqual(
+    diaryEntries(newest, [e2, e1, { ...e1, pubkey: bea.pk, address: 'x' }]).map((e) => e.step),
+    ['Week 1', 'Week 2'],
+    'oldest first, only its writer’s',
+  );
+  // pinned to the profile: the entry keeps its diary, step and place; an edit of it does not move the diary
+  const before = n.events.filter((x) => x.kind === KINDS.FEED_DIARY).length;
+  const mine1 = await feed.openEntry(w1);
+  const pinned = await feed.openEntry(await feed.pin(mine1, true));
+  assert.equal(pinned.pinned, true);
+  assert.equal(pinned.diary, diary.d);
+  assert.equal(pinned.step, 'Week 1');
+  assert.equal(pinned.at, mine1.at);
+  assert.equal(n.events.filter((x) => x.kind === KINDS.FEED_DIARY).length, before, 'pinning an entry leaves its diary as it is');
+  assert.equal((await feed.openEntry(await feed.pin(pinned, false))).pinned, undefined);
+  const myNewest = await feed.openEntry(n.events.filter((x) => x.kind === KINDS.FEED_DIARY).at(-1)); // the writer's own copy knows its audience
+  const pinnedDiary = await feed.openEntry(await feed.pin(myNewest, true));
+  assert.equal(pinnedDiary.pinned, true);
+  assert.equal(pinnedDiary.title, 'Northern Lights, run 2');
+  // finished, then deleted: a tombstone under the same key
+  const done = await feed.openEntry(await feed.saveDiary({ ...pinnedDiary, done: true }));
+  assert.equal(done.done, true);
+  await feed.remove(done);
+  assert.equal((await friend.openEntry(n.events.at(-1))).deleted, true);
+  // a report on a diary names its kind
+  const report = await friend.report(newest, 'spam');
+  assert.ok(report.tags.some((t) => t[0] === 'k' && t[1] === String(KINDS.FEED_DIARY)));
 });
