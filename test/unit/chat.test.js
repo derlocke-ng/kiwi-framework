@@ -252,8 +252,12 @@ test('a group: replies and changes inside its seals, the host’s timer, pinned 
   await B.groups.react(pub, onA[0], '👍');
   await A.groups.edit(pub, onA[0], 'meeting at one');
   await B.groups.pin(pub, onA[0], true);
-  await until(async () => (await A.dm.messages(pub))[0].text === 'meeting at one' && (await A.dm.messages(pub))[0].reactions.length === 1, 'changes on A');
-  assert.equal((await A.dm.pinned(pub)).length, 1);
+  // three changes, each its own event: they arrive in their own time and order
+  await until(
+    async () =>
+      (await A.dm.messages(pub))[0].text === 'meeting at one' && (await A.dm.messages(pub))[0].reactions.length === 1 && (await A.dm.pinned(pub)).length === 1,
+    'changes on A',
+  );
   assert.ok(r.events.filter((e) => e.pubkey === pub).every((e) => [KINDS.GROUP_MESSAGE, KINDS.GROUP_INFO, KINDS.GROUP_JOIN].includes(e.kind)), 'to the relay, a change is a message like any other');
   // B cannot edit A's message
   onA = await A.dm.messages(pub);
