@@ -20,7 +20,7 @@ export function FeedSettings() {
   const label = useAudienceLabel();
   const current = defaultAudience(prefs, choices);
   return (
-    <AppSettings title={t('app.settings.title', { app: mount.name })} backLabel={t('fd.back')} how={['fd.how.1', ...HOW.feed]}>
+    <AppSettings title={t('app.settings.title', { app: mount.name })} backLabel={t('fd.back')} how={['fd.how.1', 'fd.how.2', ...HOW.feed]}>
       <div className="card">
         <h2>
           <Icon name="users" />
