@@ -34,6 +34,7 @@ export const ICONS = [
   'shield-check', 'scan-qr-code', 'camera', 'timer', 'lock-open', 'clipboard-paste', 'keyboard', 'image-up',
   'vault', 'wand-sparkles', 'credit-card', 'notebook', 'eye-off', 'heart-pulse', 'shield-alert', 'triangle-alert', 'star', 'history', 'dices',
   'square-asterisk', 'key-square', 'file-key', 'square-terminal', 'award', 'file-badge',
+  'reply', 'phone', 'phone-off', 'phone-incoming', 'phone-missed', 'video', 'video-off', 'mic', 'mic-off', 'switch-camera', 'volume-2',
 ];
 export function sprite(file, icons) {
   const symbols = icons.map((name) => {

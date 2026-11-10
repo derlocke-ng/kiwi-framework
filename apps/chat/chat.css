@@ -409,3 +409,427 @@ body.thread .foot {
     display: none;
   }
 }
+
+/* ---------- 0.30: what happens to a message after it is sent ---------- */
+
+.app-bar .search-btn {
+  order: 2;
+  margin-left: auto;
+}
+
+.home .app-bar .tabs {
+  margin-bottom: 0;
+}
+
+/* a message opens its actions on a tap; its time is the same thing as a button */
+.msg {
+  position: relative;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+}
+
+.msg .meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  width: 100%;
+  margin-top: 0.2rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.msg .meta time {
+  margin: 0;
+}
+
+.msg .meta .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.msg .edited {
+  font-style: italic;
+}
+
+.msg.deleted {
+  cursor: default;
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
+.msg .gone {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.msg.lit {
+  animation: lit 2s ease-out;
+}
+
+@keyframes lit {
+  0%,
+  40% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+/* a reply: the message it answers, quoted above it */
+.msg .quote {
+  display: grid;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border: 0;
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.msg .quote b {
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+}
+
+.msg .quote span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+/* reactions under the bubble: one chip per emoji, mine marked */
+.msg.reacted {
+  margin-bottom: 0.7rem;
+}
+
+.reactions {
+  position: absolute;
+  bottom: -0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.msg.mine .reactions {
+  right: 0.5rem;
+}
+
+.msg.theirs .reactions {
+  left: 0.5rem;
+}
+
+.reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.reaction span {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.reaction.mine {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* a line the conversation writes itself (a timer set) */
+.sysline {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.4rem 0;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.sysline .icon {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-right: 0.5rem;
+  color: var(--accent-strong);
+}
+
+.timer-badge .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* the pinned messages, under the header: a tap shows one, the next tap the next */
+.pinbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 0.45rem var(--gutter);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pinbar > .icon {
+  flex: none;
+  color: var(--accent-strong);
+}
+
+.pin-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  font-size: 0.85rem;
+}
+
+.pin-main b {
+  font-size: 0.75rem;
+  color: var(--accent-strong);
+}
+
+.pin-main span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* a reply or an edit under way, above the composer's text */
+.composer {
+  flex-wrap: wrap;
+}
+
+.composer-context {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.1rem 0.25rem 0.2rem;
+  font-size: 0.85rem;
+}
+
+.composer-context > .icon {
+  flex: none;
+  color: var(--accent-strong);
+}
+
+.context-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  border-left: 3px solid var(--accent);
+  padding-left: 0.5rem;
+}
+
+.context-main b {
+  font-size: 0.78rem;
+  color: var(--accent-strong);
+}
+
+.context-main span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+/* a message's actions: beside it on a wide screen, a sheet from the bottom on a phone */
+.msg-actions {
+  position: fixed;
+  z-index: 60;
+  min-width: 230px;
+  padding: 0.35rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop);
+}
+
+.msg-actions .quick {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.15rem;
+  padding: 0.15rem 0.1rem 0.35rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.msg-actions .quick button {
+  width: 2.3rem;
+  height: 2.3rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.msg-actions .quick button:hover,
+.msg-actions .quick button:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.msg-actions .quick button.on {
+  background: var(--accent-soft);
+}
+
+.msg-actions > button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.msg-actions > button:hover,
+.msg-actions > button:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.msg-actions > button.danger {
+  color: var(--danger);
+}
+
+.msg-actions-shade {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .msg-actions-shade {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    background: rgb(0 0 0 / 0.35);
+  }
+
+  .msg-actions {
+    top: auto !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    padding: 0.6rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+  }
+
+  .msg-actions .quick button {
+    width: 2.7rem;
+    height: 2.7rem;
+    font-size: 1.5rem;
+  }
+}
+
+/* the timer's choices */
+.timer-options {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.75rem 0;
+}
+
+.timer-options button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.timer-options button span {
+  flex: 1;
+}
+
+.timer-options button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* the search */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.search-box .icon {
+  flex: none;
+  color: var(--muted);
+}
+
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0.65rem 0;
+  outline: none;
+}
+
+.result-text mark {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-radius: 3px;
+}
+
+.conv-meta .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}

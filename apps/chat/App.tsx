@@ -1,7 +1,7 @@
 // Chat: private messages between accounts, groups that stay until their host
 // closes them, and live rooms that vanish, on nostr. Armory mounts it as
-// Uplink. Routes: #/ messages, #/groups, #/dm/<pk>, #/group/<pub>/<host>/<invite>/<name>,
-// #/room/<secret>, #/settings.
+// Uplink. Routes: #/ messages, #/groups, #/dm/<pk>, #/group/<pub>/<host>/<invite>/<name>
+// (either with ?m=<message> to show one), #/room/<secret>, #/search?q=, #/settings.
 import { useEffect } from 'react';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useMessages, useT } from '../../ui/hooks';
@@ -11,6 +11,7 @@ import { Conversation } from './pages/Conversation';
 import { GroupView } from './pages/GroupView';
 import { Home } from './pages/Home';
 import { RoomView } from './pages/RoomView';
+import { Search } from './pages/Search';
 import { DmContext, parseRoute } from './state';
 
 export function ChatApp() {
@@ -63,9 +64,11 @@ export function ChatApp() {
     ) : !dm ? (
       <p className="empty">{t('common.loading')}</p>
     ) : route.page === 'dm' ? (
-      <Conversation key={route.pk} pk={route.pk} draft={route.draft} />
+      <Conversation key={route.pk} pk={route.pk} draft={route.draft} focus={route.focus} />
     ) : route.page === 'group' ? (
-      <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} relays={route.relays} />
+      <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} relays={route.relays} focus={route.focus} />
+    ) : route.page === 'search' ? (
+      <Search q={route.q} />
     ) : route.page === 'settings' ? (
       <ChatSettings />
     ) : (

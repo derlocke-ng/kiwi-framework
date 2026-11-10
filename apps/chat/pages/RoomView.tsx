@@ -9,7 +9,7 @@ import { useGroups, useIdentity, useKiwi, usePeople, useT, useTick } from '../..
 import { copyText, toast, toastError } from '../../../ui/toast';
 import { NICK, Room, remembered } from '../data/rooms.js';
 import { savedNick, saveNick } from '../state';
-import { Composer } from './Conversation';
+import { Composer } from './Thread';
 
 const SHOWN = 6; // names in the header; the rest is a count, the full list on a tap
 

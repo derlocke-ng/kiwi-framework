@@ -1,6 +1,7 @@
 // The start, in two tabs: Messages (your conversations, a new one to a
 // friend) and Groups (the groups you are in, the doors you are waiting at,
-// a new group, a live room, joining by link).
+// a new group, a live room, joining by link). Pinned conversations come
+// first in both; the search is a tap away.
 
 import { type FormEvent, useEffect, useState } from 'react';
 import { DirectMessages } from '../../../shared/chat.js';
@@ -13,6 +14,7 @@ import { toast, toastError } from '../../../ui/toast';
 import { Modal } from '../../../ui/widgets/Modal';
 import { randomSecret } from '../data/rooms.js';
 import { parseJoinInput, useDm, useDmVersion } from '../state';
+import { preview } from './Thread';
 
 const go = (hash: string) => {
   location.hash = hash;
@@ -105,15 +107,24 @@ function NewGroup({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Pinned first (the last pinned on top), then the rest as they were (newest first). */
+const pinnedFirst = <X,>(list: X[], key: (x: X) => string, pinned: string[]) => {
+  const at = (x: X) => pinned.indexOf(key(x));
+  return [...list.filter((x) => at(x) >= 0).sort((a, b) => at(a) - at(b)), ...list.filter((x) => at(x) < 0)];
+};
+
 function Messages({ convs }: { convs: any[] }) {
   const t = useT();
   const dm = useDm();
   const people = usePeople();
+  const groups = useGroups();
   const identity = useIdentity();
   const [picking, setPicking] = useState(false);
   // the friend's name, else the name the other side signs their messages with, else the key's fingerprint
   const name = (c: any) => people?.friends?.().find((f: any) => f.pk === c.conv)?.name || (c.from !== identity.pk && c.name) || fingerprint(c.conv);
   const unread = (c: any) => c.from !== identity.pk && DirectMessages.timeOf(c) > dm.lastRead(c.conv);
+  const pinned: string[] = groups?.pinned() || [];
+  const sorted = pinnedFirst(convs, (c) => c.conv, pinned);
   return (
     <>
       <div className="list-head">
@@ -123,10 +134,10 @@ function Messages({ convs }: { convs: any[] }) {
           <span>{t('chat.new')}</span>
         </button>
       </div>
-      {convs.length ? (
+      {sorted.length ? (
         <ul className="convs" id="convs">
-          {convs.map((c) => (
-            <li key={c.conv} className={unread(c) ? 'unread' : ''}>
+          {sorted.map((c) => (
+            <li key={c.conv} className={`${unread(c) ? 'unread' : ''}${pinned.includes(c.conv) ? ' pinned' : ''}`} data-conv={c.conv.slice(0, 12)}>
               <a href={`#/dm/${c.conv}`} className="conv">
                 <span className="avatar" aria-hidden="true">
                   {name(c)[0].toUpperCase()}
@@ -134,12 +145,13 @@ function Messages({ convs }: { convs: any[] }) {
                 <span className="conv-main">
                   <span className="conv-name">{name(c)}</span>
                   <span className="conv-preview">
-                    {c.from === identity.pk ? `${t('chat.you')}: ` : ''}
-                    {c.file ? t('files.preview', { name: c.file.name }) : c.text}
+                    {c.from === identity.pk && !c.system ? `${t('chat.you')}: ` : ''}
+                    {preview(t, c, identity.pk, () => name(c))}
                   </span>
                 </span>
                 <span className="conv-meta">
                   <time>{relTime(c.at * 1000)}</time>
+                  {pinned.includes(c.conv) ? <Icon name="pin" /> : null}
                   {unread(c) ? <span className="dot" /> : null}
                 </span>
               </a>
@@ -187,7 +199,12 @@ function GroupsTab({ convs }: { convs: any[] }) {
     if (!hash) return toast(t('chat.rooms.invalid'), 'error');
     go(hash);
   };
-  const sorted = [...list].sort((a, b) => (lastOf(b.pub)?.at || b.joined || 0) - (lastOf(a.pub)?.at || a.joined || 0));
+  const pinned: string[] = groups.pinned();
+  const sorted = pinnedFirst(
+    [...list].sort((a, b) => (lastOf(b.pub)?.at || b.joined || 0) - (lastOf(a.pub)?.at || a.joined || 0)),
+    (g) => g.pub,
+    pinned,
+  );
   return (
     <>
       <div className="list-head">
@@ -252,7 +269,7 @@ function GroupsTab({ convs }: { convs: any[] }) {
           {sorted.map((g) => {
             const c = lastOf(g.pub);
             return (
-              <li key={g.pub} className={unread(g.pub) ? 'unread' : ''} data-group={g.pub.slice(0, 12)}>
+              <li key={g.pub} className={`${unread(g.pub) ? 'unread' : ''}${pinned.includes(g.pub) ? ' pinned' : ''}`} data-group={g.pub.slice(0, 12)}>
                 <a href={`#/group/${g.pub}/${g.host}/${g.invite || '-'}/${encodeURIComponent(groups.info(g.pub)?.name || g.name)}`} className="conv">
                   <span className="avatar" aria-hidden="true">
                     <Icon name="users" />
@@ -261,12 +278,15 @@ function GroupsTab({ convs }: { convs: any[] }) {
                     <span className="conv-name">{groups.info(g.pub)?.name || g.name || t('chat.group.title')}</span>
                     <span className="conv-preview">
                       {c
-                        ? `${c.from === identity.pk ? t('chat.you') : c.name || fingerprint(c.from)}: ${c.file ? t('files.preview', { name: c.file.name }) : c.text}`
+                        ? c.system
+                          ? preview(t, c, identity.pk, (pk) => c.name || fingerprint(pk))
+                          : `${c.from === identity.pk ? t('chat.you') : c.name || fingerprint(c.from)}: ${preview(t, c)}`
                         : t('chat.group.members', { n: groups.members(g.pub).length })}
                     </span>
                   </span>
                   <span className="conv-meta">
                     {c ? <time>{relTime(c.at * 1000)}</time> : null}
+                    {pinned.includes(g.pub) ? <Icon name="pin" /> : null}
                     {unread(g.pub) ? <span className="dot" /> : null}
                   </span>
                 </a>
@@ -299,6 +319,9 @@ export function Home({ tab }: { tab: 'messages' | 'groups' }) {
   return (
     <section className="home">
       <div className="app-bar">
+        <a href="#/search" className="icon-btn search-btn" id="searchBtn" aria-label={t('chat.search.title')} title={t('chat.search.title')}>
+          <Icon name="search" />
+        </a>
         <div className="seg tabs" role="tablist" id="chatTabs">
           <label>
             <input type="radio" name="chatTab" value="messages" checked={tab === 'messages'} onChange={() => go('#/')} />

@@ -29,21 +29,30 @@ export const saveNick = (nick: string): void => {
 
 export type Route =
   | { page: 'home'; tab: 'messages' | 'groups' }
-  | { page: 'dm'; pk: string; draft: string }
+  | { page: 'dm'; pk: string; draft: string; focus: string }
   | { page: 'room'; secret: string; relays: string[] }
-  | { page: 'group'; pub: string; host: string; invite: string; name: string; relays: string[] }
+  | { page: 'group'; pub: string; host: string; invite: string; name: string; relays: string[]; focus: string }
+  | { page: 'search'; q: string }
   | { page: 'settings' };
 
-/** The route after '#': the lists (messages or groups), one conversation, one room, one group, or the settings. */
+/** A message to show at once (`?m=<id>`: from a search, or a link). */
+const focusOf = (query: URLSearchParams) => {
+  const id = String(query.get('m') || '').toLowerCase();
+  return /^[0-9a-f]{64}$/.test(id) ? id : '';
+};
+
+/** The route after '#': the lists (messages or groups), one conversation, one room, one group, the search, or the settings. */
 export function parseRoute(hash: string): Route {
+  const query = new URLSearchParams(hash.split('?')[1] || '');
   const g = parseGroupLink(hash);
-  if (hash.startsWith('#/group/') && g) return { page: 'group', ...g };
+  if (hash.startsWith('#/group/') && g) return { page: 'group', ...g, focus: focusOf(query) };
   const m = hash.match(/^#\/(dm|room)\/([^/?]+)/);
   if (m?.[1] === 'dm' && /^[0-9a-f]{64}$/i.test(m[2]))
-    return { page: 'dm', pk: m[2].toLowerCase(), draft: String(new URLSearchParams(hash.split('?')[1] || '').get('text') || '').slice(0, 2000) };
+    return { page: 'dm', pk: m[2].toLowerCase(), draft: String(query.get('text') || '').slice(0, 2000), focus: focusOf(query) };
   if (m?.[1] === 'room' && m[2].length >= 8)
     return { page: 'room', secret: decodeURIComponent(m[2]), relays: readHints(new URLSearchParams(hash.split('?')[1] || '')) };
   if (hash.startsWith('#/settings')) return { page: 'settings' };
+  if (hash.startsWith('#/search')) return { page: 'search', q: String(query.get('q') || '').slice(0, 200) };
   if (hash.startsWith('#/groups')) return { page: 'home', tab: 'groups' };
   return { page: 'home', tab: 'messages' };
 }

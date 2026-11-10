@@ -2,22 +2,19 @@
 // member: the people in it, the messages under their names, the composer;
 // for the host, who is at the door, and the menu to run the room: invite
 // friends directly, copy or reset the invite link, let anyone with the link
-// in, remove someone, close. Leaving is everyone's.
-import { type FormEvent, useEffect, useRef, useState } from 'react';
-import { DirectMessages } from '../../../shared/chat.js';
+// in, make messages disappear, remove someone, close. Pinning the group to
+// the top of the list and leaving are everyone's. The thread is ./Thread.tsx.
+import { type FormEvent, useRef, useState } from 'react';
 import { fingerprint } from '../../../shared/events.js';
 import { uploadFile } from '../../../shared/files.js';
-import { relTime } from '../../../shared/i18n.js';
 import { BackLink } from '../../../ui/BackLink';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu, pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
-import { FileCard } from '../../../ui/widgets/FileCard';
-import { savedNick, saveNick, useDm, useDmVersion } from '../state';
-import { Composer, Text } from './Conversation';
+import { savedNick, saveNick } from '../state';
+import { Thread, type ThreadApi, TimerDialog, timerLabel } from './Thread';
 
-const PAGE = 50;
 const pageUrl = () => `${location.origin}${location.pathname}`;
 
 /** The door: knock with a name, then wait until the host answers (the knock survives a reload: it is in the account). */
@@ -108,47 +105,30 @@ function Requests({ pub }: { pub: string }) {
   );
 }
 
-export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { pub: string; host: string; invite: string; name: string; relays?: string[] }) {
+export function GroupView({
+  pub,
+  host,
+  invite,
+  name: linkName,
+  relays = [],
+  focus = '',
+}: {
+  pub: string;
+  host: string;
+  invite: string;
+  name: string;
+  relays?: string[];
+  focus?: string;
+}) {
   const t = useT();
   const kiwi = useKiwi();
   const groups = useGroups();
-  const dm = useDm();
-  const version = useDmVersion(dm);
   const people = usePeople();
   const identity = useIdentity();
   const entry = groups.entry(pub);
   const info = groups.info(pub);
-  const [msgs, setMsgs] = useState<any[]>([]);
-  const [limit, setLimit] = useState(PAGE);
-  const [hasMore, setHasMore] = useState(false);
+  const [timing, setTiming] = useState(false);
   const menuBtn = useRef<HTMLButtonElement | null>(null);
-  const end = useRef<HTMLDivElement | null>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is the inbox saying something changed
-  useEffect(() => {
-    if (!entry) return;
-    let live = true;
-    dm.messages(pub, { limit: limit + 1 }).then((m: any[]) => {
-      if (!live) return;
-      setHasMore(m.length > limit);
-      setMsgs(m.slice(-limit));
-    });
-    return () => {
-      live = false;
-    };
-  }, [dm, pub, limit, version, entry]);
-  const last = msgs[msgs.length - 1];
-  useEffect(() => {
-    if (last) dm.markRead(pub, DirectMessages.timeOf(last));
-  }, [dm, pub, last]);
-  useEffect(() => {
-    dm.setActive(pub);
-    return () => dm.setActive(null);
-  }, [dm, pub]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when the newest message changes
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: 'end' });
-  }, [last?.id]);
 
   if (!entry) return <Door pub={pub} host={host} invite={invite} name={linkName} relays={kiwi.hints(relays)} />;
 
@@ -200,10 +180,18 @@ export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { 
       return;
     groups.kick(pub, pk).catch(toastError);
   };
+  const pinned = groups.pinned().includes(pub);
+  const timer = groups.timerOf(pub);
   const menu = () => {
     if (!menuBtn.current) return;
     openMenu(menuBtn.current, [
       ...(people ? [{ label: t('chat.room.invite'), icon: 'user-plus', run: inviteFriends }] : []),
+      {
+        label: pinned ? t('chat.unpinConv') : t('chat.pinConv'),
+        icon: pinned ? 'pin-off' : 'pin',
+        act: 'pin-conv',
+        run: () => groups.setPinned(pub, !pinned).catch(toastError),
+      },
       ...(link ? [{ label: t('chat.group.copyLink'), icon: 'link', run: () => copyText(link, t('chat.group.linkCopied')) }] : []),
       ...(isHost
         ? [
@@ -217,12 +205,25 @@ export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { 
               icon: info?.open ? 'lock' : 'globe',
               run: () => groups.setOpen(pub, !info?.open).catch(toastError),
             },
+            { label: t('chat.timer.title'), icon: 'timer', act: 'timer', run: () => setTiming(true) },
           ]
         : []),
       '-',
       ...(isHost ? [{ label: t('chat.group.close'), icon: 'x', danger: true, run: close }] : []),
       { label: t('chat.group.leave'), icon: 'log-out', danger: !isHost, run: leave },
     ]);
+  };
+
+  const api: ThreadApi = {
+    send: (text, reply) => groups.say(pub, text, { reply }),
+    sendFile: (file, onProgress, reply) =>
+      uploadFile(file, { servers: kiwi.mediaServers(), sk: identity.sk, onProgress }).then((f) => groups.sayFile(pub, f, { reply })),
+    react: (m, emoji) => groups.react(pub, m, emoji),
+    unreact: (m) => groups.unreact(pub, m),
+    edit: (m, text) => groups.edit(pub, m, text),
+    remove: (m) => groups.remove(pub, m),
+    pin: (m, on) => groups.pin(pub, m, on),
+    nameOf,
   };
 
   return (
@@ -232,6 +233,11 @@ export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { 
         <div className="who">
           <h1>{name}</h1>
           <small className="muted" id="groupMembers">
+            {timer ? (
+              <span className="timer-badge" id="timerBadge" data-timer={timer}>
+                <Icon name="timer" /> {timerLabel(t, timer)}
+              </span>
+            ) : null}
             {t('chat.group.members', { n: members.length })}:{' '}
             {members.map((m: any, i: number) => (
               <span key={m.pk} className="member">
@@ -258,28 +264,8 @@ export function GroupView({ pub, host, invite, name: linkName, relays = [] }: { 
         </button>
       </div>
       {isHost ? <Requests pub={pub} /> : null}
-      <div className="messages" id="groupMessages">
-        {hasMore ? (
-          <button type="button" className="link-btn older" onClick={() => setLimit((n) => n + PAGE)}>
-            {t('chat.older')}
-          </button>
-        ) : null}
-        {msgs.length ? null : <p className="empty">{t('chat.group.empty')}</p>}
-        {msgs.map((m) => (
-          <div key={m.id} className={`msg ${m.from === identity.pk ? 'mine' : 'theirs'}`}>
-            {m.from === identity.pk ? null : <b className="nick">{m.name || nameOf(m.from)}</b>}
-            {m.file ? <FileCard file={m.file} /> : <Text text={m.text} />}
-            <time dateTime={new Date(m.at * 1000).toISOString()}>{relTime(m.at * 1000)}</time>
-          </div>
-        ))}
-        <div ref={end} />
-      </div>
-      <Composer
-        id="groupComposer"
-        onSend={(text) => groups.say(pub, text)}
-        onFile={(file, onProgress) => uploadFile(file, { servers: kiwi.mediaServers(), sk: identity.sk, onProgress }).then((f) => groups.sayFile(pub, f))}
-        placeholder={t('chat.write')}
-      />
+      <Thread conv={pub} api={api} group focus={focus} listId="groupMessages" composerId="groupComposer" empty={t('chat.group.empty')} />
+      {timing ? <TimerDialog current={timer} onPick={(s) => groups.setTimer(pub, s)} onClose={() => setTiming(false)} /> : null}
     </section>
   );
 }

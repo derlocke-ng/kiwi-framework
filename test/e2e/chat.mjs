@@ -1,9 +1,11 @@
 // The chat in Chromium: a message to someone by key, answered; the writer's
 // other device holds the conversation; a friend request from the
 // conversation, accepted in the settings; a board sent from the boards app,
-// the hub's unread count and toast, a browser notification, a room
-// invitation; blocking; live rooms between strangers, with nothing kept on
-// the relay; German.
+// the hub's unread count and toast, a browser notification; a reply, a
+// reaction, an edit, a pin and a deletion seen on the other side, the
+// search, a pinned conversation, disappearing messages; a room invitation;
+// groups (with a reaction, a reply and a timer); blocking; live rooms
+// between strangers, with nothing kept on the relay; German.
 //
 // A distribution runs it against its own site:
 //   import { chatSuite } from 'kiwi-framework/test/e2e/chat.mjs';
@@ -43,6 +45,14 @@ export async function chatSuite(env, { app, settings, boards }) {
   async function say(page, text, sel = '#composer') {
     await page.fill(`${sel} textarea`, text);
     await page.press(`${sel} textarea`, 'Enter');
+  }
+  /** A message's bubble by its exact text, in the list `sel`. */
+  const bubble = (text, sel = '#messages') => `${sel} .msg:has(> p:text-is("${text}"))`;
+  /** Tap a message and choose one of its actions (`data-act`), or a reaction (`data-react`). */
+  async function act(page, text, what, sel = '#messages') {
+    await page.click(`${bubble(text, sel)} > p`);
+    await page.waitForSelector('#msgActions');
+    await page.click(`#msgActions [${what.startsWith('react=') ? 'data-react' : 'data-act'}="${what.replace(/^react=/, '')}"]`);
   }
 
   step('A writes to B by key; B sees it, marked as from someone who is not a friend, and answers');
@@ -146,6 +156,76 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.match(await B.evaluate(() => window.__notes[0].body), /psst/);
   await B.evaluate(() => Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }));
 
+  step('a reply, a reaction, an edit, a pin and a deletion: made on one side, seen on the other');
+  await talk(A, pkB);
+  await talk(B, pkA);
+  await until(async () => (await messages(B)).includes('psst'), 'B has the conversation so far', 30000);
+  await act(B, 'hello B', 'reply');
+  await B.waitForSelector('#composer .composer-context[data-context=reply]');
+  await say(B, 'answering you');
+  await B.waitForSelector('#composer .composer-context', { state: 'detached' });
+  await until(async () => (await A.textContent(`${bubble('answering you')} .quote`).catch(() => '')).includes('hello B'), 'A sees the reply with what it answers', 30000);
+  await act(A, 'answering you', 'react=❤️');
+  await until(async () => Boolean(await B.$(`${bubble('answering you')} .reaction[data-react="❤️"]`)), 'B sees A’s reaction', 30000);
+  await B.click(`${bubble('answering you')} .reaction[data-react="❤️"]`); // the same, by a tap on the chip
+  await until(async () => (await A.textContent(`${bubble('answering you')} .reaction`).catch(() => '')).includes('2'), 'two hearts on A', 30000);
+  await act(A, 'one more', 'edit');
+  await A.waitForSelector('#composer .composer-context[data-context=edit]');
+  assert.equal(await A.inputValue('#composer textarea'), 'one more', 'the text to edit is in the box');
+  await say(A, 'one more thing');
+  await until(async () => Boolean(await B.$(`${bubble('one more thing')} .edited`)), 'B sees the new text, marked as edited', 30000);
+  assert.ok(await absent(B, bubble('one more')), 'and not the old');
+  await act(A, 'hello B', 'pin');
+  await until(async () => (await B.textContent('#pinbar').catch(() => '')).includes('hello B'), 'B sees the pinned message above the conversation', 30000);
+  await B.click('#pinbar');
+  await B.waitForSelector(`${bubble('hello B')}.lit`);
+  await act(A, 'psst', 'delete');
+  await A.waitForSelector('dialog.modal [data-ok]');
+  await A.click('dialog.modal [data-ok]');
+  await until(async () => !(await messages(B)).includes('psst') && Boolean(await B.$('#messages .msg.deleted')), 'deleted on B too', 30000);
+  assert.ok(await absent(B, `#messages .msg.deleted .reaction`));
+  const changes = await env.relayEvents([{ kinds: [1059] }]);
+  assert.ok(!JSON.stringify(changes).includes('one more thing'), 'the relay sees changes sealed like messages');
+
+  step('the search finds a message on this device and opens the conversation at it; a deleted one is not found');
+  await A.goto(`${APP}#/search`);
+  await A.fill('#searchInput', 'THING');
+  await A.waitForSelector('#searchResults [data-result]');
+  assert.match(await A.textContent('#searchResults'), /one more thing/);
+  await A.click('#searchResults [data-result]');
+  await A.waitForSelector(`${bubble('one more thing')}.lit`);
+  await A.goto(`${APP}#/search?q=psst`);
+  await A.waitForSelector('#searchEmpty');
+  await A.goBack();
+  await A.waitForSelector('#composer textarea');
+
+  step('a conversation pinned to the top; disappearing messages set by one side hold for both, and go');
+  await A.click('[data-act=menu]');
+  await A.click('.menu [data-act=pin-conv]');
+  await open(A);
+  await A.waitForSelector('#convs li.pinned');
+  await talk(A, pkB);
+  await A.click('[data-act=menu]');
+  await A.click('.menu [data-act=timer]');
+  await A.click('#timerDialog [data-timer="300"]');
+  await until(async () => (await B.getAttribute('#timerBadge', 'data-timer').catch(() => '')) === '300', 'B’s side shows the timer', 30000);
+  assert.match(await B.textContent('#messages .sysline:last-of-type'), /5 minutes/);
+  // a short timer, set the way the dialog does: the message is gone from both screens, the store and the relay
+  await A.evaluate((pk) => window.kiwi.messages.setTimer(pk, 6), pkB);
+  await until(async () => (await B.getAttribute('#timerBadge', 'data-timer').catch(() => '')) === '6', 'the short timer on B', 30000);
+  await say(A, 'gone soon');
+  await until(async () => (await messages(B)).includes('gone soon'), 'B reads it', 30000);
+  const wrapped = (await env.relayEvents([{ kinds: [1059] }])).filter((w) => w.tags.some((t) => t[0] === 'expiration'));
+  assert.ok(wrapped.length >= 2, 'its wraps carry NIP-40 for the relay');
+  await until(async () => !(await messages(A)).includes('gone soon') && !(await messages(B)).includes('gone soon'), 'gone from both screens', 15000);
+  await B.evaluate(() => window.kiwi.messages.purge());
+  assert.ok(!(await B.evaluate(async () => JSON.stringify(await window.kiwi.messages.net.db.chatAll()))).includes('gone soon'), 'and from the store');
+  assert.equal((await env.relayEvents([{ kinds: [1059] }])).filter((w) => wrapped.some((x) => x.id === w.id)).length, 0, 'the relay hands it out no more');
+  await A.click('[data-act=menu]');
+  await A.click('.menu [data-act=timer]');
+  await A.click('#timerDialog [data-timer="0"]');
+  await until(async () => (await B.$('#timerBadge')) === null, 'off on B', 30000);
+
   step('a room invitation reaches a friend sealed, not as a link; yes puts them at the room’s door, and the two talk');
   const invite = `${APP}#/room/invite${Date.now().toString(36)}xyz`;
   await A.goto(invite);
@@ -202,10 +282,23 @@ export async function chatSuite(env, { app, settings, boards }) {
   await say(A, 'welcome', '#groupComposer');
   await until(async () => (await groupMessages(B)).join('|') === 'hello crew|welcome', 'A’s answer on B', 30000);
   assert.ok((await texts(B, '#groupMessages .nick')).includes('Ada'), 'under A’s name');
+  await act(B, 'welcome', 'reply', '#groupMessages');
+  await say(B, 'thanks', '#groupComposer');
+  await until(async () => (await A.textContent(`${bubble('thanks', '#groupMessages')} .quote`).catch(() => '')).includes('welcome'), 'a reply in the group', 30000);
+  await act(A, 'thanks', 'react=👍', '#groupMessages');
+  await until(async () => Boolean(await B.$(`${bubble('thanks', '#groupMessages')} .reaction[data-react="👍"]`)), 'a reaction in the group', 30000);
+  await A.click('[data-act=menu]');
+  await A.click('.menu [data-act=timer]');
+  await A.click('#timerDialog [data-timer="3600"]');
+  await until(async () => (await B.getAttribute('#timerBadge', 'data-timer').catch(() => '')) === '3600', 'the host’s timer on B', 30000);
+  await A.click('[data-act=menu]');
+  await A.click('.menu [data-act=timer]');
+  await A.click('#timerDialog [data-timer="0"]');
+  await until(async () => (await B.$('#timerBadge')) === null, 'and off again', 30000);
   await open(A2, '#/groups');
   await until(async () => (await texts(A2, '#groupList .conv-name')).includes('Crew'), 'A’s other device has the group', 40000);
   await A2.click('#groupList .conv');
-  await until(async () => (await groupMessages(A2)).join('|') === 'hello crew|welcome', 'and its messages', 30000);
+  await until(async () => (await groupMessages(A2)).join('|') === 'hello crew|welcome|thanks', 'and its messages', 30000);
   const groupPub = await A.getAttribute('.group', 'data-group');
   const onRelay = await env.relayEvents([{ kinds: [30720, 7820, 7821] }]);
   assert.ok(onRelay.length >= 4, 'info, two joins, two messages on the relay');
