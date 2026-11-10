@@ -45,6 +45,9 @@ export const KINDS = {
   GROUP_KNOCK: 7824, // to a group's host: someone with the invite link asks in ({ pub, invite, name })
   GROUP_KEYS: 7825, // to one person: a group's keys ({ pub, w, k, host, name }), from the host or a member who invited them
   ROOM_INVITE: 7826, // to one person: come to a live room ({ secret, name }); accepted in the chat, never a link
+  CHAT_EDIT: 7830, // in a conversation or a group: the writer's new text for a message (["e", <message>]), shared/chatlog.js
+  CHAT_PIN: 7831, // in a conversation or a group: a message pinned or unpinned (["e", <message>], "pin" | "unpin")
+  CHAT_TIMER: 7832, // in a conversation: messages from now on disappear after { seconds } (0: they stay)
   FRIEND_REQUEST: 7801,
   FRIEND_ACCEPT: 7802,
   FRIEND_REMOVE: 7803,
@@ -56,6 +59,11 @@ export const now = () => Math.floor(Date.now() / 1000);
 export const hex = bytesToHex;
 export const bytes = hexToBytes;
 export const isHex64 = (s) => typeof s === 'string' && /^[0-9a-f]{64}$/.test(s);
+/** When an event goes (NIP-40 `expiration`, in seconds), or 0 when it stays. */
+export const expiryOf = (event) => {
+  const v = Number(event?.tags?.find((t) => t[0] === 'expiration')?.[1]);
+  return Number.isSafeInteger(v) && v > 0 ? v : 0;
+};
 export const dTag = (event) => event.tags.find((t) => t[0] === 'd')?.[1] ?? '';
 
 /** `kind:pubkey:d` for replaceable and addressable events, null for the rest. */

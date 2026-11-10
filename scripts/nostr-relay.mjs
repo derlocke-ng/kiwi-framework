@@ -19,6 +19,9 @@
 // account entry (kind 30790, today's form) carrying that much proof of work is
 // taken from anyone as the sign-up, and `auth.register(pk)` makes its author a
 // member (kiwi-modules' `members: registered`).
+//
+// NIP-40, as strfry: an event whose `expiration` has passed is refused, and
+// one that runs out while stored is no longer handed out (and is dropped).
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -37,6 +40,13 @@ export const addressOf = (event) => {
   if (isReplaceableKind(event.kind)) return `${event.kind}:${event.pubkey}:`;
   if (isAddressableKind(event.kind)) return `${event.kind}:${event.pubkey}:${event.tags.find((t) => t[0] === 'd')?.[1] ?? ''}`;
   return null;
+};
+
+/** NIP-40: when an event goes, in seconds, or 0. */
+const expiryOf = (event) => Number(event.tags.find((t) => t[0] === 'expiration')?.[1]) || 0;
+const expired = (event) => {
+  const exp = expiryOf(event);
+  return exp > 0 && exp <= Math.floor(Date.now() / 1000);
 };
 
 /** NIP-01 ordering for replaceable events: newest wins, lowest id breaks ties. */
@@ -62,6 +72,7 @@ export class EventStore {
   /** @returns {{ ok: boolean, reason: string, stored: boolean }} */
   add(event, { persist = true } = {}) {
     if (this.events.has(event.id)) return { ok: true, reason: 'duplicate: already have this event', stored: false };
+    if (expired(event)) return { ok: false, reason: 'invalid: event is expired', stored: false };
     if (isEphemeralKind(event.kind)) return { ok: true, reason: '', stored: false };
     const address = addressOf(event);
     if (address) {
@@ -78,7 +89,13 @@ export class EventStore {
   /** Matching events, newest first, honouring the largest limit among the filters. */
   query(filters) {
     const out = [];
-    for (const event of this.events.values()) if (matchFilters(filters, event)) out.push(event);
+    for (const event of [...this.events.values()]) {
+      if (expired(event)) {
+        this.events.delete(event.id);
+        continue;
+      }
+      if (matchFilters(filters, event)) out.push(event);
+    }
     out.sort((a, b) => b.created_at - a.created_at || (a.id < b.id ? -1 : 1));
     const limits = filters.map((f) => f.limit).filter((l) => Number.isInteger(l) && l >= 0);
     const limit = limits.length === filters.length ? Math.max(...limits) : Infinity;

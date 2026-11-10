@@ -12,14 +12,21 @@
 // given, newest first. Messages go into the store's `chat` table like
 // private messages, under the group's pubkey, so unread counts, notices and
 // read marks are the same code. The groups a person is in, and the knocks
-// they are waiting on, live in the account's settings (kind 30791, d = chat).
+// they are waiting on, live in the account's settings (kind 30791, d = chat),
+// with the conversations pinned to the top of the chat's lists.
+//
+// Reactions, edits, pins and deletions (0.30, shared/chatlog.js) are events
+// like a message to the relays (kind 7820, sealed); inside is the member's
+// event of that kind. The host's info can make messages disappear (`expire`,
+// seconds): each message then carries NIP-40's `expiration`, inside and out.
 //
 //   const groups = new Groups(identity, net, { isBlocked, inbox });  await groups.start();
 //   const pub = await groups.create('Crew');  groups.inviteLink(pageUrl, pub)
 //   await groups.knock({ pub, host, invite, name, myName });   // from a link
 //   await groups.say(pub, 'hi');  groups.admit(pub, pk);  groups.kick(pub, pk)
 
-import { isHex64, KINDS, makeAddressable, now, open, seal, sign } from './events.js';
+import { CHANGE_KINDS, changeOf, cleanTimer, myReactions, replyOf } from './chatlog.js';
+import { expiryOf, isHex64, KINDS, makeAddressable, now, open, seal, sign } from './events.js';
 import { cleanFile, fileFromRumor, fileTags } from './files.js';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes, verifyEvent } from './nostr.mjs';
 import { baseStore, whole } from './peers.js';
@@ -35,6 +42,7 @@ export const TEXT = 4000;
 const INFO_D = 'info';
 const SEEN_MAX = 4000;
 const MAX_REQUESTS = 50;
+const MAX_PINNED = 50;
 
 /** The invite link: where the group lives, who hosts it, the token that opens the door, its name to show, and where its events are (hints). */
 export const groupLink = (pageUrl, { pub, host, invite, name, relays = [] }) => {
@@ -138,6 +146,22 @@ export class Groups {
 
   entry(pub) {
     return this.list().find((g) => g.pub === pub) || null;
+  }
+
+  /** The conversations (people's keys and groups') pinned to the top of the chat's lists, the last pinned first. */
+  pinned() {
+    return this.settings.get('pinned', []) || [];
+  }
+
+  async setPinned(conv, on) {
+    const rest = this.pinned().filter((c) => c !== conv);
+    await this.settings.set({ pinned: on ? [conv, ...rest].slice(0, MAX_PINNED) : rest });
+    this.emit();
+  }
+
+  /** The group's timer in seconds (0: messages stay), as its host set it. */
+  timerOf(pub) {
+    return this.state.get(pub)?.expire || 0;
   }
 
   info(pub) {
@@ -249,8 +273,12 @@ export class Groups {
     const g = this.entry(ev.pubkey);
     const st = this.state.get(ev.pubkey);
     if (!g || !st) return;
+    const exp = expiryOf(ev); // a disappearing message: gone when it says, whatever the relay still holds
+    if (exp && exp <= now()) return this.markSeen(ev.id);
     const inner = await this.unseal(g, ev.content);
-    if (!inner || inner.kind !== ev.kind || !isHex64(inner.pubkey) || !verifyEvent(inner)) return this.markSeen(ev.id);
+    // inside a message's seal, the member's event: a message, or a change to one (a reaction, an edit, a pin, a deletion)
+    const kindOk = inner && (inner.kind === ev.kind || (ev.kind === KINDS.GROUP_MESSAGE && CHANGE_KINDS.includes(inner.kind)));
+    if (!kindOk || !isHex64(inner.pubkey) || !verifyEvent(inner)) return this.markSeen(ev.id);
     const body = parse(inner.content);
     if (ev.kind === KINDS.GROUP_INFO) {
       if (inner.pubkey !== g.host || (st.infoAt || 0) > inner.created_at) return this.markSeen(ev.id);
@@ -258,6 +286,11 @@ export class Groups {
       st.name = String(body.name || '').slice(0, NAME);
       st.closed = Boolean(body.closed);
       st.open = Boolean(body.open);
+      // the timer: a line in the group says when the host changed it
+      const expire = cleanTimer(body.expire);
+      if (expire !== (st.expire || 0) && !(await this.net.db.hasMessage(inner.id)))
+        await this.net.db.putMessage({ id: inner.id, conv: ev.pubkey, group: true, from: inner.pubkey, name: st.members.get(inner.pubkey)?.name || '', at: inner.created_at, t: inner.created_at * 1000, seq: Date.now(), text: '', system: 'timer', timer: expire, wrap: ev.id });
+      st.expire = expire;
       if (st.name && st.name !== g.name) this.update(ev.pubkey, { name: st.name }).catch(() => {});
       if (st.closed) await this.gone(ev.pubkey, 'closed');
     } else if (ev.kind === KINDS.GROUP_JOIN) {
@@ -278,9 +311,15 @@ export class Groups {
       const known = st.members.get(body.pk);
       if (known && known.since <= inner.created_at) known.left = true;
       if (body.pk === this.pk) await this.gone(ev.pubkey, 'removed');
+    } else if (ev.kind === KINDS.GROUP_MESSAGE && inner.kind !== KINDS.GROUP_MESSAGE) {
+      if (this.isBlocked(inner.pubkey)) return this.markSeen(ev.id);
+      const ms = Math.min(999, Math.max(0, Number(inner.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
+      const change = changeOf(inner, { conv: ev.pubkey, from: inner.pubkey, t: inner.created_at * 1000 + ms });
+      if (change) await this.net.db.putChange(exp ? { ...change, expires: exp } : change);
     } else if (ev.kind === KINDS.GROUP_MESSAGE) {
       if (this.isBlocked(inner.pubkey)) return this.markSeen(ev.id);
       const ms = Math.min(999, Math.max(0, Number(inner.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
+      const reply = replyOf(inner);
       // a file: NIP-17's file tags on the inner event, its URL as the content (shared/files.js)
       const file = inner.tags.some((x) => x[0] === 'decryption-key') ? fileFromRumor(inner) : null;
       const message = {
@@ -294,6 +333,8 @@ export class Groups {
         t: inner.created_at * 1000 + ms,
         seq: Date.now(),
         text: file ? '' : String(inner.content || '').slice(0, TEXT),
+        ...(reply ? { reply } : {}),
+        ...(exp ? { expires: exp } : {}),
         wrap: ev.id,
       };
       if (!(await this.net.db.hasMessage(message.id))) {
@@ -311,19 +352,29 @@ export class Groups {
     store.set(this.seenKey, [...this.seen]);
   }
 
-  /** An event signed by me, sealed with the group's current read key, signed by the group. */
-  async publish(g, kind, content, { tags = [], addressable = false } = {}) {
-    const inner = sign({ kind, content, tags }, this.sk);
+  /**
+   * An event signed by me, sealed with the group's current read key, signed by the group. `inner`: the kind of my
+   * event inside when it is not the outer one (a change inside a message); `expires`: when it goes (NIP-40, inside and out).
+   */
+  async publish(g, kind, content, { tags = [], addressable = false, inner: innerKind = kind, expires = 0 } = {}) {
+    const exp = expires ? [['expiration', String(expires)]] : [];
+    const inner = sign({ kind: innerKind, content, tags: [...tags, ...exp] }, this.sk);
     const sealed = await seal(hexToBytes(g.k), inner);
-    const event = addressable ? makeAddressable(kind, INFO_D, sealed, g.w) : sign({ kind, content: sealed, tags: [] }, g.w);
+    const event = addressable ? makeAddressable(kind, INFO_D, sealed, g.w) : sign({ kind, content: sealed, tags: exp }, g.w);
     await whole(this.net.sync).publish(event, { network: g.network || 'hub' }); // stored here first and shown; the outbox carries it to the group's relays, now or when they are back
     const guests = this.guestRelays(g);
     if (guests.length) whole(this.net.pool).publishAt(guests, event).catch(() => {}); // and where it lives, when that is another hub's
     return inner;
   }
 
-  publishInfo(g, { name, closed = false, open = false }) {
-    return this.publish(g, KINDS.GROUP_INFO, JSON.stringify({ name: String(name || '').slice(0, NAME), host: g.host, closed, open }), { addressable: true });
+  /** The group's info: name, door, timer (kept as it is unless given), closed. */
+  publishInfo(g, { name, closed = false, open = false, expire = this.state.get(g.pub)?.expire || 0 }) {
+    return this.publish(
+      g,
+      KINDS.GROUP_INFO,
+      JSON.stringify({ name: String(name || '').slice(0, NAME), host: g.host, closed, open, ...(expire ? { expire: cleanTimer(expire) } : {}) }),
+      { addressable: true },
+    );
   }
 
   // ---- the person side: knocks and keys, as rumors to one person ----
@@ -494,7 +545,8 @@ export class Groups {
     await this.publish(g, KINDS.GROUP_JOIN, JSON.stringify({ name: String(myName || this.alias || '').slice(0, NAME) }));
   }
 
-  async say(pub, text) {
+  /** Say something in the group; `reply`: the id of the message it answers. With the group's timer on, it goes then. */
+  async say(pub, text, { reply = '' } = {}) {
     const g = this.entry(pub);
     const content = String(text || '')
       .trim()
@@ -502,17 +554,75 @@ export class Groups {
     if (!g || !content) return null;
     if (this.state.get(pub)?.closed) throw new Error('closed');
     const ms = Date.now();
-    return this.publish(g, KINDS.GROUP_MESSAGE, content, { tags: [['ms', String(ms % 1000)]] });
+    return this.publish(g, KINDS.GROUP_MESSAGE, content, { tags: [['ms', String(ms % 1000)], ...(isHex64(reply) ? [['e', reply]] : [])], expires: this.expiresFor(pub) });
   }
 
   /** Send a file uploaded with shared/files.js (uploadFile) to the group. */
-  async sayFile(pub, file) {
+  async sayFile(pub, file, { reply = '' } = {}) {
     const g = this.entry(pub);
     const f = cleanFile(file);
     if (!g || !f) return null;
     if (this.state.get(pub)?.closed) throw new Error('closed');
     const ms = Date.now();
-    return this.publish(g, KINDS.GROUP_MESSAGE, f.url, { tags: [['ms', String(ms % 1000)], ...fileTags(f)] });
+    return this.publish(g, KINDS.GROUP_MESSAGE, f.url, {
+      tags: [['ms', String(ms % 1000)], ...(isHex64(reply) ? [['e', reply]] : []), ...fileTags(f)],
+      expires: this.expiresFor(pub),
+    });
+  }
+
+  expiresFor(pub) {
+    const seconds = this.timerOf(pub);
+    return seconds ? now() + seconds : 0;
+  }
+
+  /** The host makes the group's messages disappear after `seconds` (0: they stay). */
+  async setTimer(pub, seconds) {
+    const g = this.entry(pub);
+    if (!g || g.host !== this.pk) throw new Error('only the host');
+    const st = this.state.get(pub);
+    await this.publishInfo(g, { name: st?.name || g.name, open: Boolean(st?.open), expire: cleanTimer(seconds) });
+  }
+
+  // ---- changes to a message (shared/chatlog.js), inside a message to the relays; each goes when the message does ----
+
+  react(pub, message, emoji) {
+    return this.change(pub, message, KINDS.REACTION, emoji, [['k', String(KINDS.GROUP_MESSAGE)]]);
+  }
+
+  async unreact(pub, message) {
+    const mine = myReactions(await this.net.db.changes(pub), message.id, this.pk);
+    if (!mine.length) return null;
+    return this.change(pub, message, KINDS.DELETION, '', [['k', String(KINDS.REACTION)]], mine);
+  }
+
+  edit(pub, message, text) {
+    const content = String(text || '')
+      .trim()
+      .slice(0, TEXT);
+    if (!content || message.from !== this.pk || message.file) return null;
+    return this.change(pub, message, KINDS.CHAT_EDIT, content);
+  }
+
+  remove(pub, message) {
+    if (message.from !== this.pk) return null;
+    return this.change(pub, message, KINDS.DELETION, '', [['k', String(KINDS.GROUP_MESSAGE)]]);
+  }
+
+  pin(pub, message, on = true) {
+    return this.change(pub, message, KINDS.CHAT_PIN, on ? 'pin' : 'unpin');
+  }
+
+  /** `targets`: what the change names (the message, or for taking a reaction back, my reactions). */
+  change(pub, message, kind, content, extra = [], targets = [message.id]) {
+    const g = this.entry(pub);
+    if (!g) throw new Error('not in this group');
+    if (this.state.get(pub)?.closed) throw new Error('closed');
+    const ms = Date.now();
+    return this.publish(g, KINDS.GROUP_MESSAGE, content, {
+      inner: kind,
+      tags: [...targets.map((id) => ['e', id]), ['ms', String(ms % 1000)], ...extra],
+      expires: message.expires || 0,
+    });
   }
 
   /** Leave: tell the group, forget it here and on my other devices. The host re-keys. */

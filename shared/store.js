@@ -4,7 +4,7 @@
 // forget, and what goes into backups.
 
 import { matchFilters } from './nostr.mjs';
-import { addressOf, supersedes, isEphemeralKind, observe } from './events.js';
+import { addressOf, expiryOf, supersedes, isEphemeralKind, observe } from './events.js';
 
 const DB_VERSION = 3;
 
@@ -13,6 +13,15 @@ const req = (r) =>
     r.onsuccess = () => resolve(r.result);
     r.onerror = () => reject(r.error);
   });
+
+/** The key of a meta entry that says when something stored goes (`what`: `e` an event, `c` a record of the chat table): sorted by the time. */
+const expKey = (at, what, id) => `exp:${String(at).padStart(12, '0')}:${what}:${id}`;
+const nowS = () => Math.floor(Date.now() / 1000);
+/** A message as a deletion leaves it: no text, no file. */
+const erased = (m) => {
+  const { file: _file, ...rest } = m;
+  return { ...rest, text: '', deleted: true };
+};
 
 /** Entries record who accepted them; older ones don't, so for those "waiting for every relay" is the sign that nothing left this device. */
 const unsynced = (o, relayCount) => (o.acked ? o.acked.length === 0 : o.pending.length >= relayCount);
@@ -104,8 +113,13 @@ export class LocalStore {
     if (isEphemeralKind(event.kind)) return 'ignored';
     observe(event); // even when it is older than ours: our next write must beat every version anyone has
     const address = addressOf(event);
+    // A regular event with an expiration (NIP-40: a disappearing message's wrap) goes when it says; one that has
+    // gone already is not taken, even from a relay that does not keep to NIP-40. (An addressable one is the
+    // app's to judge: the market renews a listing that ran out.)
+    const exp = address ? 0 : expiryOf(event);
+    if (exp && exp <= nowS()) return 'ignored';
     // one transaction over every store touched: a request on a second transaction in between would let the first commit early
-    const tx = this.db.transaction(['events', 'nets', 'outbox'], 'readwrite');
+    const tx = this.db.transaction(['events', 'nets', 'outbox', 'meta'], 'readwrite');
     const os = tx.objectStore('events');
     const nets = tx.objectStore('nets');
     let replaced = null;
@@ -123,6 +137,7 @@ export class LocalStore {
     if (replaced) await req(nets.delete(replaced));
     if (network && network !== 'hub') await req(nets.put({ id: event.id, net: network }));
     if (pending?.length) await this.markPending(tx.objectStore('outbox'), event.id, pending);
+    if (exp) await req(tx.objectStore('meta').put({ k: expKey(exp, 'e', event.id), v: 1 }));
     for (const fn of this.listeners) fn(event, network || 'hub');
     return 'stored';
   }
@@ -275,14 +290,94 @@ export class LocalStore {
 
   // ---- chat: unwrapped private messages, by conversation ----
 
-  /** @param {{ id: string, conv: string, from: string, at: number, text: string, wrap: string, [k: string]: any }} message */
+  /**
+   * A message (or a line the chat writes itself, `system`), stored erased when a deletion by its writer came first;
+   * one with `expires` (seconds) goes then.
+   * @param {{ id: string, conv: string, from: string, at: number, text: string, wrap: string, expires?: number, [k: string]: any }} message
+   */
   async putMessage(message) {
-    await req(this.tx('chat', 'readwrite').put(message));
-    for (const fn of this.chatListeners || []) fn(message);
+    const tx = this.db.transaction(['chat', 'meta'], 'readwrite');
+    const os = tx.objectStore('chat');
+    const del = await req(os.get(`d:${message.id}`));
+    const m = del?.by?.includes(message.from) ? erased(message) : message;
+    await req(os.put(m));
+    if (m.expires) await req(tx.objectStore('meta').put({ k: expKey(m.expires, 'c', m.id), v: 1 }));
+    for (const fn of this.chatListeners || []) fn(m);
   }
 
   async hasMessage(id) {
     return Boolean(await req(this.tx('chat').get(id)));
+  }
+
+  /** One message by its id, or null. */
+  async getMessage(id) {
+    const m = await req(this.tx('chat').get(id));
+    return m && m.at != null && !(m.expires && m.expires <= nowS()) ? m : null;
+  }
+
+  // ---- chat changes (shared/chatlog.js): reactions, edits, pins, deletions ----
+  // Kept in the chat table beside the messages, under ids `x:<conv>:<id>` and without `at`: the index the
+  // conversations are read by (conv, at) never sees them, forgetting a conversation (the `conv` index) takes
+  // them along, and one conversation's changes are one key range. A deletion also leaves `d:<id>` for each
+  // thing it deletes, so a message that arrives after its deletion is stored erased.
+
+  /**
+   * Store a change; false when it was here already, or is an edit of something deleted. A deletion by the writer
+   * erases the message (text and file) and the edits of it at once.
+   */
+  async putChange(change) {
+    const tx = this.db.transaction(['chat', 'meta'], 'readwrite');
+    const os = tx.objectStore('chat');
+    const id = `x:${change.conv}:${change.ref}`;
+    if (await req(os.getKey(id))) return false;
+    if (change.type === 'edit' && (await req(os.get(`d:${change.target}`)))?.by?.includes(change.from)) return false;
+    await req(os.put({ ...change, id }));
+    if (change.expires) await req(tx.objectStore('meta').put({ k: expKey(change.expires, 'c', id), v: 1 }));
+    if (change.type === 'delete') {
+      for (const target of change.targets) {
+        const d = await req(os.get(`d:${target}`));
+        await req(os.put({ id: `d:${target}`, conv: change.conv, by: [...new Set([...(d?.by || []), change.from])] }));
+        const m = await req(os.get(target));
+        if (m && m.at != null && m.from === change.from && !m.deleted) await req(os.put(erased(m)));
+      }
+      const range = IDBKeyRange.bound(`x:${change.conv}:`, `x:${change.conv}:\uffff`);
+      for (const c of await req(os.getAll(range)))
+        if (c.type === 'edit' && c.from === change.from && change.targets.includes(c.target)) await req(os.delete(c.id));
+    }
+    for (const fn of this.chatListeners || []) fn(change);
+    return true;
+  }
+
+  /** Every change in one conversation. */
+  async changes(conv) {
+    return req(this.tx('chat').getAll(IDBKeyRange.bound(`x:${conv}:`, `x:${conv}:\uffff`)));
+  }
+
+  /** The whole chat table, messages and changes (the search reads it). */
+  async chatAll() {
+    return req(this.tx('chat').getAll());
+  }
+
+  /**
+   * Forget what has gone (NIP-40): expiring events with their network and outbox entries, messages and changes.
+   * Resolves with how many went.
+   */
+  async purgeExpired(at = nowS()) {
+    const tx = this.db.transaction(['meta', 'events', 'nets', 'outbox', 'chat'], 'readwrite');
+    const meta = tx.objectStore('meta');
+    const keys = await req(meta.getAllKeys(IDBKeyRange.bound('exp:', `exp:${String(at).padStart(12, '0')}:\uffff`)));
+    for (const k of keys) {
+      const [, , what, ...rest] = String(k).split(':');
+      const id = rest.join(':');
+      if (what === 'e') {
+        await req(tx.objectStore('events').delete(id));
+        await req(tx.objectStore('nets').delete(id));
+        await req(tx.objectStore('outbox').delete(id));
+      } else await req(tx.objectStore('chat').delete(id));
+      await req(meta.delete(k));
+    }
+    if (keys.length) for (const fn of this.chatListeners || []) fn(null);
+    return keys.length;
   }
 
   /** The newest `limit` messages of a conversation before `before` (a time), oldest first; within one second by the writers' milliseconds, then as this device took them. */
@@ -292,10 +387,11 @@ export class LocalStore {
       const range = IDBKeyRange.bound([conv, 0], [conv, before], false, true);
       const r = this.tx('chat').index('convAt').openCursor(range, 'prev');
       r.onerror = () => reject(r.error);
+      const at = nowS();
       r.onsuccess = () => {
         const c = r.result;
         if (!c || out.length >= limit) return resolve(out.sort((a, b) => (a.t || a.at * 1000) - (b.t || b.at * 1000) || (a.seq || 0) - (b.seq || 0) || (a.id < b.id ? -1 : 1)));
-        out.push(c.value);
+        if (!(c.value.expires && c.value.expires <= at)) out.push(c.value);
         c.continue();
       };
     });
@@ -310,7 +406,7 @@ export class LocalStore {
       r.onsuccess = () => {
         const c = r.result;
         if (!c) return resolve(out.sort((a, b) => (b.t || b.at * 1000) - (a.t || a.at * 1000)).slice(0, limit));
-        if (c.value.file) out.push(c.value);
+        if (c.value.file && !(c.value.expires && c.value.expires <= nowS())) out.push(c.value);
         c.continue();
       };
     });
@@ -323,6 +419,7 @@ export class LocalStore {
     // messages(): the unread count depends on the right one being the newest.
     const time = (m) => m.t || m.at * 1000;
     const newer = (a, b) => time(a) - time(b) || (a.seq || 0) - (b.seq || 0) || (a.id > b.id ? 1 : -1);
+    const at = nowS();
     return new Promise((resolve, reject) => {
       const seen = new Map();
       const r = this.tx('chat').index('convAt').openCursor(null, 'prev');
@@ -331,7 +428,7 @@ export class LocalStore {
         const c = r.result;
         if (!c) return resolve([...seen.values()].sort((a, b) => newer(b, a)));
         const have = seen.get(c.value.conv);
-        if (!have || newer(c.value, have) > 0) seen.set(c.value.conv, c.value);
+        if (!(c.value.expires && c.value.expires <= at) && (!have || newer(c.value, have) > 0)) seen.set(c.value.conv, c.value);
         c.continue();
       };
     });
