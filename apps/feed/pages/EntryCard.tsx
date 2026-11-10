@@ -5,7 +5,7 @@
 // space reported, is folded away until someone asks to see it. An entry marked
 // 18+ or as an ad (by its writer, by two reports, or by a moderator) is shown
 // to people with an account only; a moderator marks entries from the menu.
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
 import { REPORT_TYPES } from '../../../shared/moderation.js';
@@ -99,6 +99,10 @@ export function EntryCard({
   const audienceLabel = useAudienceLabel();
   const [open, setOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
+  // its likes, comments, reports and marks, wherever the entry shows (a list asks for all of its entries at once)
+  useEffect(() => {
+    social.watch([entry.address]);
+  }, [social, entry.address]);
   const isBlocked = (pk: string) => Boolean(blocks?.isBlocked(pk));
   const mine = entry.pubkey === id.pk;
   const folded = social.collapsed(entry, isBlocked);
@@ -108,6 +112,8 @@ export function EntryCard({
   const label = marked?.mark || '';
   // such an entry is for people with an account on this hub
   const locked = Boolean(label) && !mine && !id.accountPk;
+  // its marks not read yet (a moment after the entry itself): nothing of it shows, rather than an 18+ entry for an instant
+  const unread = !entry.label && !mine && !id.accountPk && !social.isRead(entry.address);
   const moderator = isModerator(space, id.pk) && !mine;
   const waiting = moderator ? social.pending(entry.address) : 0;
   const setMark = (mark: string) => data.mark(entry, mark, social.lastAt(entry.address)).then(() => toast(t(`fd.mod.done.${mark}`), 'success'), fail);
@@ -210,7 +216,11 @@ export function EntryCard({
           <span>{t('fd.review.pending', { n: waiting })}</span>
         </p>
       ) : null}
-      {locked ? (
+      {unread ? (
+        <div className="entry-folded entry-reading" aria-busy="true">
+          <span className="spinner" />
+        </div>
+      ) : locked ? (
         <div className="entry-folded entry-locked" data-label={label}>
           <Icon name="lock" />
           <span>{t(`fd.locked.${label}`)}</span>

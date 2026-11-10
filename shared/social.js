@@ -19,6 +19,7 @@ import { isModerator } from './spaces.js';
 
 const KINDS_SOCIAL = [KINDS.REACTION, KINDS.REPORT, KINDS.FEED_COMMENT, KINDS.LABEL];
 const CHUNK = 100;
+const READ_WAIT = 3000; // ms an entry waits for the relays' answer about its marks, at most
 const COLLAPSE_REPORTS = 3;
 const MARK_REPORTS = 2;
 
@@ -59,6 +60,7 @@ export class Social {
     this.markReports = new Map(); // entry address -> Map(pk -> { mark, at, id }): reports that ask for a mark, the newest per person
     this.marks = new Map(); // entry address -> Map(pk -> { mark, at, id }): kind 1985 marks, the newest per person (only moderators' count)
     this.comments = new Map(); // entry address -> Map(comment address -> event)
+    this.read = new Set(); // entry addresses whose likes, reports and marks this device holds have been read
     this.subs = [];
     this.listeners = new Set();
     this.timer = null;
@@ -89,7 +91,33 @@ export class Social {
   async load(list) {
     const filters = [{ kinds: KINDS_SOCIAL, '#a': list }];
     for (const ev of await this.net.db.query(filters)) this.receive(ev);
-    this.subs.push(this.net.pool.subscribe(filters, { onevent: (ev) => this.net.db.put(ev) }));
+    // read once the relays have answered too (and what they sent is stored, so received), or after a few seconds
+    // without an answer: a mark made while this device was away is known before the entry shows
+    await new Promise((resolve) => {
+      const t = setTimeout(resolve, READ_WAIT);
+      const arriving = [];
+      this.subs.push(
+        this.net.pool.subscribe(filters, {
+          onevent: (ev) => {
+            arriving.push(Promise.resolve(this.net.db.put(ev)).catch(() => {}));
+          },
+          oneose: () => {
+            clearTimeout(t);
+            Promise.all(arriving).then(() => resolve());
+          },
+        }),
+      );
+    });
+    for (const a of list) this.read.add(a);
+    this.changed();
+  }
+
+  /**
+   * Whether what this device holds about an entry (its marks above all) has been read: until then a screen shows
+   * the entry folded, so an entry marked 18+ or as an ad never shows for a moment before its mark is known.
+   */
+  isRead(address) {
+    return this.read.has(address);
   }
 
   /** The entry an event is about, when it is one this page follows. */

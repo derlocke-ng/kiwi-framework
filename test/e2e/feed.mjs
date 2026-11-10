@@ -304,16 +304,28 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
     assert.match(await M.textContent('.entry-review'), /1 report waits for your review/);
     await menu(M, 'Nutrient sale', 'Mark as an ad');
     await until(async () => (await entryTexts(M)).length === 0, 'reviewed: off the Reported tab', 20000);
+    // C was away when the moderator marked it: the entry must not show for a moment before the mark is known
+    await C.ctx.addInitScript(() => {
+      window.__flashed = false;
+      new MutationObserver(() => {
+        if ([...document.querySelectorAll('.entry .entry-text')].some((e) => e.textContent.includes('Nutrient sale'))) window.__flashed = true;
+      }).observe(document, { subtree: true, childList: true });
+    });
     await open(C);
     await until(async () => (await C.$$('.entry-locked[data-label=ad]')).length === 1, 'folded as an ad on C, who has no account', 20000);
+    assert.equal(await C.evaluate(() => window.__flashed), false, 'never shown on C, not for a moment');
     await open(A);
     await until(async () => Boolean(await A.$('.entry .badge.label-ad[data-by=moderator]')), 'the writer sees the moderator’s mark', 20000);
     await tab(M, 'space');
     await until(async () => (await entryTexts(M)).includes('Nutrient sale: 20% off this week'), 'in the space on M');
     await menu(M, 'Nutrient sale', 'Fine as it is');
     await open(C);
-    await until(async () => (await entryTexts(C)).includes('Nutrient sale: 20% off this week'), 'shown on C again', 20000);
-    assert.ok(await absent(C, '.entry-locked[data-label=ad]'), 'no longer folded as an ad');
+    // C's store still holds the moderator's earlier mark: the entry shows folded first, until "fine" comes in
+    await until(
+      async () => (await entryTexts(C)).includes('Nutrient sale: 20% off this week') && (await absent(C, '.entry-locked[data-label=ad]')),
+      'shown on C again, no longer folded as an ad',
+      20000,
+    );
     await M.ctx.close();
   }
 
