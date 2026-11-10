@@ -407,5 +407,8 @@
   "vault.settings.backupText": "Een back-upbestand is je kluis zoals hij is, verzegeld met de wachtzin die hij nu heeft.",
   "vault.settings.plainText": "Het bestand bevat elk geheim als gewone tekst: wie het heeft, heeft je wachtwoorden en codes. Gebruik het om naar een andere app te verhuizen en verwijder het daarna.",
   "vault.settings.removeHint": "Als de wachtzin kwijt is: verwijdert de kluis met alles erin uit je account, zodat je opnieuw kunt beginnen.",
-  "vault.error.notBackup": "Dit is geen back-up van een kluis."
+  "vault.error.notBackup": "Dit is geen back-up van een kluis.",
+  "notify.call": "{name} belt je",
+  "notify.callGroup": "{name} belt in {group}",
+  "notify.answer": "Opnemen"
 }

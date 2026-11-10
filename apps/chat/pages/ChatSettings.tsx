@@ -6,7 +6,7 @@ import { NICK } from '../data/rooms.js';
 import { savedNick, saveNick } from '../state';
 
 /** "How it works": rooms are the chat's own; the rest are the framework's topics (shared/how.js). */
-export const HOW_CHAT = ['privateMessages', 'chat.how.2', 'chat.how.1', 'friends', 'blocks', 'offline'];
+export const HOW_CHAT = ['privateMessages', 'chat.how.2', 'chat.how.3', 'chat.how.1', 'friends', 'blocks', 'offline'];
 
 export function ChatSettings() {
   const t = useT();

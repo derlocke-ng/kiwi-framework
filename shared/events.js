@@ -48,6 +48,7 @@ export const KINDS = {
   CHAT_EDIT: 7830, // in a conversation or a group: the writer's new text for a message (["e", <message>]), shared/chatlog.js
   CHAT_PIN: 7831, // in a conversation or a group: a message pinned or unpinned (["e", <message>], "pin" | "unpin")
   CHAT_TIMER: 7832, // in a conversation: messages from now on disappear after { seconds } (0: they stay)
+  CHAT_CALL: 7833, // in a conversation or a group: a call rung, answered, declined, called off or ended (shared/calls.js)
   FRIEND_REQUEST: 7801,
   FRIEND_ACCEPT: 7802,
   FRIEND_REMOVE: 7803,

@@ -149,6 +149,45 @@ export function myReactions(changes, messageId, me) {
   return changes.filter((c) => c.type === 'react' && c.target === messageId && c.from === me).map((c) => c.ref);
 }
 
+// ---- calls (shared/calls.js): one line in the conversation for each ----
+
+export const CALL_ACTIONS = ['ring', 'answer', 'decline', 'cancel', 'end'];
+const CALL_STATE = { ring: 'ringing', answer: 'answered', decline: 'declined', cancel: 'missed', end: 'ended' };
+const CALL_RANK = { ringing: 0, answered: 1, missed: 2, declined: 2, ended: 3 };
+const SECRET = /^[A-Za-z0-9_-]{16,64}$/;
+
+/**
+ * A call's line from one of its events, or null: `{ id: 'call:<id>', conv, from: <caller>, at, t, system: 'call',
+ * call: { id, video, state, secret?, duration?, by } }`. A ring names its caller, who must be its author.
+ */
+export function callLine(body, { conv, from, group = false, expires = 0 }) {
+  if (!body || typeof body !== 'object') return null;
+  const id = String(body.id || '');
+  const caller = String(body.caller || '');
+  const at = Math.floor(Number(body.at) || 0);
+  if (!/^[0-9a-f]{32}$/.test(id) || !isHex64(caller) || !CALL_ACTIONS.includes(body.action) || at <= 0) return null;
+  if (body.action === 'ring' && (caller !== from || !SECRET.test(String(body.secret || '')))) return null;
+  const call = {
+    id,
+    video: Boolean(body.video),
+    state: CALL_STATE[body.action],
+    by: from,
+    ...(body.action === 'ring' ? { secret: String(body.secret) } : {}),
+    ...(body.action === 'end' ? { duration: Math.max(0, Math.min(86_400, Math.floor(Number(body.duration) || 0))) } : {}),
+  };
+  return { id: `call:${id}`, conv, ...(group ? { group: true } : {}), from: caller, name: '', at, t: at * 1000, seq: 0, text: '', system: 'call', call, ...(expires ? { expires } : {}) };
+}
+
+/** What two events of one call say together: the furthest state, the secret and video from the ring, the longest duration. */
+export function mergeCall(a, b) {
+  if (!a) return b;
+  const state = (CALL_RANK[b.call.state] ?? 0) > (CALL_RANK[a.call.state] ?? 0) ? b.call.state : a.call.state;
+  const duration = Math.max(a.call.duration || 0, b.call.duration || 0);
+  const call = { ...a.call, ...b.call, state, video: a.call.video || b.call.video, secret: a.call.secret || b.call.secret, ...(duration ? { duration } : {}) };
+  if (!call.secret) delete call.secret;
+  return { ...a, seq: a.seq || b.seq, expires: a.expires || b.expires, call };
+}
+
 /** Text as search compares it: lower case, accents set aside. */
 export const searchable = (s) =>
   String(s || '')

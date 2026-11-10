@@ -33,6 +33,7 @@ export type Route =
   | { page: 'room'; secret: string; relays: string[] }
   | { page: 'group'; pub: string; host: string; invite: string; name: string; relays: string[]; focus: string }
   | { page: 'search'; q: string }
+  | { page: 'call'; id: string }
   | { page: 'settings' };
 
 /** A message to show at once (`?m=<id>`: from a search, or a link). */
@@ -53,6 +54,9 @@ export function parseRoute(hash: string): Route {
     return { page: 'room', secret: decodeURIComponent(m[2]), relays: readHints(new URLSearchParams(hash.split('?')[1] || '')) };
   if (hash.startsWith('#/settings')) return { page: 'settings' };
   if (hash.startsWith('#/search')) return { page: 'search', q: String(query.get('q') || '').slice(0, 200) };
+  // the call this page is in, or a ringing one by its id (a toast on another page led here)
+  const c = hash.match(/^#\/call(?:\/([0-9a-f]{32}))?/);
+  if (c) return { page: 'call', id: c[1] || '' };
   if (hash.startsWith('#/groups')) return { page: 'home', tab: 'groups' };
   return { page: 'home', tab: 'messages' };
 }

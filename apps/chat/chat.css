@@ -840,3 +840,265 @@ body.thread .foot {
   width: 0.85rem;
   height: 0.85rem;
 }
+
+/* ---------- 0.31: calls ---------- */
+
+.page-head .icon-btn[data-act='call'],
+.page-head .icon-btn[data-act='video-call'] {
+  color: var(--accent-strong);
+}
+
+/* the call: the others large, me small in a corner, the buttons at the bottom; dark whatever the theme */
+.call {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+  color: #fff;
+  padding: max(0.8rem, env(safe-area-inset-top)) 0.8rem max(1rem, env(safe-area-inset-bottom));
+}
+
+.call-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0 0.8rem;
+}
+
+.call-head b {
+  font-size: 1.15rem;
+}
+
+.call-head span {
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.call-failed {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0 auto 0.6rem;
+  max-width: 34rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: rgb(245 158 11 / 0.2);
+  font-size: 0.88rem;
+}
+
+.call-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;
+}
+
+.call-grid.n2,
+.call-grid.n3,
+.call-grid.n4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.call-grid.n5 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 640px) {
+  .call-grid.n2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.call-tile {
+  position: relative;
+  min-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #222;
+  display: grid;
+  place-items: center;
+}
+
+.call-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* no picture from them: the voice plays on, their initial shows */
+.call-tile.voice video {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.call-name {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.5);
+  font-size: 0.85rem;
+}
+
+.call-avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.call-tile.waiting .call-avatar {
+  animation: calling 1.6s ease-in-out infinite;
+}
+
+@keyframes calling {
+  50% {
+    box-shadow: 0 0 0 14px rgb(255 255 255 / 0.08);
+  }
+}
+
+#selfView {
+  position: absolute;
+  right: 1rem;
+  bottom: 6.5rem;
+  width: min(30vw, 160px);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid rgb(255 255 255 / 0.4);
+  background: #000;
+}
+
+video.mirror {
+  transform: scaleX(-1);
+}
+
+.call-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.call-btn {
+  width: 3.4rem;
+  height: 3.4rem;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 0.15);
+  color: #fff;
+  cursor: pointer;
+}
+
+.call-btn.off {
+  background: #fff;
+  color: #111;
+}
+
+.call-btn.hangup {
+  background: #dc2626;
+}
+
+.call-btn.answer {
+  background: #16a34a;
+}
+
+.call-btn .icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/* someone calls: a card at the top of every screen of the chat */
+.incoming {
+  position: fixed;
+  z-index: 55;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(30rem, calc(100% - 1.2rem));
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+  background: #1c1c1e;
+  color: #fff;
+  box-shadow: var(--shadow-pop);
+  animation: drop-in 0.25s ease-out;
+}
+
+.incoming .call-avatar {
+  flex: none;
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 1.2rem;
+}
+
+.incoming-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.incoming-main .muted {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.85rem;
+}
+
+.incoming-main .icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.incoming-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.incoming-actions .call-btn {
+  width: 2.8rem;
+  height: 2.8rem;
+}
+
+@keyframes drop-in {
+  from {
+    transform: translate(-50%, -1rem);
+    opacity: 0;
+  }
+}
+
+/* in a call, elsewhere in the chat: back to it */
+.call-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -0.5rem calc(-1 * var(--gutter)) 0.5rem;
+  padding: 0.5rem var(--gutter);
+  background: #16a34a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.sysline[data-system='call'] .btn {
+  margin-left: 0.3rem;
+}

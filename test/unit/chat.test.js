@@ -1,7 +1,7 @@
 // The chat after a message is sent (0.30), on the real store (shared/store.js on fake-indexeddb) and a relay in
 // memory: replies, reactions, edits, pins and deletions in conversations and groups, in any order, by whom they
 // may come; disappearing messages that carry NIP-40 inside and out and go from the store on time; pinned
-// conversations; the search on the device.
+// conversations; the search on the device; calls (0.31): their steps as one line, ringing.
 import 'fake-indexeddb/auto';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ const { LocalStore } = await import('../../shared/store.js');
 const { DirectMessages } = await import('../../shared/chat.js');
 const { Groups } = await import('../../shared/groups.js');
 const { KINDS } = await import('../../shared/events.js');
-const { changeOf, fold, pinsOf, reactionOf } = await import('../../shared/chatlog.js');
+const { callLine, changeOf, fold, mergeCall, pinsOf, reactionOf } = await import('../../shared/chatlog.js');
 const { bytesToHex, generateSecretKey, getPublicKey, matchFilters, nip59, hexToBytes } = await import('../../shared/nostr.mjs');
 
 const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
@@ -290,6 +290,58 @@ test('a group: replies and changes inside its seals, the host’s timer, pinned 
   assert.equal((await A.dm.search('meeting one'))[0].text, 'meeting at one', 'the text as edited');
   assert.equal((await A.dm.search('noon')).length, 0, 'not the old text');
   assert.equal((await A.dm.search('   ')).length, 0);
+  A.stop();
+  B.stop();
+});
+
+test('calls: a ring names its caller and a secret; steps merge into one line whatever their order', () => {
+  const caller = 'c'.repeat(64);
+  const other = 'd'.repeat(64);
+  const id = 'ab'.repeat(16);
+  const at = 1_800_000_000;
+  const ring = callLine({ id, at, caller, video: true, action: 'ring', secret: 'abcdefghijklmnopqrstuv' }, { conv: other, from: caller });
+  assert.equal(ring.id, `call:${id}`);
+  assert.equal(ring.call.state, 'ringing');
+  assert.equal(callLine({ id, at, caller, action: 'ring', secret: 'abcdefghijklmnopqrstuv' }, { conv: caller, from: other }), null, 'a ring by someone else than its caller');
+  assert.equal(callLine({ id, at, caller, action: 'ring', secret: 'short' }, { conv: other, from: caller }), null, 'a ring without a proper secret');
+  assert.equal(callLine({ id: 'nope', at, caller, action: 'end' }, { conv: other, from: caller }), null);
+  const answer = callLine({ id, at, caller, action: 'answer' }, { conv: caller, from: other });
+  const end = callLine({ id, at, caller, action: 'end', duration: 75 }, { conv: caller, from: other });
+  // the end first (a new device reading the relay newest first), then the ring, then the answer
+  const line = [end, ring, answer].reduce((a, b) => mergeCall(a, b), null);
+  assert.equal(line.call.state, 'ended');
+  assert.equal(line.call.duration, 75);
+  assert.equal(line.call.secret, 'abcdefghijklmnopqrstuv');
+  assert.equal(line.call.video, true);
+  assert.equal(line.from, caller);
+  assert.equal(mergeCall(ring, callLine({ id, at, caller, action: 'cancel' }, { conv: other, from: caller })).call.state, 'missed');
+  assert.equal(mergeCall(callLine({ id, at, caller, action: 'decline' }, { conv: caller, from: other }), ring).call.state, 'declined');
+});
+
+test('calls in a conversation and a group: the steps reach both sides as one line, the ring only while the page is open', async () => {
+  const r = relay();
+  const A = await device(r);
+  const B = await device(r);
+  const rang = [];
+  B.dm.onCall((line) => rang.push(line.call.state));
+  const info = { id: 'ef'.repeat(16), at: Math.floor(Date.now() / 1000), caller: A.id.pk, video: false, secret: 'abcdefghijklmnopqrstuv' };
+  await A.dm.call(B.id.pk, info, 'ring');
+  await until(() => rang.includes('ringing'), 'B rings');
+  await B.dm.call(A.id.pk, info, 'answer');
+  await A.dm.call(B.id.pk, info, 'end');
+  await until(async () => (await B.dm.callById(info.id))?.call.state === 'ended', 'ended on B');
+  const [line] = (await A.dm.messages(B.id.pk)).filter((m) => m.system === 'call');
+  assert.equal(line.call.state, 'ended');
+  assert.ok(!JSON.stringify(r.events).includes(info.secret), 'the secret travels sealed');
+  // a group: everyone rings
+  const pub = await A.groups.create('Crew', { myName: 'Ada' });
+  await A.groups.invite(pub, [B.id.pk]);
+  await until(() => B.groups.invites().length === 1, 'invited');
+  await B.groups.acceptInvite(B.groups.invites()[0].id);
+  await until(() => A.groups.members(pub).length === 2, 'in');
+  const g = { ...info, id: '12'.repeat(16) };
+  await A.groups.call(pub, g, 'ring');
+  await until(async () => (await B.dm.callById(g.id))?.group === true, 'the group’s call on B');
   A.stop();
   B.stop();
 });

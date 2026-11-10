@@ -419,5 +419,8 @@
   "vault.settings.backupText": "Un backup è la tua cassaforte così com’è, sigillata con la frase segreta che ha ora.",
   "vault.settings.plainText": "Il file contiene ogni segreto in chiaro: chi lo ha ha le tue password e i tuoi codici. Usalo per passare a un’altra app, poi eliminalo.",
   "vault.settings.removeHint": "Se la frase segreta è persa: rimuove dal tuo account la cassaforte con tutto ciò che contiene, per ricominciare.",
-  "vault.error.notBackup": "Questo non è un backup di una cassaforte."
+  "vault.error.notBackup": "Questo non è un backup di una cassaforte.",
+  "notify.call": "{name} ti sta chiamando",
+  "notify.callGroup": "{name} chiama in {group}",
+  "notify.answer": "Rispondi"
 }

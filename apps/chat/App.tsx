@@ -1,11 +1,14 @@
 // Chat: private messages between accounts, groups that stay until their host
 // closes them, and live rooms that vanish, on nostr. Armory mounts it as
 // Uplink. Routes: #/ messages, #/groups, #/dm/<pk>, #/group/<pub>/<host>/<invite>/<name>
-// (either with ?m=<message> to show one), #/room/<secret>, #/search?q=, #/settings.
+// (either with ?m=<message> to show one), #/room/<secret>, #/search?q=, #/call (the call this page is in;
+// #/call/<id>: a ringing one), #/settings. A ringing call shows over every screen, a call going on as a bar.
 import { useEffect } from 'react';
 import { AppShell, useMount } from '../../ui/AppShell';
 import { useMessages, useT } from '../../ui/hooks';
 import { useHash } from '../../ui/route';
+import { useActiveCall } from './calling';
+import { CallBar, CallScreen, IncomingCall } from './pages/Call';
 import { ChatSettings } from './pages/ChatSettings';
 import { Conversation } from './pages/Conversation';
 import { GroupView } from './pages/GroupView';
@@ -19,11 +22,12 @@ export function ChatApp() {
   const mount = useMount();
   const route = parseRoute(useHash());
   const dm = useMessages(); // the runtime's inbox: it belongs to the identity and follows a sign-in
+  const active = useActiveCall();
   useEffect(() => {
     document.title = mount.name;
   }, [mount.name]);
   // a thread (a conversation, a group, a room) is a messenger screen: the page is the viewport, the composer pinned at the bottom
-  const thread = route.page === 'dm' || route.page === 'group' || route.page === 'room';
+  const thread = route.page === 'dm' || route.page === 'group' || route.page === 'room' || route.page === 'call';
   useEffect(() => {
     document.body.classList.toggle('thread', thread);
     return () => document.body.classList.remove('thread');
@@ -67,6 +71,10 @@ export function ChatApp() {
       <Conversation key={route.pk} pk={route.pk} draft={route.draft} focus={route.focus} />
     ) : route.page === 'group' ? (
       <GroupView key={route.pub} pub={route.pub} host={route.host} invite={route.invite} name={route.name} relays={route.relays} focus={route.focus} />
+    ) : route.page === 'call' && (active || !route.id) ? (
+      <CallScreen />
+    ) : route.page === 'call' ? (
+      <Home tab="messages" />
     ) : route.page === 'search' ? (
       <Search q={route.q} />
     ) : route.page === 'settings' ? (
@@ -76,7 +84,11 @@ export function ChatApp() {
     );
   return (
     <AppShell footer={t('chat.footer')} settings="#/settings">
-      <DmContext.Provider value={dm}>{page}</DmContext.Provider>
+      <DmContext.Provider value={dm}>
+        {dm && route.page !== 'call' ? <CallBar /> : null}
+        {page}
+        {dm ? <IncomingCall want={route.page === 'call' ? route.id : ''} /> : null}
+      </DmContext.Provider>
     </AppShell>
   );
 }

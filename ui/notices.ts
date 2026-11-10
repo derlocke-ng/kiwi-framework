@@ -1,7 +1,8 @@
 // What every page shows for People and the chat: a toast for a new friend
 // request, for something shared with you that no open app has taken (once
-// per device), and for a message that arrives while you are elsewhere; the
-// same as browser notifications when the device asked for them.
+// per device), for a message that arrives while you are elsewhere, and for a
+// call ringing (with the way to answer it in the chat); the same as browser
+// notifications when the device asked for them.
 import { useEffect } from 'react';
 import { appById, mountsOf } from '../shared/apps.js';
 import { fingerprint } from '../shared/events.js';
@@ -9,7 +10,7 @@ import { t } from '../shared/i18n.js';
 import { store } from '../shared/util.js';
 import { useGroups, useKiwi, useMessages, usePeople } from './hooks';
 import { chatMount, notifyBrowser } from './notify';
-import { toast } from './toast';
+import { dismiss, toast } from './toast';
 
 const NOTIFIED = 'wjs.people.notified';
 
@@ -53,6 +54,27 @@ export function usePeopleNotices(): void {
       offInvite();
     };
   }, [groups, messages, people, base, current, icon]);
+  // a call while this page is open, on any page but the chat's own (it rings there itself): a friend's, or in a group
+  useEffect(() => {
+    const chat = chatMount();
+    if (!messages || !chat || current === chat.id) return;
+    const shown = new Map<string, number>();
+    return messages.onCall((line: any) => {
+      const id = line.call.id;
+      const ringing = line.call.state === 'ringing' && line.from !== kiwi.identity().pk && Date.now() / 1000 - line.at < 45 && Boolean(line.call.secret);
+      if (!ringing) {
+        if (shown.has(id)) dismiss(shown.get(id) as number);
+        shown.delete(id);
+        return;
+      }
+      if (shown.has(id) || (line.group ? !groups?.entry(line.conv) : !people?.isFriend(line.from))) return;
+      const name = people?.friends?.().find((f: any) => f.pk === line.from)?.name || people?.nameOf?.(line.from) || fingerprint(line.from);
+      const title = line.group ? t('notify.callGroup', { name, group: groups?.entry(line.conv)?.name || '' }) : t('notify.call', { name });
+      const href = `${base}${chat.id}/#/call/${id}`;
+      shown.set(id, toast(title, 'info', 45_000, { label: t('notify.answer'), href }));
+      notifyBrowser({ title, url: href, tag: `call-${id}`, icon });
+    });
+  }, [messages, people, groups, base, current, icon, kiwi]);
   // a message while this page is open, unless it is the conversation on screen
   useEffect(() => {
     const chat = chatMount();

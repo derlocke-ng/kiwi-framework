@@ -11,6 +11,7 @@ import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
 import { useBlocks, useGroups, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
+import { activeCall, startCall } from '../calling';
 import { useDm, useDmVersion } from '../state';
 import { Thread, type ThreadApi, TimerDialog, timerLabel } from './Thread';
 
@@ -89,6 +90,15 @@ export function Conversation({ pk, draft = '', focus = '' }: { pk: string; draft
       ...(!blocked ? [{ label: t('chat.block'), icon: 'x', danger: true, run: block }] : []),
     ]);
   };
+  const call = async (video: boolean) => {
+    if (activeCall()) return toast(t('call.busy'), 'info');
+    try {
+      await startCall(kiwi, { conv: pk, video, title: name });
+      location.hash = '#/call';
+    } catch (err) {
+      toastError(err);
+    }
+  };
   const api: ThreadApi = {
     send: (text, reply) => dm.send(pk, text, { reply }),
     sendFile: (file, onProgress, reply) =>
@@ -118,6 +128,16 @@ export function Conversation({ pk, draft = '', focus = '' }: { pk: string; draft
             </small>
           ) : null}
         </div>
+        {blocked ? null : (
+          <>
+            <button type="button" className="icon-btn" data-act="call" aria-label={t('call.voice')} title={t('call.voice')} onClick={() => call(false)}>
+              <Icon name="phone" />
+            </button>
+            <button type="button" className="icon-btn" data-act="video-call" aria-label={t('call.video')} title={t('call.video')} onClick={() => call(true)}>
+              <Icon name="video" />
+            </button>
+          </>
+        )}
         <button type="button" className="icon-btn" data-act="menu" aria-label={t('common.more')} ref={menuBtn} onClick={menu}>
           <Icon name="ellipsis" />
         </button>

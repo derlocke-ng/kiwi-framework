@@ -3,7 +3,8 @@
 // conversation, accepted in the settings; a board sent from the boards app,
 // the hub's unread count and toast, a browser notification; a reply, a
 // reaction, an edit, a pin and a deletion seen on the other side, the
-// search, a pinned conversation, disappearing messages; a room invitation;
+// search, a pinned conversation, disappearing messages; calls (a video
+// call answered, one declined, one missed); a room invitation;
 // groups (with a reaction, a reply and a timer); blocking; live rooms
 // between strangers, with nothing kept on the relay; German.
 //
@@ -226,6 +227,40 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.click('#timerDialog [data-timer="0"]');
   await until(async () => (await B.$('#timerBadge')) === null, 'off on B', 30000);
 
+  step('a video call: A rings B, B answers, both see and hear each other straight between the browsers; A hangs up; the line says how long');
+  await talk(A, pkB);
+  await talk(B, pkA);
+  await A.click('.page-head [data-act=video-call]');
+  await A.waitForSelector('#call');
+  await B.waitForSelector('#incomingCall', { timeout: 30000 });
+  assert.match(await B.textContent('#incomingCall'), /video/i);
+  await B.click('#incomingCall [data-act=answer-video]');
+  await until(async () => (await A.getAttribute('#call', 'data-state')) === 'connected' && (await B.getAttribute('#call', 'data-state')) === 'connected', 'connected on both', 30000);
+  await until(
+    async () => B.$eval('#call .call-tile video', (v) => v.videoWidth > 0 && v.srcObject.getAudioTracks().length === 1).catch(() => false),
+    'A’s picture and voice on B',
+    20000,
+  );
+  assert.equal((await env.relayEvents([{ kinds: [21700, 21701] }])).length, 0, 'the relay kept nothing of the call’s room');
+  await B.click('#call [data-act=mute]');
+  assert.equal(await B.getAttribute('#call [data-act=mute]', 'aria-pressed'), 'true');
+  await A.waitForTimeout(1200);
+  await A.click('#call [data-act=hangup]');
+  await until(async () => (await B.$('#call')) === null, 'the call ends on B when A hangs up', 20000);
+  await until(async () => /\d:\d\d/.test(await B.textContent('#messages .sysline[data-system=call]:last-of-type').catch(() => '')), 'the call’s line on B says how long', 30000);
+
+  step('B declines a voice call; a call A calls off before an answer is missed on B');
+  await A.click('.page-head [data-act=call]');
+  await B.waitForSelector('#incomingCall', { timeout: 30000 });
+  await B.click('#incomingCall [data-act=decline]');
+  await until(async () => (await A.$('#call')) === null, 'A’s call ends when B says no', 20000);
+  await until(async () => (await texts(A, '#messages .sysline[data-system=call]')).some((x) => /declined/i.test(x)), 'declined, on A', 20000);
+  await A.click('.page-head [data-act=call]');
+  await B.waitForSelector('#incomingCall', { timeout: 30000 });
+  await A.click('#call [data-act=hangup]');
+  await until(async () => (await B.$('#incomingCall')) === null, 'B stops ringing', 20000);
+  await until(async () => (await texts(B, '#messages .sysline[data-system=call]')).some((x) => /missed/i.test(x)), 'a missed call, on B', 20000);
+
   step('a room invitation reaches a friend sealed, not as a link; yes puts them at the room’s door, and the two talk');
   const invite = `${APP}#/room/invite${Date.now().toString(36)}xyz`;
   await A.goto(invite);
@@ -295,6 +330,17 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.click('.menu [data-act=timer]');
   await A.click('#timerDialog [data-timer="0"]');
   await until(async () => (await B.$('#timerBadge')) === null, 'and off again', 30000);
+  // a call in the group: everyone in it rings; the call goes on until the last one leaves
+  await A.click('.page-head [data-act=call]');
+  await B.waitForSelector('#incomingCall', { timeout: 30000 });
+  assert.match(await B.textContent('#incomingCall'), /Crew/);
+  await B.click('#incomingCall [data-act=answer]');
+  await until(async () => (await A.getAttribute('#call', 'data-state')) === 'connected' && (await B.getAttribute('#call', 'data-state')) === 'connected', 'a group call, connected', 30000);
+  await A.click('#call [data-act=hangup]');
+  await sleep(1500);
+  assert.ok(await B.$('#call'), 'B stays in the group’s call when A leaves');
+  await B.click('#call [data-act=hangup]');
+  await until(async () => /\d:\d\d/.test(await A.textContent('#groupMessages .sysline[data-system=call]:last-of-type').catch(() => '')), 'the last one out ends it: the line says how long', 30000);
   await open(A2, '#/groups');
   await until(async () => (await texts(A2, '#groupList .conv-name')).includes('Crew'), 'A’s other device has the group', 40000);
   await A2.click('#groupList .conv');

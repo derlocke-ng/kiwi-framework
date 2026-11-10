@@ -407,5 +407,8 @@
   "vault.settings.backupText": "Eine Sicherungsdatei ist dein Tresor, wie er ist, versiegelt mit seiner jetzigen Passphrase.",
   "vault.settings.plainText": "Die Datei enthält jedes Geheimnis im Klartext: Wer sie hat, hat deine Passwörter und Codes. Nutze sie zum Umzug in eine andere App und lösche sie dann.",
   "vault.settings.removeHint": "Wenn die Passphrase verloren ist: Entfernt den Tresor mit allem darin aus deinem Konto, damit du neu anfangen kannst.",
-  "vault.error.notBackup": "Das ist keine Sicherung eines Tresors."
+  "vault.error.notBackup": "Das ist keine Sicherung eines Tresors.",
+  "notify.call": "{name} ruft an",
+  "notify.callGroup": "{name} ruft in {group} an",
+  "notify.answer": "Annehmen"
 }

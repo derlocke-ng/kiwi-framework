@@ -262,6 +262,7 @@ export class Room extends Emitter {
     else if (m.type === 'answer') this.pending.get(m.cid)?.(m);
     else if (m.type === 'relay') this.acceptRelay(m);
     else if (m.type === 'bye') this.channels.get(m.cid)?.close('bye', false);
+    else this.emit('mail', m); // another use of the room's mail (a call's offers and answers, shared/calls.js)
   }
 
   /** Open a channel to a peer: direct WebRTC first, the relays as fallback. */

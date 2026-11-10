@@ -13,9 +13,10 @@ import { deviceId, deviceName } from '../shared/device.js';
 import { DISTRIBUTION } from '../shared/distribution.js';
 import { sign } from '../shared/events.js';
 import { Groups } from '../shared/groups.js';
-import { loadHubConfig } from '../shared/hubconfig.js';
+import { iceList, loadHubConfig } from '../shared/hubconfig.js';
 import { currentLanguage, initI18n, LANGUAGES, savedLanguage, setLanguage, t } from '../shared/i18n.js';
 import { BlockList } from '../shared/moderation.js';
+import { ICE_SERVERS } from '../shared/p2p.js';
 import { PeerNetworks } from '../shared/peers.js';
 import { People } from '../shared/people.js';
 import { hintsAllowed, RelayLists } from '../shared/relaylists.js';
@@ -365,6 +366,15 @@ export class Kiwi {
 
   hasCustomOrder(): boolean {
     return ((this.suite?.get('appOrder', []) as string[] | undefined) || []).length > 0;
+  }
+
+  /**
+   * The STUN and TURN servers calls use: the hub's own when it names them (`ice` in its config or hub.local.json, a
+   * coturn of its own), then only those; else public STUN servers, which see that a call is set up, nothing of it.
+   */
+  iceServers(): RTCIceServer[] {
+    const own = iceList((DISTRIBUTION as { ice?: unknown }).ice);
+    return own?.length ? own : ICE_SERVERS;
   }
 
   /** The media (Blossom) servers uploads go to, first choice first: the person's own list, or the hub's. */

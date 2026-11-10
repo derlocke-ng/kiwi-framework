@@ -22,6 +22,9 @@
 #   HUB_CALDAV          a Nextcloud for the calendar app, e.g. https://cloud.sh3.home: nginx forwards
 #                       /remote.php/dav/ there (and /.well-known/caldav to it), and the calendar offers this hub's
 #                       own address, so the page needs no CORS from the Nextcloud
+#   HUB_ICE             STUN and TURN servers for calls in the chat, e.g. stun:turn.sh3.home:3478 turn:turn.sh3.home:3478
+#                       (only these are used then, none of the public defaults); a TURN server's login in
+#   HUB_ICE_USERNAME, HUB_ICE_CREDENTIAL  (they are in the page: give the TURN server a login for this hub alone)
 set -eu
 root=${HUB_ROOT:-/usr/share/nginx/html}
 out="$root/hub.local.json"
@@ -60,7 +63,7 @@ case "${HUB_CALDAV:-}" in
     *) echo "HUB_CALDAV must be an http(s) address, e.g. https://cloud.sh3.home; ignored" >&2; rm -f "$dav" ;;
 esac
 
-if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}${HUB_SPACE_RELAYS:-}${HUB_ACCOUNT_MOUNTS:-}${HUB_REQUIRE_ACCOUNT:-}${HUB_MODERATORS:-}${HUB_REGISTER_POW:-}${HUB_CALDAV:-}" ]; then
+if [ -z "${HUB_RELAYS:-}${HUB_PUBLIC_RELAYS:-}${HUB_DIRECTORY_RELAYS:-}${HUB_RELAYS_LOCKED:-}${HUB_REQUIRE_HUB:-}${HUB_PUBLIC_MOUNTS:-}${HUB_USER_MOUNTS:-}${HUB_SPACE_RELAYS:-}${HUB_ACCOUNT_MOUNTS:-}${HUB_REQUIRE_ACCOUNT:-}${HUB_MODERATORS:-}${HUB_REGISTER_POW:-}${HUB_CALDAV:-}${HUB_ICE:-}" ]; then
     rm -f "$out"
     exit 0
 fi
@@ -92,6 +95,12 @@ bool() { # true/yes/1/on -> true, anything else -> false
     if [ -n "${HUB_ACCOUNT_MOUNTS+x}" ]; then printf "$sep"'  "accountMounts": %s' "$(json_list "${HUB_ACCOUNT_MOUNTS:-}")"; sep=',\n'; fi
     if [ -n "${HUB_MODERATORS:-}" ]; then printf "$sep"'  "moderators": %s' "$(json_list "$HUB_MODERATORS")"; sep=',\n'; fi
     if [ -f "$dav" ]; then printf "$sep"'  "caldav": "/remote.php/dav/"'; sep=',\n'; fi
+    if [ -n "${HUB_ICE:-}" ]; then
+        login=''
+        if [ -n "${HUB_ICE_USERNAME:-}" ]; then login="$login, \"username\": \"$(printf '%s' "$HUB_ICE_USERNAME" | sed 's/["\\]/\\&/g')\""; fi
+        if [ -n "${HUB_ICE_CREDENTIAL:-}" ]; then login="$login, \"credential\": \"$(printf '%s' "$HUB_ICE_CREDENTIAL" | sed 's/["\\]/\\&/g')\""; fi
+        printf "$sep"'  "ice": [{ "urls": %s%s }]' "$(json_list "$HUB_ICE")" "$login"; sep=',\n'
+    fi
     if [ -n "${HUB_SPACE_RELAYS:-}" ]; then
         spaces=''
         ssep=''

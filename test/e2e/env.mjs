@@ -89,7 +89,7 @@ export async function setup(name, { webRoot = path.join(root, 'apps'), nostrPort
   const executablePath = process.env.CHROMIUM_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
   // mDNS-obfuscated ICE candidates don't resolve in containers; real browsers are fine.
   // A UTF-8 locale keeps non-ASCII download names (minimal containers default to C).
-  const browser = await chromium.launch({ executablePath, args: ['--disable-features=WebRtcHideLocalIpsWithMdns'], env: { ...process.env, LANG: 'C.UTF-8' } });
+  const browser = await chromium.launch({ executablePath, args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'], env: { ...process.env, LANG: 'C.UTF-8' } });
   const env = {
     tmp,
     nostrUrl: nostr.url,

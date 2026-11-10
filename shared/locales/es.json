@@ -419,5 +419,8 @@
   "vault.settings.backupText": "Una copia de seguridad es tu caja fuerte tal como está, sellada con la frase que tiene ahora.",
   "vault.settings.plainText": "El archivo contiene cada secreto en texto plano: quien lo tenga tiene tus contraseñas y códigos. Úsalo para pasar a otra app y luego bórralo.",
   "vault.settings.removeHint": "Si se perdió la frase: quita de tu cuenta la caja fuerte con todo lo que contiene, para empezar de nuevo.",
-  "vault.error.notBackup": "Esto no es una copia de seguridad de una caja fuerte."
+  "vault.error.notBackup": "Esto no es una copia de seguridad de una caja fuerte.",
+  "notify.call": "{name} te está llamando",
+  "notify.callGroup": "{name} llama en {group}",
+  "notify.answer": "Responder"
 }

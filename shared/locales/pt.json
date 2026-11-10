@@ -419,5 +419,8 @@
   "vault.settings.backupText": "Uma cópia de segurança é o teu cofre tal como está, selado com a frase-senha que tem agora.",
   "vault.settings.plainText": "O ficheiro contém cada segredo em texto simples: quem o tiver tem as tuas palavras-passe e códigos. Usa-o para mudar para outra app e depois apaga-o.",
   "vault.settings.removeHint": "Quando a frase-senha se perdeu: remove da tua conta o cofre com tudo o que tem, para começares de novo.",
-  "vault.error.notBackup": "Isto não é uma cópia de segurança de um cofre."
+  "vault.error.notBackup": "Isto não é uma cópia de segurança de um cofre.",
+  "notify.call": "{name} está ligando",
+  "notify.callGroup": "{name} chama em {group}",
+  "notify.answer": "Atender"
 }

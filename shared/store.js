@@ -4,6 +4,7 @@
 // forget, and what goes into backups.
 
 import { matchFilters } from './nostr.mjs';
+import { mergeCall } from './chatlog.js';
 import { addressOf, expiryOf, supersedes, isEphemeralKind, observe } from './events.js';
 
 const DB_VERSION = 3;
@@ -346,6 +347,17 @@ export class LocalStore {
     }
     for (const fn of this.chatListeners || []) fn(change);
     return true;
+  }
+
+  /** A call's line (shared/chatlog.js callLine): merged with what is known of the call so far. Resolves with the line. */
+  async putCall(line) {
+    const tx = this.db.transaction(['chat', 'meta'], 'readwrite');
+    const os = tx.objectStore('chat');
+    const merged = mergeCall(await req(os.get(line.id)), { ...line, seq: line.seq || Date.now() });
+    await req(os.put(merged));
+    if (merged.expires) await req(tx.objectStore('meta').put({ k: expKey(merged.expires, 'c', merged.id), v: 1 }));
+    for (const fn of this.chatListeners || []) fn(merged);
+    return merged;
   }
 
   /** Every change in one conversation. */

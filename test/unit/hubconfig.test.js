@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DISTRIBUTION } from '../../shared/distribution.js';
-import { applyHubConfig, describeHub } from '../../shared/hubconfig.js';
+import { applyHubConfig, describeHub, iceList } from '../../shared/hubconfig.js';
 import { resolveSpaces, SPACES, spaceAddress, spaceKey } from '../../shared/spaces.js';
 import { getPublicKey, hexToBytes } from '../../shared/nostr.mjs';
 
@@ -69,4 +69,14 @@ test('hub.json describes the hub as built, its spaces with their addresses', () 
     d.mounts.map((m) => m.network),
     ['public', 'hub'],
   );
+});
+
+test('the servers calls use: STUN and TURN addresses with a TURN server’s login, nothing else', () => {
+  const applied = applyHubConfig({ ice: [{ urls: ['stun:turn.sh3.home:3478', 'turn:turn.sh3.home:3478?transport=udp', 'https://x'], username: 'kiwi', credential: 'secret' }, { urls: 'turns:turn.sh3.home:5349' }, 'nope'] });
+  assert.deepEqual(applied.ice, [
+    { urls: ['stun:turn.sh3.home:3478', 'turn:turn.sh3.home:3478?transport=udp'], username: 'kiwi', credential: 'secret' },
+    { urls: ['turns:turn.sh3.home:5349'] },
+  ]);
+  assert.equal(iceList('stun:x'), null);
+  assert.deepEqual(iceList([{ urls: ['http://not-ice'] }]), []);
 });

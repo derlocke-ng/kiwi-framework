@@ -431,5 +431,8 @@
   "vault.settings.backupText": "Plik kopii zapasowej to twój sejf taki, jaki jest, zapieczętowany frazą, którą ma teraz.",
   "vault.settings.plainText": "Plik zawiera każdy sekret zwykłym tekstem: kto go ma, ma twoje hasła i kody. Użyj go, by przejść do innej aplikacji, a potem go usuń.",
   "vault.settings.removeHint": "Gdy fraza przepadła: usuwa z twojego konta sejf z całą zawartością, abyś mógł zacząć od nowa.",
-  "vault.error.notBackup": "To nie jest kopia zapasowa sejfu."
+  "vault.error.notBackup": "To nie jest kopia zapasowa sejfu.",
+  "notify.call": "{name} dzwoni",
+  "notify.callGroup": "{name} dzwoni w grupie {group}",
+  "notify.answer": "Odbierz"
 }

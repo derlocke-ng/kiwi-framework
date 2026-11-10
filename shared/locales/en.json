@@ -407,5 +407,8 @@
   "vault.settings.backupText": "A backup file is your vault as it is, sealed with the passphrase it has now.",
   "vault.settings.plainText": "The file holds every secret in plain text: whoever has it has your passwords and codes. Use it to move to another app, then delete it.",
   "vault.settings.removeHint": "When the passphrase is lost: removes the vault and everything in it from your account, so you can start again.",
-  "vault.error.notBackup": "This is not a backup of a vault."
+  "vault.error.notBackup": "This is not a backup of a vault.",
+  "notify.call": "{name} is calling",
+  "notify.callGroup": "{name} calls in {group}",
+  "notify.answer": "Answer"
 }

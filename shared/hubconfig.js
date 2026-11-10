@@ -22,6 +22,9 @@ const relayList = (v) => (Array.isArray(v) && v.every((r) => RELAY.test(String(r
 export function applyHubConfig(local) {
   const applied = {};
   if (!local || typeof local !== 'object') return applied;
+  // the STUN and TURN servers calls use (a coturn of the hub's, HUB_ICE): only these, none of the defaults
+  const ice = iceList(local.ice);
+  if (ice) applied.ice = DISTRIBUTION.ice = ice;
   const relays = relayList(local.relays);
   if (relays) applied.relays = DISTRIBUTION.relays = relays;
   const publicRelays = relayList(local.publicRelays);
@@ -84,6 +87,24 @@ export function applyHubConfig(local) {
 }
 
 /** Fetch the host's hub.local.json, when it serves one, and apply it. Resolves with what was applied, or null. */
+/**
+ * Servers for calls (RTCIceServer), cleaned: `stun:`, `turn:` and `turns:` addresses, with a TURN server's username
+ * and credential; null when the value is not a list.
+ * @param {any} list
+ * @returns {{ urls: string[], username?: string, credential?: string }[] | null}
+ */
+export function iceList(list) {
+  if (!Array.isArray(list)) return null;
+  const out = [];
+  for (const s of list.slice(0, 8)) {
+    if (!s || typeof s !== 'object') continue;
+    const urls = (Array.isArray(s.urls) ? s.urls : [s.urls]).map((u) => String(u || '').trim()).filter((u) => /^(stun|turns?):\S+$/.test(u));
+    if (!urls.length) continue;
+    out.push({ urls, ...(typeof s.username === 'string' ? { username: s.username } : {}), ...(typeof s.credential === 'string' ? { credential: s.credential } : {}) });
+  }
+  return out;
+}
+
 export async function loadHubConfig(base = './') {
   try {
     const res = await fetch(new URL(LOCAL_CONFIG, new URL(base, location.href)), { cache: 'no-cache', credentials: 'same-origin' });

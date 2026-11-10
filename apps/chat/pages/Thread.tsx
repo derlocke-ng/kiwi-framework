@@ -8,8 +8,10 @@
 // (shared/chat.js messages(), shared/chatlog.js); `api` sends.
 import { type FormEvent, type KeyboardEvent, type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { RING_FOR } from '../../../shared/calls.js';
 import { DirectMessages, TEXT } from '../../../shared/chat.js';
 import { QUICK, TIMERS } from '../../../shared/chatlog.js';
+import { now } from '../../../shared/events.js';
 import { relTime } from '../../../shared/i18n.js';
 import { Icon } from '../../../ui/components';
 import { confirmDialog } from '../../../ui/dialogs';
@@ -63,8 +65,33 @@ export function timerLabel(t: T, seconds: number): string {
   return TIMER_KEYS[seconds] ? t(`chat.timer.${TIMER_KEYS[seconds]}`) : t('chat.timer.minutes', { n: Math.max(1, Math.round(seconds / 60)) });
 }
 
-/** The line a timer leaves in the thread. */
+const JOIN_FOR = 6 * 3600; // a group's call is offered to join for so long after it started (nobody knows when the last one left)
+
+/** A call's line: how it went, or that it is going on. */
+export function callText(t: T, m: any, me: string, nameOf: (pk: string) => string): string {
+  const c = m.call;
+  if (c.state === 'ended') return t('call.line.ended', { time: `${Math.floor((c.duration || 0) / 60)}:${String((c.duration || 0) % 60).padStart(2, '0')}` });
+  if (c.state === 'declined') return t('call.line.declined');
+  if (m.group && (c.state === 'ringing' || c.state === 'answered')) return t('call.line.group', { name: nameOf(m.from) });
+  if (c.state === 'answered') return t(c.video ? 'call.video' : 'call.voice');
+  if (c.state === 'ringing' && now() - m.at < RING_FOR) return t('call.line.ringing');
+  return m.from === me ? t('call.line.noAnswer') : t('call.line.missed');
+}
+
+/** A group's call that may still be going on: it can be joined. */
+export const joinable = (m: any) =>
+  m.system === 'call' && m.group && ['ringing', 'answered'].includes(m.call.state) && m.call.secret && now() - m.at < JOIN_FOR;
+
+const callIcon = (m: any, me: string) =>
+  m.call.state === 'missed' || (m.call.state === 'ringing' && !m.group && m.from !== me && now() - m.at >= RING_FOR)
+    ? 'phone-missed'
+    : m.call.video
+      ? 'video'
+      : 'phone';
+
+/** The line a timer or a call leaves in the thread. */
 export function systemText(t: T, m: any, me: string, nameOf: (pk: string) => string): string {
+  if (m.system === 'call') return callText(t, m, me, nameOf);
   const time = timerLabel(t, m.timer);
   if (m.from === me) return m.timer ? t('chat.timer.youSet', { time }) : t('chat.timer.youOff');
   return m.timer ? t('chat.timer.theySet', { name: nameOf(m.from), time }) : t('chat.timer.theyOff', { name: nameOf(m.from) });
@@ -359,6 +386,7 @@ export function Thread({
   composerId = 'composer',
   closed = false,
   empty = '',
+  onJoin,
 }: {
   conv: string;
   api: ThreadApi;
@@ -370,6 +398,8 @@ export function Thread({
   /** no composer (a blocked person) */
   closed?: boolean;
   empty?: string;
+  /** a group's call line offers to join it */
+  onJoin?: (m: any) => void;
 }) {
   const t = useT();
   const dm = useDm();
@@ -497,9 +527,14 @@ export function Thread({
         {loaded && !msgs.length && empty ? <p className="empty">{empty}</p> : null}
         {msgs.map((m) =>
           m.system ? (
-            <p key={m.id} className="sysline" data-system={m.system} data-id={m.id}>
-              <Icon name="timer" />
+            <p key={m.id} className="sysline" data-system={m.system} data-id={m.id} data-state={m.call?.state}>
+              <Icon name={m.system === 'call' ? callIcon(m, me) : 'timer'} />
               <span>{systemText(t, m, me, api.nameOf)}</span>
+              {onJoin && joinable(m) ? (
+                <button type="button" className="btn btn-sm btn-primary" data-act="join" onClick={() => onJoin(m)}>
+                  {t('call.join')}
+                </button>
+              ) : null}
             </p>
           ) : (
             // a tap on the bubble opens its actions (it holds links and files of its own, so it is no button); by keyboard, its time is the button

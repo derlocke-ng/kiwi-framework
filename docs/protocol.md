@@ -160,6 +160,8 @@ Changes arrive in any order, before their message or long after; a device keeps 
 
 **Disappearing messages.** In a conversation, kind **7832** (`{ "seconds": <0–2419200> }`, 0 for off) sets the conversation's timer for both sides; the newest setting by either side counts, and each leaves a line in the conversation. In a group, the host's info (§7b) carries `"expire": <seconds>`. While a timer is on, a message carries NIP-40's `["expiration", <now + seconds>]` on the rumor (or the inner event) **and** on both gift wraps (or the outer 7820 event), so relays that keep to NIP-40 drop them, and a change to an expiring message carries the message's expiration. A device does not take an event whose expiration has passed, and forgets expiring events, messages and changes when their time is up (every 30 seconds, and hides them at once). Anyone could still have kept a copy (a screenshot, another app, a relay that ignores NIP-40).
 
+**Calls** (0.31). A call's steps travel like a change: a rumor of kind **7833** in the conversation's wraps, or a member's inner event of kind 7833 in a group's 7820, with the content `{ "id": <32 hex>, "at": <the ring's time>, "caller": <hex key>, "video": <bool>, "action": "ring" | "answer" | "decline" | "cancel" | "end", "secret"?: <the room's secret, ring only>, "duration"?: <seconds, end only> }`. A ring is believed only from its caller; the others from anyone in the conversation. Every device keeps one line per call (id `call:<id>`), the furthest step winning (ringing, answered, missed or declined, ended) whatever the order they arrive in; a ring older than 45 seconds that nobody answered or called off is shown as missed. A device rings for a friend's call, or a call in one of its groups, while the ring is fresh; a stranger's call is only a line. The media find each other in a **room** of §8 named by the call's secret (presence 21700, signals 21701, ephemeral, sealed to the room's key, under a key per visit), where the signals carry `{ "type": "call-offer" | "call-answer", "sdp" }`: of each two in the room, the one with the lower visit key offers, an audio and a video transceiver both ways (the camera can come on later without a new offer), the SDP with its ICE candidates gathered. The media then go straight between the browsers, encrypted by WebRTC (DTLS-SRTP); a group call is a mesh of up to six. ICE servers: the hub's `ice` (RTCIceServer objects in its config or hub.local.json, `HUB_ICE` in the container; a TURN server for networks that allow no direct path), else public STUN servers. With the conversation's timer on, a call's steps carry its expiration like a message.
+
 **Pinned conversations** (which conversations and groups come first in the chat's lists) are the person's own: `pinned` in the account's chat settings (kind 30791, `d` = `chat`), the last pinned first. The **search** runs on the device over what it holds; nothing is sent.
 
 ## 8. Live rooms (Payload, pong, chat)
@@ -227,7 +229,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
 | 21700–21702, 21710 | in use: live rooms (§8): presence, signals, data frames, chat-room messages |
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
-| 7, 5, 7830–7832 | in use inside gift wraps and group seals only: reactions, deletions, edits, pins and timers (§7c) |
+| 7, 5, 7830–7833 | in use inside gift wraps and group seals only: reactions, deletions, edits, pins, timers and calls (§7c) |
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
 | 30830 | in use: market listings (§14) |
@@ -303,6 +305,7 @@ The authenticator shows every entry with a `totp`: `name` and `username` stand f
 - **v1, extended** (0.28): keys and certificates in the vault (§16: entry types `ssh`, `ca`, `cert`). No existing format changed.
 - **v1, extended** (0.29): a certificate's `origin`, `csrPem`, `days` and `previous`, a CA's `permitted`, a subject's `st` and `l` (§16). No existing format changed.
 - **v1, extended** (0.30): replies, reactions, edits, pins, deletions and disappearing messages in conversations and groups (§7c: kinds 7, 5, 7830–7832 inside wraps and seals, NIP-40 on the wraps and group events, `expire` in a group's info, `pinned` in the chat settings). No existing format changed; a device before 0.30 shows the messages and leaves the rest unread until it is updated.
+- **v1, extended** (0.31): calls (§7c: kind 7833 inside wraps and seals, the room's `call-offer` and `call-answer` signals of §8, `ice` in the hub's config). No existing format changed.
 
 
 ## 9. Relay lists, inboxes and hints

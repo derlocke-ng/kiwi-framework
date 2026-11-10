@@ -20,7 +20,7 @@
 //   await dm.react(pk, message, '👍');  dm.edit(pk, message, text);  dm.remove(pk, message);  dm.pin(pk, message, true)
 //   await dm.setTimer(pk, 86_400);  await dm.search('words')
 
-import { CHANGE_KINDS, changeOf, cleanTimer, fold, matches, myReactions, pinsOf, replyOf, searchable } from './chatlog.js';
+import { CHANGE_KINDS, callLine, changeOf, cleanTimer, fold, matches, myReactions, pinsOf, replyOf, searchable } from './chatlog.js';
 import { expiryOf, isHex64, KINDS, now } from './events.js';
 import { cleanFile, fileFromRumor, fileTags } from './files.js';
 import { baseStore, whole } from './peers.js';
@@ -70,6 +70,7 @@ export class DirectMessages {
     this.seen = new Set(store.get(this.seenKey, []));
     this.listeners = new Set();
     this.messageListeners = new Set();
+    this.callListeners = new Set();
     this.rumorHandlers = new Map(); // kind -> Set(fn): other modules' rumors (groups' knocks and keys)
     this.queue = Promise.resolve();
     this.ready = false; // true once what the device already held is unwrapped: later messages are news
@@ -132,6 +133,7 @@ export class DirectMessages {
     const told = relaysTag(rumor);
     if (told.length && isHex64(rumor.pubkey) && rumor.pubkey !== this.pk) this.peers?.learnRelays?.(rumor.pubkey, network, told);
     if (CHANGE_KINDS.includes(rumor.kind) || rumor.kind === KINDS.CHAT_TIMER) return this.handleChange(rumor, ev);
+    if (rumor.kind === KINDS.CHAT_CALL) return this.handleCall(rumor, ev);
     if (rumor.kind !== KINDS.CHAT_MESSAGE && rumor.kind !== KINDS.CHAT_FILE) {
       // another module's rumor: the groups' knocks and keys, the audiences' keys come through here; People's are its own
       const handlers = this.rumorHandlers.get(rumor.kind);
@@ -202,6 +204,48 @@ export class DirectMessages {
     const change = changeOf(rumor, { conv: other, from, t });
     if (change && !(change.expires && change.expires <= now())) await baseStore(this.net.db).putChange(change);
     this.markSeen(ev.id);
+  }
+
+  /** A call rung, answered, declined, called off or ended in a conversation: its line, and the ringing on screen. */
+  async handleCall(rumor, ev) {
+    const from = rumor.pubkey;
+    const to = rumor.tags.find((x) => x[0] === 'p')?.[1];
+    const other = from === this.pk ? to : from;
+    if (!isHex64(from) || !isHex64(other) || this.isBlocked(other)) return this.markSeen(ev.id);
+    let body = null;
+    try {
+      body = JSON.parse(rumor.content || '{}');
+    } catch {}
+    const line = callLine(body, { conv: other, from, expires: expiryOf(rumor) });
+    if (line && !(line.expires && line.expires <= now())) this.callArrived(await baseStore(this.net.db).putCall(line));
+    this.markSeen(ev.id);
+  }
+
+  /** A call's line as it is now, to whoever on this page rings or shows calls (a group's comes through here too). */
+  callArrived(line) {
+    if (this.ready) for (const fn of this.callListeners) fn(line);
+  }
+
+  /** Called with a call's line whenever something happens to a call while the page is open (shared/calls.js). */
+  onCall(fn) {
+    this.callListeners.add(fn);
+    return () => this.callListeners.delete(fn);
+  }
+
+  /**
+   * One step of a call in a conversation: `ring` (with the room's `secret`), `answer`, `decline`, `cancel` (rung
+   * out unanswered) or `end` (with its `duration`). Wrapped for both sides like a message; it goes when a ring
+   * under the conversation's timer would.
+   */
+  async call(pk, { id, at, caller, video = false, secret = '', duration = 0, expires = null }, action) {
+    const body = { id, at, caller, video: Boolean(video), action, ...(action === 'ring' ? { secret } : {}), ...(action === 'end' ? { duration } : {}) };
+    const exp = expires ?? (await this.expiresFor(pk));
+    return this.deliver(pk, KINDS.CHAT_CALL, JSON.stringify(body), [], { expires: exp || 0, name: action === 'ring' });
+  }
+
+  /** A call's line by its id, or null. */
+  callById(id) {
+    return this.net.db.getMessage(`call:${id}`);
   }
 
   markSeen(id) {

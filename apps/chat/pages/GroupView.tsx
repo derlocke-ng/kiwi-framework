@@ -12,6 +12,7 @@ import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu, pickPeople } from '../../../ui/dialogs';
 import { useGroups, useIdentity, useKiwi, usePeople, useT } from '../../../ui/hooks';
 import { copyText, toast, toastError } from '../../../ui/toast';
+import { activeCall, answerCall, startCall } from '../calling';
 import { savedNick, saveNick } from '../state';
 import { Thread, type ThreadApi, TimerDialog, timerLabel } from './Thread';
 
@@ -214,6 +215,25 @@ export function GroupView({
     ]);
   };
 
+  // a call in the group: everyone rings; anyone in it joins from its line while it goes on
+  const call = async (video: boolean) => {
+    if (activeCall()) return toast(t('call.busy'), 'info');
+    try {
+      await startCall(kiwi, { conv: pub, group: true, video, title: name });
+      location.hash = '#/call';
+    } catch (err) {
+      toastError(err);
+    }
+  };
+  const join = async (line: any) => {
+    if (activeCall()) return toast(t('call.busy'), 'info');
+    try {
+      await answerCall(kiwi, line, { video: false, title: name });
+      location.hash = '#/call';
+    } catch (err) {
+      toastError(err);
+    }
+  };
   const api: ThreadApi = {
     send: (text, reply) => groups.say(pub, text, { reply }),
     sendFile: (file, onProgress, reply) =>
@@ -259,12 +279,18 @@ export function GroupView({
             ))}
           </small>
         </div>
+        <button type="button" className="icon-btn" data-act="call" aria-label={t('call.voice')} title={t('call.voice')} onClick={() => call(false)}>
+          <Icon name="phone" />
+        </button>
+        <button type="button" className="icon-btn" data-act="video-call" aria-label={t('call.video')} title={t('call.video')} onClick={() => call(true)}>
+          <Icon name="video" />
+        </button>
         <button type="button" className="icon-btn" data-act="menu" aria-label={t('common.more')} ref={menuBtn} onClick={menu}>
           <Icon name="ellipsis" />
         </button>
       </div>
       {isHost ? <Requests pub={pub} /> : null}
-      <Thread conv={pub} api={api} group focus={focus} listId="groupMessages" composerId="groupComposer" empty={t('chat.group.empty')} />
+      <Thread conv={pub} api={api} group focus={focus} listId="groupMessages" composerId="groupComposer" empty={t('chat.group.empty')} onJoin={join} />
       {timing ? <TimerDialog current={timer} onPick={(s) => groups.setTimer(pub, s)} onClose={() => setTiming(false)} /> : null}
     </section>
   );

@@ -14,6 +14,10 @@ A group stays until its host closes it. It is a key pair: its pubkey is where it
 
 Tap a message for its actions: a reaction (one a person; tap it again, or the chip under the message, to take it back), reply (the answer quotes it; a tap on the quote goes to it), copy, edit (your own text; both sides see it marked as edited), pin (above the conversation, for both sides; a tap on the bar goes to the message, the next tap to the next pin) and delete (your own, for both sides). Each is a sealed event of its own, sent like the messages (a gift-wrapped rumor in a conversation, a member's event inside the group's seal), and every device folds them into what it shows, in whatever order they came (`shared/chatlog.js`). A conversation or a group can make its messages **disappear** after five minutes to four weeks (either person in a conversation, the host in a group): each message then carries NIP-40's expiration inside and out, relays that keep to it drop the copies and every device running this app forgets them on time. Conversations can be pinned to the top of the lists, and the **search** (the magnifier) looks through every conversation and group on the device. The protocol is §7c of the framework's `docs/protocol.md`.
 
+## Calls
+
+The phone and camera buttons above a conversation or a group ring the others: a sealed step in the conversation (so a missed or declined call, or how long one lasted, is a line there on every device), with the secret of a room in which the browsers find each other (sealed ephemeral events on the hub's relays, as Payload's direct transfers do). Voice and pictures then go straight between the browsers (WebRTC). In a call: the microphone, the camera (on or off at any time), the other camera of a phone, hang up; elsewhere in the chat a green bar leads back. A friend's call rings on every page of the hub (in the chat as a card with answer, answer with video and decline; elsewhere as a toast); a stranger's is only a line. A group's call rings everyone in it and anyone joins from its line; it suits a handful of people. Where two networks allow no direct path, a TURN server the hub names (`ice`, `HUB_ICE`) carries the call. `calling.ts` holds the call this page is in; `shared/calls.js` the media.
+
 ## Rooms
 
 A room is a link: its `#secret` names the room (relays see a hash of it) and is the key everything in it is sealed with. Messages and presence are **ephemeral** nostr events (kinds 21710 and 21700) tagged with the room's id: relays pass them to whoever is in the room right now and keep nothing, so a room has no history and is gone when the last person leaves. Everyone speaks under a key made for the visit; the nickname travels inside the sealed content. Leaving tells the room, so the others drop the name at once; a reload puts the person straight back in as the same person (the tab keeps the visit's key and name in session storage). No account is needed. This is what EnigmaJS did, on nostr.
@@ -22,12 +26,13 @@ A room is a link: its `#secret` names the room (relays see a hash of it) and is 
 
 | File | What |
 |---|---|
-| `main.tsx`, `App.tsx` | the page; routes `#/` (conversations), `#/groups`, `#/dm/<pk>`, `#/group/…` (either with `?m=<id>` to show a message), `#/room/<secret>`, `#/search`, `#/settings` |
+| `main.tsx`, `App.tsx` | the page; routes `#/` (conversations), `#/groups`, `#/dm/<pk>`, `#/group/…` (either with `?m=<id>` to show a message), `#/room/<secret>`, `#/search`, `#/call` (the call; `#/call/<id>` a ringing one), `#/settings` |
 | `shared/chat.js` (framework) | `DirectMessages`: wrapping, unwrapping, the inbox, read marks; started by the runtime on every page, so the hub counts unread messages and any app can send into a conversation |
 | `data/rooms.js` | `Room`: joining, presence, saying, who is here |
 | `shared/groups.js` (framework) | `Groups`: the groups a person is in, knocks and keys, joins and leaves, re-keying, closing; started by the runtime |
 | `shared/chatlog.js` (framework) | replies, reactions, edits, pins, deletions and timers: reading them from events and folding them into messages |
-| `pages/` | `Home` (Messages and Groups tabs), `Thread` (the messages, their actions, the pin bar and the `Composer`, for conversations and groups), `Conversation`, `GroupView` (the door, the group), `Search`, `RoomView`, `ChatSettings` |
+| `shared/calls.js` (framework), `calling.ts` | a call's media and room; the call this page is in, and its steps |
+| `pages/` | `Call` (the call, the ringing card, the bar back), `Home` (Messages and Groups tabs), `Thread` (the messages, their actions, the pin bar and the `Composer`, for conversations and groups), `Conversation`, `GroupView` (the door, the group), `Search`, `RoomView`, `ChatSettings` |
 | `chat.css`, `locales/` | the app's own styles and strings |
 
 `node test/e2e/chat.mjs` runs two accounts and some strangers against a local relay on a test hub; Armory runs the same suite against its site.

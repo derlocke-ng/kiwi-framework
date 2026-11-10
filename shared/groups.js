@@ -25,7 +25,7 @@
 //   await groups.knock({ pub, host, invite, name, myName });   // from a link
 //   await groups.say(pub, 'hi');  groups.admit(pub, pk);  groups.kick(pub, pk)
 
-import { CHANGE_KINDS, changeOf, cleanTimer, myReactions, replyOf } from './chatlog.js';
+import { CHANGE_KINDS, callLine, changeOf, cleanTimer, myReactions, replyOf } from './chatlog.js';
 import { expiryOf, isHex64, KINDS, makeAddressable, now, open, seal, sign } from './events.js';
 import { cleanFile, fileFromRumor, fileTags } from './files.js';
 import { bytesToHex, generateSecretKey, getPublicKey, hexToBytes, verifyEvent } from './nostr.mjs';
@@ -277,7 +277,7 @@ export class Groups {
     if (exp && exp <= now()) return this.markSeen(ev.id);
     const inner = await this.unseal(g, ev.content);
     // inside a message's seal, the member's event: a message, or a change to one (a reaction, an edit, a pin, a deletion)
-    const kindOk = inner && (inner.kind === ev.kind || (ev.kind === KINDS.GROUP_MESSAGE && CHANGE_KINDS.includes(inner.kind)));
+    const kindOk = inner && (inner.kind === ev.kind || (ev.kind === KINDS.GROUP_MESSAGE && (CHANGE_KINDS.includes(inner.kind) || inner.kind === KINDS.CHAT_CALL)));
     if (!kindOk || !isHex64(inner.pubkey) || !verifyEvent(inner)) return this.markSeen(ev.id);
     const body = parse(inner.content);
     if (ev.kind === KINDS.GROUP_INFO) {
@@ -311,6 +311,14 @@ export class Groups {
       const known = st.members.get(body.pk);
       if (known && known.since <= inner.created_at) known.left = true;
       if (body.pk === this.pk) await this.gone(ev.pubkey, 'removed');
+    } else if (ev.kind === KINDS.GROUP_MESSAGE && inner.kind === KINDS.CHAT_CALL) {
+      // a call in the group: its line; ringing only for what happens while the page is open
+      if (this.isBlocked(inner.pubkey)) return this.markSeen(ev.id);
+      const line = callLine(parse(inner.content), { conv: ev.pubkey, from: inner.pubkey, group: true, expires: exp });
+      if (line) {
+        const merged = await this.net.db.putCall(line);
+        if (!replay) this.inbox.callArrived?.(merged);
+      }
     } else if (ev.kind === KINDS.GROUP_MESSAGE && inner.kind !== KINDS.GROUP_MESSAGE) {
       if (this.isBlocked(inner.pubkey)) return this.markSeen(ev.id);
       const ms = Math.min(999, Math.max(0, Number(inner.tags.find((x) => x[0] === 'ms')?.[1]) || 0));
@@ -581,6 +589,14 @@ export class Groups {
     if (!g || g.host !== this.pk) throw new Error('only the host');
     const st = this.state.get(pub);
     await this.publishInfo(g, { name: st?.name || g.name, open: Boolean(st?.open), expire: cleanTimer(seconds) });
+  }
+
+  /** One step of a call in the group (see DirectMessages.call): the whole group rings; anyone joins. */
+  async call(pub, { id, at, caller, video = false, secret = '', duration = 0, expires = null }, action) {
+    const g = this.entry(pub);
+    if (!g) throw new Error('not in this group');
+    const body = { id, at, caller, video: Boolean(video), action, ...(action === 'ring' ? { secret } : {}), ...(action === 'end' ? { duration } : {}) };
+    return this.publish(g, KINDS.GROUP_MESSAGE, JSON.stringify(body), { inner: KINDS.CHAT_CALL, expires: (expires ?? this.expiresFor(pub)) || 0 });
   }
 
   // ---- changes to a message (shared/chatlog.js), inside a message to the relays; each goes when the message does ----

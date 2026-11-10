@@ -419,5 +419,8 @@
   "vault.settings.backupText": "Une sauvegarde est ton coffre tel quel, scellé par la phrase secrète qu’il a maintenant.",
   "vault.settings.plainText": "Le fichier contient chaque secret en clair : qui l’a a tes mots de passe et tes codes. Utilise-le pour passer à une autre app, puis supprime-le.",
   "vault.settings.removeHint": "Quand la phrase secrète est perdue : retire de ton compte le coffre et tout ce qu’il contient, pour recommencer.",
-  "vault.error.notBackup": "Ce n’est pas une sauvegarde d’un coffre."
+  "vault.error.notBackup": "Ce n’est pas une sauvegarde d’un coffre.",
+  "notify.call": "{name} vous appelle",
+  "notify.callGroup": "{name} appelle dans {group}",
+  "notify.answer": "Répondre"
 }
