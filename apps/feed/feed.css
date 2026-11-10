@@ -561,3 +561,15 @@ body {
   width: 0.9rem;
   height: 0.9rem;
 }
+
+/* reported diaries above the reported entries, on a moderator's review tab */
+.diary-review {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.diary-card.folded .diary-title {
+  color: var(--muted);
+  font-weight: 500;
+}

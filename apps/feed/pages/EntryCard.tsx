@@ -28,7 +28,8 @@ import { useDiaries } from './Diaries';
 
 const fail = (err: unknown) => toast(tErr(err), 'error');
 
-function ReportDialog({ entry, label, onClose }: { entry: any; label: string; onClose: () => void }) {
+/** Reporting an entry or a diary (`entry`): a mark it should carry first, then the kinds of abuse. */
+export function ReportDialog({ entry, label, onClose }: { entry: any; label: string; onClose: () => void }) {
   const t = useT();
   const { data } = useFeed();
   const [busy, setBusy] = useState(false);
@@ -218,7 +219,7 @@ export function EntryCard({
               <Icon name={entry.audience === 'space' ? 'users-round' : entry.audience === 'me' ? 'lock' : 'users'} />
               {audienceLabel(entry.audience, space?.name)}
             </span>
-            {entry.pinned ? (
+            {entry.pinned && mine ? (
               <span className="entry-pinned" data-pinned>
                 {' · '}
                 <Icon name="pin" /> {t('fd.pinned')}

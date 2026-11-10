@@ -59,6 +59,7 @@ One event per namespace. Namespaces and their keys today:
 | `people` | see §5 |
 | `loadout` | the boards app's own preferences |
 | `devboard` | `saved` (addresses), `type` (`"hiring"` \| `"available"`), `contact` |
+| `feed` | `audience` (the usual choice for a new entry), `pinnedDiaries` (the addresses of the diaries the person follows, pinned to the top of the Diaries tab, the newest pin first, at most 100; §13) |
 | `vault` | `keys`: the vault's key, wrapped under its passphrase (§16); `breachCheck` (the password manager's breach check, off unless true) |
 | `authenticator` | `vault`: 0.26's codes in the vault's first form, until they move (§16) |
 | `calendar` | `server` (the CalDAV address: a path on the hub such as `/remote.php/dav/`, or an http(s) address), `username`, `password` (an app password), `hidden` (calendar URLs not shown), `calendar` (the one new events go to), `reminder` (minutes before, the usual choice); §15 |
@@ -233,7 +234,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
 | 30830 | in use: market listings (§14) |
-| 30820, 30822, 7805 | in use: feed entries and comments, audience keys (§13) |
+| 30820, 30821, 30822, 7805 | in use: feed entries, diaries and comments, audience keys (§13) |
 | 34550 | in use: space definitions (§12) |
 | 30792 | in use: vault entries (§16) |
 
@@ -306,6 +307,7 @@ The authenticator shows every entry with a `totp`: `name` and `username` stand f
 - **v1, extended** (0.29): a certificate's `origin`, `csrPem`, `days` and `previous`, a CA's `permitted`, a subject's `st` and `l` (§16). No existing format changed.
 - **v1, extended** (0.30): replies, reactions, edits, pins, deletions and disappearing messages in conversations and groups (§7c: kinds 7, 5, 7830–7832 inside wraps and seals, NIP-40 on the wraps and group events, `expire` in a group's info, `pinned` in the chat settings). No existing format changed; a device before 0.30 shows the messages and leaves the rest unread until it is updated.
 - **v1, extended** (0.31): calls (§7c: kind 7833 inside wraps and seals, the room's `call-offer` and `call-answer` signals of §8, `ice` in the hub's config). No existing format changed.
+- **v1, extended** (0.32): diaries (§13: kind 30821; an entry's `diary`, `step` and `pinned`; `pinnedDiaries` in the feed's settings, §3). No existing format changed; a device before 0.32 shows a diary's entries as entries.
 
 
 ## 9. Relay lists, inboxes and hints
@@ -354,9 +356,21 @@ so every device holding the key `sk` derives every audience key it ever used. Th
 |---|---|
 | kind | **30820** (addressable) |
 | tags | `["d", <random id>]`, `["a", <space address>, <relay>]` (on a mount on a space, §12), `["key", <kid>]` |
-| content | `seal(k, { "v": 1, "text": <≤ 5000, markdown>, "media": [<media object, §9>…] (≤ 6, each with its own key), "tags": [<hashtag>…] (≤ 10, lowercase), "name": <the writer's alias, ≤ 40>, "at": <ms of the first version>, "label"?: "adult" \| "ad" })` |
+| content | `seal(k, { "v": 1, "text": <≤ 5000, markdown>, "media": [<media object, §9>…] (≤ 6, each with its own key), "tags": [<hashtag>…] (≤ 10, lowercase), "name": <the writer's alias, ≤ 40>, "at": <ms of the first version>, "label"?: "adult" \| "ad", "diary"?: <the d of one of the writer's diaries>, "step"?: <≤ 40, such as "Week 3">, "pinned"?: true })` |
 
 `k` is the key `kid` names: the space key for an entry to the space, else one of the author's audience keys. A reader without the key does not show the entry. An entry with a `label` (for adults, or an ad) is shown to people with an account on the reading hub only; everyone else sees that it is there. Editing republishes under the same `d` (keeping `at`), possibly under another key; deleting publishes `seal(k, { "del": 1, "u": <ms> })` under the same key.
+
+**Diaries** (0.32). A diary is a series of the writer's entries, such as a grow from seed to harvest:
+
+| | |
+|---|---|
+| kind | **30821** (addressable) |
+| tags | `["d", <random id>]`, the space's `a` tag (as an entry's), `["key", <kid>]` |
+| content | `seal(k, { "v": 1, "title": <≤ 80>, "about": <≤ 1000, markdown>, "cover"?: <media object, §9>, "name", "at": <ms it began>, "last": <ms of its newest entry or change>, "label"?: "adult" \| "ad", "done"?: true, "pinned"?: true })` |
+
+It is sealed like an entry, to the space or one of the writer's audiences, and keeps that audience: an entry that names it in `diary` is sealed with the diary's key, whatever the composer chose. Which entries belong to a diary is inside their seals, so relays see a diary and entries, not the link between them; a reader takes the writer's entries that name the diary, oldest `at` first. A new entry in a diary republishes the diary with a later `last` (the Diaries tab lists the diaries written to last first); `done` closes a diary to new entries; deleting a diary publishes `{ "del": 1 }` under its key and leaves its entries as they are. Marks and reports (below) work on a diary as on an entry, with `["k", "30821"]`.
+
+**Pins.** `pinned` on an entry or a diary is its writer's: what they pinned shows at the top of their page, for whoever can read it. A pin a reader sets is theirs alone, kept in their settings (`feed`, `pinnedDiaries`, §3).
 
 **Comments**: kind **30822** (addressable), `["d", <random id>]`, `["a", <entry address>]`, the entry's space `a` tag, `["key", <the entry's kid>]`, content `seal(k, { "text": <≤ 1000>, "name", "at" })` with the entry's key; deleted like entries. **Likes**: NIP-25 kind 7, `+` (an empty content takes it back; the newest per person counts), with `["a", <entry address>]`, `["p", <author>]`, `["k", "30820"]`. **Reports**: §4, with `["a", <entry address>]`, `["e", <entry id>, <type>]`, `["k", "30820"]`. A report by one of the space's moderators folds an entry away on its own; otherwise three reports by people the reader has not blocked do. Likes, reports and who commented on what are visible to relays; what an entry or a comment says is not.
 

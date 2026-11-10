@@ -5,14 +5,18 @@
 // kept in the app's settings), the form that begins or edits a diary, and the
 // diary's page: its cover, what it is about, its entries in the order they
 // were written, and for its writer the way to add the next one, finish it,
-// pin it to their profile, delete it.
+// pin it to their profile, delete it. Everyone else reports a diary or blocks
+// its writer, and a moderator of the space marks it, as with an entry; a
+// diary reported enough is folded away like one.
 import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { KINDS } from '../../../shared/events.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
+import { MARKS } from '../../../shared/social.js';
+import { isModerator } from '../../../shared/spaces.js';
 import { Icon } from '../../../ui/components';
 import { confirmDialog, openMenu } from '../../../ui/dialogs';
-import { useIdentity, useKiwi, useSpace, useT } from '../../../ui/hooks';
+import { useBlocks, useIdentity, useKiwi, useSpace, useT } from '../../../ui/hooks';
 import { goBack } from '../../../ui/route';
 import { spaceLinkQuery } from '../../../ui/spaces';
 import { copyText, toast } from '../../../ui/toast';
@@ -25,7 +29,7 @@ import { Modal } from '../../../ui/widgets/Modal';
 import { diaryEntries, diaryHash, LABELS, LIMITS } from '../data/feed.js';
 import { useAudienceChoices, useAudienceLabel, useFeed, useNameOf, useOpened, usePrefs, useSocial } from '../state';
 import { Compose, defaultAudience } from './Compose';
-import { EntryCard } from './EntryCard';
+import { EntryCard, ReportDialog } from './EntryCard';
 import { useEntries } from './FeedView';
 
 const fail = (err: unknown) => toast(tErr(err), 'error');
@@ -64,16 +68,25 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
 
 export const useDiaries = () => useContext(DiaryContext);
 
-/** Whether a diary or an entry shows to this person: one marked 18+ or as an ad is for people with an account. */
+/**
+ * Whether a diary shows to this person: one marked 18+ or as an ad is for people with an account; one reported by a
+ * moderator or by several people is folded away (`folded`: why), as an entry is.
+ */
 function useShown(item: any) {
   const id = useIdentity();
   const social = useSocial();
+  const blocks = useBlocks();
+  const isBlocked = (pk: string) => Boolean(blocks?.isBlocked(pk));
   const mine = item.pubkey === id.pk;
-  const marked = item.label ? item.label : social.marked(item.address, () => false)?.mark || '';
-  const locked = Boolean(marked) && !mine && !id.accountPk;
+  const marked = item.label ? { mark: item.label, by: 'author' } : social.marked(item.address, isBlocked);
+  const label: string = marked?.mark || '';
+  const locked = Boolean(label) && !mine && !id.accountPk;
   const unread = !item.label && !mine && !id.accountPk && !social.isRead(item.address); // its marks not known yet
-  return { label: marked, locked, unread };
+  const folded: string | null = social.collapsed(item, isBlocked);
+  return { label, marked, locked, unread, folded };
 }
+
+const foldedText = (folded: string | null) => (folded === 'moderator' ? 'fd.foldedModerator' : 'fd.foldedReports');
 
 /** A diary as a card: its cover, title, writer, for whom, how far along. */
 export function DiaryCard({ diary }: { diary: any }) {
@@ -81,15 +94,21 @@ export function DiaryCard({ diary }: { diary: any }) {
   const nameOf = useNameOf();
   const audienceLabel = useAudienceLabel();
   const space = useSpace();
-  const { label, locked, unread } = useShown(diary);
-  const hidden = locked || unread;
+  const { label, locked, unread, folded } = useShown(diary);
+  const hidden = locked || unread || Boolean(folded);
   return (
-    <a className={`diary-card${diary.done ? ' done' : ''}`} href={diaryHash(diary)} data-diary={diary.address} data-title={diary.title}>
+    <a
+      className={`diary-card${diary.done ? ' done' : ''}${folded ? ' folded' : ''}`}
+      href={diaryHash(diary)}
+      data-diary={diary.address}
+      data-title={diary.title}
+      data-label={label || undefined}
+    >
       <span className="diary-cover">
         {diary.cover && !hidden ? <MediaImage media={diary.cover} small alt="" /> : <Icon name={hidden ? 'lock' : 'notebook'} />}
       </span>
       <span className="diary-main">
-        <b className="diary-title">{hidden ? t(locked ? `fd.locked.${label}` : 'common.loading') : diary.title}</b>
+        <b className="diary-title">{hidden ? t(locked ? `fd.locked.${label}` : unread ? 'common.loading' : foldedText(folded)) : diary.title}</b>
         <span className="muted small">
           {nameOf(diary.pubkey, diary.name)} · {audienceLabel(diary.audience, space?.name)}
         </span>
@@ -101,12 +120,6 @@ export function DiaryCard({ diary }: { diary: any }) {
           ) : null}{' '}
           {label && !hidden ? <span className={`badge label-${label}`}>{t(`fd.label.${label}`)}</span> : null}{' '}
           {t('fd.diary.updated', { when: relTime(diary.last) })}
-          {diary.pinned ? (
-            <>
-              {' · '}
-              <Icon name="pin" /> {t('fd.pinned')}
-            </>
-          ) : null}
         </span>
       </span>
     </a>
@@ -253,12 +266,16 @@ export function DiaryPage({ pk, d }: { pk: string; d: string }) {
   const id = useIdentity();
   const space = useSpace();
   const { data } = useFeed();
+  const social = useSocial();
+  const blocks = useBlocks();
   const nameOf = useNameOf();
   const audienceLabel = useAudienceLabel();
   const { get, loading } = useDiaries();
   const diary = get(pk, d);
   const [editing, setEditing] = useState(false);
   const [composing, setComposing] = useState<{ existing: any } | null>(null);
+  const [reporting, setReporting] = useState(false);
+  const [open, setOpen] = useState(false);
   const list = useEntries([{ kinds: [KINDS.FEED_ENTRY], authors: [pk], ...(space ? { '#a': [space.address] } : {}) }]);
   // a diary is read from its beginning: every page of its writer's entries is asked for, not only the newest
   useEffect(() => {
@@ -273,7 +290,20 @@ export function DiaryPage({ pk, d }: { pk: string; d: string }) {
     );
   const mine = diary.pubkey === id.pk;
   const entries = diaryEntries(diary, list.entries);
-  const hidden = shown.locked || shown.unread;
+  const folded = Boolean(shown.folded) && !open;
+  const hidden = shown.locked || shown.unread || folded;
+  // a moderator of the space marks what its writer did not, or finds it fine, as on an entry
+  const moderator = isModerator(space, id.pk) && !mine;
+  const setMark = (mark: string) => data.mark(diary, mark, social.lastAt(diary.address)).then(() => toast(t(`fd.mod.done.${mark}`), 'success'), fail);
+  const modItems =
+    moderator && !diary.label
+      ? [
+          ...MARKS.filter((m) => m !== shown.label).map((m) => ({ label: t(`fd.mod.${m}`), icon: 'tag', act: `mark-${m}`, run: () => setMark(m) })),
+          ...(shown.marked || social.pending(diary.address) || shown.folded === 'reports'
+            ? [{ label: t('fd.mod.none'), icon: 'check', act: 'mark-none', run: () => setMark('none') }]
+            : []),
+        ]
+      : [];
   const link = () => `${location.href.split('#')[0]}${diaryHash(diary, spaceLinkQuery(kiwi))}`;
   const menu = (el: HTMLElement) =>
     openMenu(el, [
@@ -308,14 +338,30 @@ export function DiaryPage({ pk, d }: { pk: string; d: string }) {
               },
             },
           ]
-        : []),
+        : [
+            ...modItems,
+            ...(social.reportedByMe(diary.address) ? [] : [{ label: t('fd.report'), icon: 'shield', act: 'report', run: () => setReporting(true) }]),
+            {
+              label: t('fd.block'),
+              icon: 'x',
+              danger: true,
+              act: 'block',
+              run: () =>
+                blocks.block(diary.pubkey).then(() => {
+                  toast(t('fd.blocked'), 'success');
+                  goBack('#/');
+                }, fail),
+            },
+          ]),
     ]);
   return (
     <div className="diary-page" id="diary" data-diary={diary.address}>
       <section className={`diary-head card${diary.done ? ' done' : ''}`}>
         {diary.cover && !hidden ? <MediaImage media={diary.cover} alt={diary.title} className="diary-hero" /> : null}
         <div className="diary-title-row">
-          <h2 id="diaryTitle">{hidden ? t(shown.locked ? `fd.locked.${shown.label}` : 'common.loading') : diary.title}</h2>
+          <h2 id="diaryTitle">
+            {hidden ? (shown.locked ? t(`fd.locked.${shown.label}`) : shown.unread ? t('common.loading') : t('fd.diary.panel')) : diary.title}
+          </h2>
           <button type="button" className="icon-btn" data-act="diary-menu" aria-label={t('common.more')} onClick={(e) => menu(e.currentTarget)}>
             <Icon name="ellipsis" />
           </button>
@@ -337,6 +383,22 @@ export function DiaryPage({ pk, d }: { pk: string; d: string }) {
             </>
           ) : null}
         </p>
+        {folded && !shown.locked && !shown.unread ? (
+          <div className="entry-folded">
+            <Icon name="eye" />
+            <span>{t(foldedText(shown.folded))}</span>
+            <button type="button" className="link-btn" data-act="reveal" onClick={() => setOpen(true)}>
+              {t('fd.showAnyway')}
+            </button>
+          </div>
+        ) : null}
+        {shown.label && !hidden ? (
+          <p>
+            <span className={`badge label-${shown.label}`} data-by={shown.marked?.by}>
+              {t(`fd.label.${shown.label}`)}
+            </span>
+          </p>
+        ) : null}
         {diary.about && !hidden ? <Markdown source={diary.about} className="md diary-about" /> : null}
         {mine && !diary.done ? (
           <div className="form-actions">
@@ -360,6 +422,7 @@ export function DiaryPage({ pk, d }: { pk: string; d: string }) {
       )}
       {editing ? <DiaryForm existing={diary} onClose={() => setEditing(false)} /> : null}
       {composing ? <Compose existing={composing.existing} diary={diary} onClose={() => setComposing(null)} /> : null}
+      {reporting ? <ReportDialog entry={diary} label={shown.label} onClose={() => setReporting(false)} /> : null}
     </div>
   );
 }

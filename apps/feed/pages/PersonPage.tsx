@@ -93,12 +93,14 @@ export function PersonPage({ pk }: { pk: string }) {
           ))}
         </section>
       ) : null}
-      {diaries.length ? (
+      {diaries.length > pinnedDiaries.length ? (
         <section className="person-diaries" id="personDiaries" aria-label={t('fd.person.diaries')}>
           <h3 className="collection-head">{t('fd.person.diaries')}</h3>
-          {diaries.map((x: any) => (
-            <DiaryCard key={x.address} diary={x} />
-          ))}
+          {diaries
+            .filter((x: any) => !x.pinned)
+            .map((x: any) => (
+              <DiaryCard key={x.address} diary={x} />
+            ))}
         </section>
       ) : null}
       <Feed

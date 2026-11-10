@@ -14,7 +14,7 @@ import { useEvents } from '../../../ui/useEvents';
 import { Feed } from '../../../ui/widgets/Feed';
 import { useFeed, useOpened, useSocial } from '../state';
 import { Compose } from './Compose';
-import { DiaryForm, DiaryList } from './Diaries';
+import { DiaryCard, DiaryForm, DiaryList, useDiaries } from './Diaries';
 import { EntryCard } from './EntryCard';
 
 type Tab = 'space' | 'diaries' | 'friends' | 'mine' | 'review';
@@ -59,7 +59,7 @@ export function FeedView() {
   const space = useSpace();
   const social = useSocial();
   const moderator = isModerator(space, id.pk);
-  const tabs: Tab[] = space ? ['space', 'diaries', 'friends', 'mine', ...(moderator ? (['review'] as Tab[]) : [])] : ['diaries', 'friends', 'mine'];
+  const tabs: Tab[] = space ? ['space', 'diaries', 'friends', 'mine', ...(moderator ? (['review'] as Tab[]) : [])] : ['friends', 'diaries', 'mine'];
   const tabKey = `feed.tab.${kiwi.current}`;
   const [tab, setTabState] = useState<Tab>(() => {
     const saved = store.get(tabKey) as Tab;
@@ -82,6 +82,10 @@ export function FeedView() {
         : [{ kinds: [KINDS.FEED_ENTRY], authors: [id.pk], ...inSpace }];
   // the review tab: entries in the space with reports waiting; it follows the reports as they come
   const version = social.version;
+  // diaries in the space with reports waiting, above the entries on the review tab
+  const allDiaries = useDiaries().list;
+  const reportedDiaries =
+    tab === 'review' && version >= 0 ? allDiaries.filter((x: any) => x.audience === 'space' && x.pubkey !== id.pk && social.pending(x.address) > 0) : [];
   const waiting = useCallback((e: any) => version >= 0 && isSpace(e) && e.pubkey !== id.pk && social.pending(e.address) > 0, [social, version, id.pk]);
   const list = useEntries(filters, tab === 'space' ? isSpace : tab === 'review' ? waiting : anyEntry);
   const shown = list.entries.filter((e: any) => matches(e, query));
@@ -130,6 +134,13 @@ export function FeedView() {
           </button>
         )}
       </div>
+      {tab === 'review' && reportedDiaries.length ? (
+        <div className="diary-review" id="reportedDiaries">
+          {reportedDiaries.map((x: any) => (
+            <DiaryCard key={x.address} diary={x} />
+          ))}
+        </div>
+      ) : null}
       {tab === 'diaries' ? (
         <DiaryList query={query} />
       ) : (
@@ -140,7 +151,7 @@ export function FeedView() {
           hasMore={list.hasMore}
           loading={list.loading || list.opening}
           onLoadMore={list.loadMore}
-          empty={<p className="empty">{empty}</p>}
+          empty={tab === 'review' && reportedDiaries.length ? null : <p className="empty">{empty}</p>}
         />
       )}
       {beginning ? (
