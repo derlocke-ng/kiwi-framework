@@ -2,6 +2,8 @@
 
 For the session on `derlocke-ng/kiwi-modules`. Ask the owner before pushing, tagging or releasing anything there; kiwi-server takes it by vendoring a tag, with the owner's yes. Nothing here is urgent: calls work without it wherever two browsers find a direct path.
 
+**Status (November 2026):** done on the branch `turn-server`, [PR #29](https://github.com/derlocke-ng/kiwi-modules/pull/29) (0.24.0), at the owner's ask, waiting for the owner to merge. The module runs coturn in the host's network with one generated login, and the hub module passes `HUB_ICE` by itself. Left to do once it is merged: the tag, vendoring into kiwi-server (with the owner's yes), and a call between two phones on mobile data through a master that runs it. Then this file goes.
+
 ## Why
 
 From kiwi-framework 0.31 the chat (Armory's Uplink) has voice and video calls. The browsers find each other through sealed events on the hub's relays and then send voice and pictures straight to each other (WebRTC). Between some networks (two phones on mobile data, a strict company firewall) no direct path exists; then only a **TURN** server carries the call: it relays the encrypted media (DTLS-SRTP) and cannot hear them. Without one, the call screen says that there is no direct connection and that this hub names no TURN server. A self-hosted hub should not depend on someone else's TURN, so the stack wants one of its own.
