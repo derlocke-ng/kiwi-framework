@@ -237,8 +237,8 @@ export class DirectMessages {
    * out unanswered) or `end` (with its `duration`). Wrapped for both sides like a message; it goes when a ring
    * under the conversation's timer would.
    */
-  async call(pk, { id, at, caller, video = false, secret = '', duration = 0, expires = null }, action) {
-    const body = { id, at, caller, video: Boolean(video), action, ...(action === 'ring' ? { secret } : {}), ...(action === 'end' ? { duration } : {}) };
+  async call(pk, { id, at, ms = 0, caller, video = false, secret = '', duration = 0, expires = null }, action) {
+    const body = { id, at, ms, caller, video: Boolean(video), action, ...(action === 'ring' ? { secret } : {}), ...(action === 'end' ? { duration } : {}) };
     const exp = expires ?? (await this.expiresFor(pk));
     return this.deliver(pk, KINDS.CHAT_CALL, JSON.stringify(body), [], { expires: exp || 0, name: action === 'ring' });
   }

@@ -4,7 +4,6 @@
 // conversation or the group (DirectMessages.call, Groups.call).
 import { useSyncExternalStore } from 'react';
 import { CallSession, newCall, RING_FOR } from '../../shared/calls.js';
-import { now } from '../../shared/events.js';
 import { t } from '../../shared/i18n.js';
 import { toast } from '../../ui/toast';
 
@@ -15,7 +14,7 @@ export interface ActiveCall {
   title: string;
   outgoing: boolean;
   /** what every step of the call carries */
-  info: { id: string; at: number; caller: string; video: boolean; secret: string; expires: number };
+  info: { id: string; at: number; ms: number; caller: string; video: boolean; secret: string; expires: number };
 }
 
 let active: ActiveCall | null = null;
@@ -74,7 +73,15 @@ export async function startCall(kiwi: any, { conv, group = false, video = false,
   const expires = group ? kiwi.groups.expiresFor(conv) : await kiwi.messages.expiresFor(conv);
   const session = new CallSession(kiwi.net, { secret, video, name: kiwi.identity().alias || '', iceServers: kiwi.iceServers() });
   await session.start(); // the microphone and camera are asked for first: nothing rings if they are refused
-  const a: ActiveCall = { session, conv, group, title, outgoing: true, info: { id, at: now(), caller: me, video, secret, expires } };
+  const rang = Date.now();
+  const a: ActiveCall = {
+    session,
+    conv,
+    group,
+    title,
+    outgoing: true,
+    info: { id, at: Math.floor(rang / 1000), ms: rang % 1000, caller: me, video, secret, expires },
+  };
   set(a);
   watch(kiwi, a);
   await step(kiwi, a, 'ring');
@@ -93,7 +100,7 @@ export async function answerCall(kiwi: any, line: any, { video, title }: { video
     group: Boolean(line.group),
     title,
     outgoing: false,
-    info: { id: c.id, at: line.at, caller: line.from, video: c.video, secret: c.secret, expires: line.expires || 0 },
+    info: { id: c.id, at: line.at, ms: line.t - line.at * 1000, caller: line.from, video: c.video, secret: c.secret, expires: line.expires || 0 },
   };
   set(a);
   watch(kiwi, a);
@@ -104,7 +111,7 @@ export async function answerCall(kiwi: any, line: any, { video, title }: { video
 /** No to a ringing call: the caller is told, my other devices stop ringing. */
 export function declineCall(kiwi: any, line: any) {
   const c = line.call;
-  const info = { id: c.id, at: line.at, caller: line.from, video: c.video, expires: line.expires || 0 };
+  const info = { id: c.id, at: line.at, ms: line.t - line.at * 1000, caller: line.from, video: c.video, expires: line.expires || 0 };
   return line.group ? kiwi.groups.call(line.conv, info, 'decline') : kiwi.messages.call(line.conv, info, 'decline');
 }
 

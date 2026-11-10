@@ -175,7 +175,9 @@ export function callLine(body, { conv, from, group = false, expires = 0 }) {
     ...(body.action === 'ring' ? { secret: String(body.secret) } : {}),
     ...(body.action === 'end' ? { duration: Math.max(0, Math.min(86_400, Math.floor(Number(body.duration) || 0))) } : {}),
   };
-  return { id: `call:${id}`, conv, ...(group ? { group: true } : {}), from: caller, name: '', at, t: at * 1000, seq: 0, text: '', system: 'call', call, ...(expires ? { expires } : {}) };
+  // the ring's millisecond, carried by every step: the line sorts after a message of the same second that came before it
+  const ms = Math.min(999, Math.max(0, Math.floor(Number(body.ms) || 0)));
+  return { id: `call:${id}`, conv, ...(group ? { group: true } : {}), from: caller, name: '', at, t: at * 1000 + ms, seq: 0, text: '', system: 'call', call, ...(expires ? { expires } : {}) };
 }
 
 /** What two events of one call say together: the furthest state, the secret and video from the ring, the longest duration. */

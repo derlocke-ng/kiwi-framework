@@ -592,10 +592,10 @@ export class Groups {
   }
 
   /** One step of a call in the group (see DirectMessages.call): the whole group rings; anyone joins. */
-  async call(pub, { id, at, caller, video = false, secret = '', duration = 0, expires = null }, action) {
+  async call(pub, { id, at, ms = 0, caller, video = false, secret = '', duration = 0, expires = null }, action) {
     const g = this.entry(pub);
     if (!g) throw new Error('not in this group');
-    const body = { id, at, caller, video: Boolean(video), action, ...(action === 'ring' ? { secret } : {}), ...(action === 'end' ? { duration } : {}) };
+    const body = { id, at, ms, caller, video: Boolean(video), action, ...(action === 'ring' ? { secret } : {}), ...(action === 'end' ? { duration } : {}) };
     return this.publish(g, KINDS.GROUP_MESSAGE, JSON.stringify(body), { inner: KINDS.CHAT_CALL, expires: (expires ?? this.expiresFor(pub)) || 0 });
   }
 

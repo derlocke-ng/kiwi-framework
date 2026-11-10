@@ -210,7 +210,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.click('.menu [data-act=timer]');
   await A.click('#timerDialog [data-timer="300"]');
   await until(async () => (await B.getAttribute('#timerBadge', 'data-timer').catch(() => '')) === '300', 'B’s side shows the timer', 30000);
-  assert.match(await B.textContent('#messages .sysline:last-of-type'), /5 minutes/);
+  assert.match((await texts(B, '#messages .sysline')).at(-1), /5 minutes/);
   // a short timer, set the way the dialog does: the message is gone from both screens, the store and the relay
   await A.evaluate((pk) => window.kiwi.messages.setTimer(pk, 6), pkB);
   await until(async () => (await B.getAttribute('#timerBadge', 'data-timer').catch(() => '')) === '6', 'the short timer on B', 30000);
@@ -247,7 +247,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   await A.waitForTimeout(1200);
   await A.click('#call [data-act=hangup]');
   await until(async () => (await B.$('#call')) === null, 'the call ends on B when A hangs up', 20000);
-  await until(async () => /\d:\d\d/.test(await B.textContent('#messages .sysline[data-system=call]:last-of-type').catch(() => '')), 'the call’s line on B says how long', 30000);
+  await until(async () => /\d:\d\d/.test((await texts(B, '#messages .sysline[data-system=call]')).at(-1) || ''), 'the call’s line on B says how long', 30000);
 
   step('B declines a voice call; a call A calls off before an answer is missed on B');
   await A.click('.page-head [data-act=call]');
@@ -340,7 +340,7 @@ export async function chatSuite(env, { app, settings, boards }) {
   await sleep(1500);
   assert.ok(await B.$('#call'), 'B stays in the group’s call when A leaves');
   await B.click('#call [data-act=hangup]');
-  await until(async () => /\d:\d\d/.test(await A.textContent('#groupMessages .sysline[data-system=call]:last-of-type').catch(() => '')), 'the last one out ends it: the line says how long', 30000);
+  await until(async () => /\d:\d\d/.test((await texts(A, '#groupMessages .sysline[data-system=call]')).at(-1) || ''), 'the last one out ends it: the line says how long', 30000);
   await open(A2, '#/groups');
   await until(async () => (await texts(A2, '#groupList .conv-name')).includes('Crew'), 'A’s other device has the group', 40000);
   await A2.click('#groupList .conv');
