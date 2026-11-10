@@ -422,5 +422,8 @@
   "vault.error.notBackup": "Ce n’est pas une sauvegarde d’un coffre.",
   "notify.call": "{name} vous appelle",
   "notify.callGroup": "{name} appelle dans {group}",
-  "notify.answer": "Répondre"
+  "notify.answer": "Répondre",
+  "notify.groupKnock": "{name} demande à rejoindre « {group} »",
+  "notify.groupJoined": "Vous êtes dans « {group} » : son hôte vous a laissé entrer.",
+  "notify.aGroup": "un groupe"
 }

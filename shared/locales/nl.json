@@ -410,5 +410,8 @@
   "vault.error.notBackup": "Dit is geen back-up van een kluis.",
   "notify.call": "{name} belt je",
   "notify.callGroup": "{name} belt in {group}",
-  "notify.answer": "Opnemen"
+  "notify.answer": "Opnemen",
+  "notify.groupKnock": "{name} vraagt om in “{group}” te mogen",
+  "notify.groupJoined": "Je zit in “{group}”: de gastheer heeft je binnengelaten.",
+  "notify.aGroup": "een groep"
 }

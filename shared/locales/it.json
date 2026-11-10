@@ -422,5 +422,8 @@
   "vault.error.notBackup": "Questo non è un backup di una cassaforte.",
   "notify.call": "{name} ti sta chiamando",
   "notify.callGroup": "{name} chiama in {group}",
-  "notify.answer": "Rispondi"
+  "notify.answer": "Rispondi",
+  "notify.groupKnock": "{name} chiede di entrare in «{group}»",
+  "notify.groupJoined": "Sei in «{group}»: chi lo ospita ti ha fatto entrare.",
+  "notify.aGroup": "un gruppo"
 }

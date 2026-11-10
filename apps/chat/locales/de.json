@@ -154,5 +154,10 @@
   "call.failed": "Keine direkte Verbindung zu {name}. Zwischen manchen Netzen (etwa zwei Handys im Mobilfunk) braucht ein Anruf einen TURN-Server, und dieser Hub nennt keinen.",
   "call.busy": "Du bist schon in einem Anruf.",
   "call.declinedBy": "{name} hat den Anruf abgelehnt.",
-  "chat.how.3": "Anrufe gehen direkt zwischen den Browsern (WebRTC, Ende zu Ende verschlüsselt mit DTLS-SRTP). Das Klingeln ist eine versiegelte Nachricht wie jede andere; die Browser finden sich über versiegelte Ereignisse auf den Relays des Hubs, die die Relays nicht behalten. Ein Gruppenanruf verbindet alle mit allen und passt deshalb für wenige Leute. Wo kein direkter Weg besteht, bringt nur ein TURN-Server, den der Hub nennt, einen Anruf durch; er reicht die verschlüsselten Daten weiter und kann nichts mithören."
+  "chat.how.3": "Anrufe gehen direkt zwischen den Browsern (WebRTC, Ende zu Ende verschlüsselt mit DTLS-SRTP). Das Klingeln ist eine versiegelte Nachricht wie jede andere; die Browser finden sich über versiegelte Ereignisse auf den Relays des Hubs, die die Relays nicht behalten. Ein Gruppenanruf verbindet alle mit allen und passt deshalb für wenige Leute. Wo kein direkter Weg besteht, bringt nur ein TURN-Server, den der Hub nennt, einen Anruf durch; er reicht die verschlüsselten Daten weiter und kann nichts mithören.",
+  "chat.group.asking": "{name} möchte rein",
+  "chat.group.askingMany": {
+    "one": "{n} Person möchte rein",
+    "other": "{n} Personen möchten rein"
+  }
 }

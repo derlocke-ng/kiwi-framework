@@ -154,5 +154,12 @@
   "call.failed": "Brak bezpośredniego połączenia z: {name}. Między niektórymi sieciami (na przykład dwa telefony na danych komórkowych) rozmowa potrzebuje serwera TURN, a ten hub żadnego nie podaje.",
   "call.busy": "Już trwa twoja rozmowa.",
   "call.declinedBy": "{name} odrzuca połączenie.",
-  "chat.how.3": "Rozmowy idą bezpośrednio między przeglądarkami (WebRTC, szyfrowane end-to-end przez DTLS-SRTP). Dzwonienie to zapieczętowana wiadomość jak każda inna; przeglądarki znajdują się przez zapieczętowane zdarzenia na przekaźnikach hubu, których przekaźniki nie przechowują. Rozmowa grupowa łączy każdego z każdym, więc pasuje dla kilku osób. Tam, gdzie nie ma bezpośredniej drogi, tylko serwer TURN podany przez hub przepuści rozmowę; przekazuje zaszyfrowane dane i niczego nie słyszy."
+  "chat.how.3": "Rozmowy idą bezpośrednio między przeglądarkami (WebRTC, szyfrowane end-to-end przez DTLS-SRTP). Dzwonienie to zapieczętowana wiadomość jak każda inna; przeglądarki znajdują się przez zapieczętowane zdarzenia na przekaźnikach hubu, których przekaźniki nie przechowują. Rozmowa grupowa łączy każdego z każdym, więc pasuje dla kilku osób. Tam, gdzie nie ma bezpośredniej drogi, tylko serwer TURN podany przez hub przepuści rozmowę; przekazuje zaszyfrowane dane i niczego nie słyszy.",
+  "chat.group.asking": "{name} prosi o wejście",
+  "chat.group.askingMany": {
+    "one": "{n} osoba prosi o wejście",
+    "few": "{n} osoby proszą o wejście",
+    "many": "{n} osób prosi o wejście",
+    "other": "{n} osoby prosi o wejście"
+  }
 }

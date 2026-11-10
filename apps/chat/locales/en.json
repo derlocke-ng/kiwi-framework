@@ -154,5 +154,10 @@
   "call.failed": "No direct connection to {name}. Between some networks (two phones on mobile data, for one) a call needs a TURN server, which this hub does not name.",
   "call.busy": "You are in a call already.",
   "call.declinedBy": "{name} declined the call.",
-  "chat.how.3": "Calls go straight between the browsers (WebRTC, encrypted end to end by DTLS-SRTP). Ringing is a sealed message like any other; the browsers find each other through sealed events on the hub’s relays that the relays do not keep. A group call connects everyone with everyone, so it suits a few people. Where no direct path exists, only a TURN server the hub names gets a call through; it passes the encrypted media on and cannot hear them."
+  "chat.how.3": "Calls go straight between the browsers (WebRTC, encrypted end to end by DTLS-SRTP). Ringing is a sealed message like any other; the browsers find each other through sealed events on the hub’s relays that the relays do not keep. A group call connects everyone with everyone, so it suits a few people. Where no direct path exists, only a TURN server the hub names gets a call through; it passes the encrypted media on and cannot hear them.",
+  "chat.group.asking": "{name} asks to join",
+  "chat.group.askingMany": {
+    "one": "{n} person asks to join",
+    "other": "{n} people ask to join"
+  }
 }

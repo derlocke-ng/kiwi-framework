@@ -422,5 +422,8 @@
   "vault.error.notBackup": "Isto não é uma cópia de segurança de um cofre.",
   "notify.call": "{name} está ligando",
   "notify.callGroup": "{name} chama em {group}",
-  "notify.answer": "Atender"
+  "notify.answer": "Atender",
+  "notify.groupKnock": "{name} pede para entrar em “{group}”",
+  "notify.groupJoined": "Você está em “{group}”: o anfitrião deixou você entrar.",
+  "notify.aGroup": "um grupo"
 }

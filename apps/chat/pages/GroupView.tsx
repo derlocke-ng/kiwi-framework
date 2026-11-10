@@ -96,7 +96,7 @@ function Requests({ pub }: { pub: string }) {
             <button type="button" className="btn btn-sm btn-primary" data-admit={r.pk} onClick={() => groups.admit(pub, r.pk).catch(toastError)}>
               {t('chat.group.admit')}
             </button>
-            <button type="button" className="btn btn-sm" data-decline={r.pk} onClick={() => groups.decline(pub, r.pk)}>
+            <button type="button" className="btn btn-sm" data-decline={r.pk} onClick={() => groups.decline(pub, r.pk).catch(toastError)}>
               {t('chat.group.decline')}
             </button>
           </li>

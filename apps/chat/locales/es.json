@@ -154,5 +154,11 @@
   "call.failed": "No hay conexión directa con {name}. Entre algunas redes (dos móviles con datos móviles, por ejemplo) una llamada necesita un servidor TURN, y este hub no indica ninguno.",
   "call.busy": "Ya estás en una llamada.",
   "call.declinedBy": "{name} rechazó la llamada.",
-  "chat.how.3": "Las llamadas van directamente entre los navegadores (WebRTC, cifradas de extremo a extremo con DTLS-SRTP). El timbre es un mensaje sellado como cualquier otro; los navegadores se encuentran mediante eventos sellados en los relays del hub, que los relays no guardan. Una llamada en grupo conecta a todos con todos, así que sirve para pocas personas. Donde no hay camino directo, solo un servidor TURN que indique el hub hace pasar la llamada; reenvía los datos cifrados y no puede escuchar nada."
+  "chat.how.3": "Las llamadas van directamente entre los navegadores (WebRTC, cifradas de extremo a extremo con DTLS-SRTP). El timbre es un mensaje sellado como cualquier otro; los navegadores se encuentran mediante eventos sellados en los relays del hub, que los relays no guardan. Una llamada en grupo conecta a todos con todos, así que sirve para pocas personas. Donde no hay camino directo, solo un servidor TURN que indique el hub hace pasar la llamada; reenvía los datos cifrados y no puede escuchar nada.",
+  "chat.group.asking": "{name} pide entrar",
+  "chat.group.askingMany": {
+    "one": "{n} persona pide entrar",
+    "other": "{n} personas piden entrar",
+    "many": "{n} personas piden entrar"
+  }
 }
