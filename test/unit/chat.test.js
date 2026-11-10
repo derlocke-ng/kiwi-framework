@@ -298,6 +298,61 @@ test('a group: replies and changes inside its seals, the host’s timer, pinned 
   B.stop();
 });
 
+test('a link: a knock waits for the host across pages and devices, the one let in is told, a no stays a no, a later knock asks again', async () => {
+  // as in a browser: the inbox remembers the wraps it has read (localStorage), so a page does not get an old knock again
+  const mem = new Map();
+  globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+  try {
+    const r = relay();
+    const hostSk = bytesToHex(generateSecretKey());
+    const A = await device(r, { sk: hostSk, alias: 'Ada' });
+    const S = await device(r, { alias: 'Sam' });
+    const T = await device(r, { alias: 'Tia' });
+    const pub = await A.groups.create('Crew', { myName: 'Ada' });
+    const { invite } = A.groups.entry(pub);
+    const joined = [];
+    S.groups.onJoined((g) => joined.push(g));
+    await S.groups.knock({ pub, host: A.id.pk, invite, name: 'Crew', myName: 'Sam' });
+    await T.groups.knock({ pub, host: A.id.pk, invite, name: 'Crew', myName: 'Tia' });
+    await until(() => A.groups.allRequests().length === 2, 'both at the door');
+    // the host's next page: the knocks are not handed over again, and must still be waiting (until 0.32.1 they were gone)
+    A.stop();
+    const A2 = await device(r, { sk: hostSk, alias: 'Ada' });
+    await until(() => A2.groups.list().length === 1, 'the group on the next page');
+    await until(() => A2.groups.allRequests().length === 2, 'both still at the door on the next page');
+    assert.deepEqual(
+      A2.groups
+        .allRequests()
+        .map((x) => `${x.name} → ${x.group}`)
+        .sort(),
+      ['Sam → Crew', 'Tia → Crew'],
+      'every group I host, with who asks',
+    );
+    await A2.groups.admit(pub, S.id.pk);
+    await until(() => joined.length === 1, 'Sam is told');
+    assert.equal(joined[0].pub, pub);
+    assert.equal(joined[0].name, 'Crew');
+    assert.equal(joined[0].host, A.id.pk);
+    assert.equal(S.groups.knocks().length, 0, 'no longer waiting');
+    assert.equal(S.groups.list()[0].pub, pub);
+    await A2.groups.decline(pub, T.id.pk);
+    assert.deepEqual(A2.groups.allRequests(), []);
+    // another device of the host's, which never read the knocks: it reads them now, and neither comes back
+    A2.stop();
+    for (const k of [...mem.keys()]) if (k.includes(A.id.pk.slice(0, 16))) mem.delete(k); // its own storage, empty
+    const A3 = await device(r, { sk: hostSk, alias: 'Ada' });
+    await until(() => A3.groups.list().length === 1 && A3.groups.members(pub).length === 2, 'the group on the other device');
+    await tick(300);
+    assert.deepEqual(A3.groups.allRequests(), [], 'one was let in, the other declined');
+    await tick(1100); // a knock is told apart by its second
+    await T.groups.knock({ pub, host: A.id.pk, invite, name: 'Crew', myName: 'Tia' });
+    await until(() => A3.groups.allRequests().length === 1, 'asking again is a new knock');
+    for (const d of [A3, S, T]) d.stop();
+  } finally {
+    delete globalThis.localStorage;
+  }
+});
+
 test('calls: a ring names its caller and a secret; steps merge into one line whatever their order', () => {
   const caller = 'c'.repeat(64);
   const other = 'd'.repeat(64);

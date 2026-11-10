@@ -410,5 +410,8 @@
   "vault.error.notBackup": "Das ist keine Sicherung eines Tresors.",
   "notify.call": "{name} ruft an",
   "notify.callGroup": "{name} ruft in {group} an",
-  "notify.answer": "Annehmen"
+  "notify.answer": "Annehmen",
+  "notify.groupKnock": "{name} möchte in „{group}“",
+  "notify.groupJoined": "Du bist in „{group}“: der Gastgeber hat dich reingelassen.",
+  "notify.aGroup": "eine Gruppe"
 }

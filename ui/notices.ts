@@ -1,8 +1,9 @@
 // What every page shows for People and the chat: a toast for a new friend
-// request, for something shared with you that no open app has taken (once
-// per device), for a message that arrives while you are elsewhere, and for a
-// call ringing (with the way to answer it in the chat); the same as browser
-// notifications when the device asked for them.
+// request, for someone asking to join a group you host and for being let into
+// one you asked to join, for something shared with you that no open app has
+// taken (once per device), for a message that arrives while you are
+// elsewhere, and for a call ringing (with the way to answer it in the chat);
+// the same as browser notifications when the device asked for them.
 import { useEffect } from 'react';
 import { appById, mountsOf } from '../shared/apps.js';
 import { fingerprint } from '../shared/events.js';
@@ -36,6 +37,13 @@ export function usePeopleNotices(): void {
       toast(title, 'info', 8000, { label: t('people.open'), href });
       notifyBrowser({ title, body: (m.file ? t('files.preview', { name: m.file.name }) : m.text).slice(0, 120), url: href, tag: `group-${m.conv}`, icon });
     });
+    // the host let me in: the group is in my list now, wherever I am
+    const offJoined = groups.onJoined((g: any) => {
+      const href = `${base}${chat.id}/#/group/${g.pub}/${g.host}/${g.invite || '-'}/${encodeURIComponent(g.name || '')}`;
+      const title = t('notify.groupJoined', { group: g.name || t('notify.aGroup') });
+      toast(title, 'success', 10000, { label: t('people.open'), href });
+      notifyBrowser({ title, url: href, tag: `joined-${g.pub}`, icon });
+    });
     const offGone = groups.onGone(({ name, why }: any) => {
       if (why === 'closed') toast(t('notify.groupClosed', { group: name }), 'info', 8000);
     });
@@ -50,6 +58,7 @@ export function usePeopleNotices(): void {
     });
     return () => {
       offMessage();
+      offJoined();
       offGone();
       offInvite();
     };
@@ -130,6 +139,19 @@ export function usePeopleNotices(): void {
         onClick: () => people.consume(s.id),
       });
       notifyBrowser({ title: t('people.shareNotice', { name: s.name, app: app?.name || s.app }), url: href, tag: `share-${s.id}`, icon });
+    }
+    // someone at the door of a group I host, once per knock and device; not while that group is on screen (it shows them)
+    const chat = chatMount();
+    for (const r of groups?.allRequests?.() || []) {
+      const key = `knock:${r.pub}:${r.pk}:${r.at}`;
+      if (done.has(key) || !chat) continue;
+      if (current === chat.id && messages?.active === r.pub) continue;
+      fresh.push(key);
+      const g = groups.entry(r.pub);
+      const href = `${base}${chat.id}/#/group/${r.pub}/${g?.host || ''}/${g?.invite || '-'}/${encodeURIComponent(r.group || '')}`;
+      const title = t('notify.groupKnock', { name: r.name || fingerprint(r.pk), group: r.group || t('notify.aGroup') });
+      toast(title, 'info', 15000, { label: t('people.open'), href });
+      notifyBrowser({ title, url: href, tag: `knock-${r.pub}-${r.pk}`, icon });
     }
     if (fresh.length) store.set(NOTIFIED, [...done, ...fresh].slice(-300));
   }

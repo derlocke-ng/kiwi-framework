@@ -41,7 +41,8 @@ export const NAME = 60;
 export const TEXT = 4000;
 const INFO_D = 'info';
 const SEEN_MAX = 4000;
-const MAX_REQUESTS = 50;
+const MAX_REQUESTS = 100;
+const MAX_ANSWERED = 300;
 const MAX_PINNED = 50;
 
 /** The invite link: where the group lives, who hosts it, the token that opens the door, its name to show, and where its events are (hints). */
@@ -81,12 +82,13 @@ export class Groups {
     this.isBlocked = isBlocked;
     this.inbox = inbox;
     this.settings = new AccountSettings(identity, net, 'chat');
-    this.state = new Map(); // pub -> { name, host, closed, open, infoAt, members: Map(pk -> { name, since, left }), requests: [{ pk, name, at }] }
+    this.state = new Map(); // pub -> { name, host, closed, open, infoAt, members: Map(pk -> { name, since, left }) }
     this.seenKey = `groups.seen.${this.pk.slice(0, 16)}`;
     this.seen = new Set(store.get(this.seenKey, []));
     this.listeners = new Set();
     this.messageListeners = new Set();
     this.goneListeners = new Set();
+    this.joinedListeners = new Set();
     this.queue = Promise.resolve();
     this.pendingRumors = [];
     this.watching = '';
@@ -182,9 +184,19 @@ export class Groups {
       .sort((a, b) => Number(b.me) - Number(a.me) || a.name.localeCompare(b.name));
   }
 
-  /** People who knocked and wait for the host (the host's devices only). */
+  /**
+   * People who knocked and wait for the host: { pub, pk, name, at }. They are kept in the host's chat settings, not
+   * in the page: the inbox hands a knock over once per device (it remembers the wraps it has read), so a knock that
+   * arrived while the host was on another page of the hub must still be there on the next one, and on their other
+   * devices (until 0.32.1 it lived in the page and was gone after a reload).
+   */
   requests(pub) {
-    return this.state.get(pub)?.requests || [];
+    const members = this.state.get(pub)?.members;
+    return this.waiting().filter((r) => r.pub === pub && !(members?.get(r.pk) && !members.get(r.pk).left));
+  }
+
+  waiting() {
+    return this.settings.get('requests', []) || [];
   }
 
   inviteLink(pageUrl, pub) {
@@ -222,7 +234,7 @@ export class Groups {
     const groups = this.list();
     for (const g of groups) {
       if (this.state.has(g.pub)) continue;
-      this.state.set(g.pub, { name: g.name || '', host: g.host, closed: false, open: false, members: new Map(), gone: new Map(), requests: [] });
+      this.state.set(g.pub, { name: g.name || '', host: g.host, closed: false, open: false, members: new Map(), gone: new Map() });
       // what the store holds, in order, seen before or not: the members and the rest are this page's to rebuild
       for (const ev of (await db.query([{ kinds: GROUP_KINDS, authors: [g.pub] }], g.network || 'hub')).sort((a, b) => a.created_at - b.created_at))
         await this.handle(ev, { replay: true });
@@ -407,12 +419,16 @@ export class Groups {
       if (!g || !st || g.host !== this.pk || st.closed) return;
       const member = st.members.get(rumor.pubkey);
       if (member && !member.left) return; // in already
+      // let in or declined already, maybe on another device of mine (a device that never read it reads it now)
+      if (this.answered().includes(`${body.pub}:${rumor.pubkey}:${rumor.created_at}`)) return;
       const name = String(body.name || '').slice(0, NAME);
-      if (st.open && body.invite === g.invite) return this.admit(body.pub, rumor.pubkey);
-      if (!st.requests.some((r) => r.pk === rumor.pubkey)) {
-        st.requests = [...st.requests, { pk: rumor.pubkey, name, at: rumor.created_at }].slice(-MAX_REQUESTS);
-        this.emit();
-      }
+      if (st.open && body.invite === g.invite) return this.admit(body.pub, rumor.pubkey, rumor.created_at);
+      const all = this.waiting();
+      const had = all.find((r) => r.pub === body.pub && r.pk === rumor.pubkey);
+      if (had && had.at >= rumor.created_at) return;
+      const others = all.filter((r) => r !== had);
+      await this.settings.set({ requests: [...others, { pub: body.pub, pk: rumor.pubkey, name, at: rumor.created_at }].slice(-MAX_REQUESTS) });
+      this.emit();
     } else if (rumor.kind === KINDS.GROUP_KEYS) {
       // the host, or a friend who invited me, hands me a group; the host's keys arriving again are a re-key
       if (!isHex64(body.w) || !isHex64(body.k) || !isHex64(body.host)) return;
@@ -432,7 +448,9 @@ export class Groups {
         await this.settings.set({ groups: [...this.list(), { ...entry, joined: now() }], knocks: this.knocks().filter((x) => x.pub !== body.pub) });
         await this.resubscribe();
         await this.join(body.pub, knock.myName || this.alias);
-        return this.emit();
+        this.emit();
+        for (const fn of this.joinedListeners) fn({ pub: body.pub, host: body.host, invite: entry.invite, name: entry.name });
+        return;
       }
       // someone put me in without my asking: the host, or a friend who is in it; it waits for my yes
       if (rumor.pubkey !== body.host && !(await this.invitedBy(rumor.pubkey))) return;
@@ -501,7 +519,7 @@ export class Groups {
     const w = newKey();
     const g = { pub: getPublicKey(hexToBytes(w)), w, k: newKey(), keys: [], host: this.pk, name: String(name).trim().slice(0, NAME), invite: randomId(), open, joined: now(), network: this.network };
     await this.settings.set({ groups: [...this.list(), g] });
-    this.state.set(g.pub, { name: g.name, host: g.host, closed: false, open, members: new Map(), gone: new Map(), requests: [] });
+    this.state.set(g.pub, { name: g.name, host: g.host, closed: false, open, members: new Map(), gone: new Map() });
     await this.publishInfo(g, { name: g.name, open });
     await this.resubscribe();
     await this.join(g.pub, myName);
@@ -524,20 +542,41 @@ export class Groups {
     this.emit();
   }
 
-  /** The host lets someone in: they get the keys; they announce themselves when the keys arrive. */
-  async admit(pub, pk) {
+  /** The host lets someone in: they get the keys; they announce themselves when the keys arrive. `at`: the knock's second. */
+  async admit(pub, pk, at = null) {
     const g = this.entry(pub);
     if (!g || g.host !== this.pk) throw new Error('only the host admits');
     await this.sendKeys(pk, g);
-    const st = this.state.get(pub);
-    if (st) st.requests = st.requests.filter((r) => r.pk !== pk);
+    await this.answer(pub, pk, at);
+  }
+
+  /** The host says no: the knock is gone on every device of theirs, also after a reload; a later knock asks again. */
+  decline(pub, pk) {
+    return this.answer(pub, pk);
+  }
+
+  /** A knock answered, yes or no: off the list of those waiting, and remembered so it does not come back. */
+  async answer(pub, pk, at = null) {
+    const all = this.waiting();
+    const asked = all.find((r) => r.pub === pub && r.pk === pk);
+    const when = at ?? asked?.at;
+    await this.settings.set({
+      requests: all.filter((r) => r !== asked),
+      ...(when ? { answered: [...this.answered(), `${pub}:${pk}:${when}`].slice(-MAX_ANSWERED) } : {}),
+    });
     this.emit();
   }
 
-  decline(pub, pk) {
-    const st = this.state.get(pub);
-    if (st) st.requests = st.requests.filter((r) => r.pk !== pk);
-    this.emit();
+  /** Knocks the host let in or said no to, as `<group>:<person>:<the knock's second>`. */
+  answered() {
+    return this.settings.get('answered', []) || [];
+  }
+
+  /** Everyone at the door of the groups I host: { pub, group, pk, name, at }. */
+  allRequests() {
+    return this.list()
+      .filter((g) => g.host === this.pk)
+      .flatMap((g) => this.requests(g.pub).map((r) => ({ ...r, pub: g.pub, group: this.state.get(g.pub)?.name || g.name || '' })));
   }
 
   /** A member brings friends in directly: they get the keys from me and need not knock. */
@@ -733,6 +772,12 @@ export class Groups {
   onInvite(fn) {
     this.inviteListeners.add(fn);
     return () => this.inviteListeners.delete(fn);
+  }
+
+  /** The host of a group I knocked at let me in, while the page is open: { pub, host, invite, name }. */
+  onJoined(fn) {
+    this.joinedListeners.add(fn);
+    return () => this.joinedListeners.delete(fn);
   }
 
   /** A group left, closed by its host, or that put me out: { pub, name, why: 'left' | 'closed' | 'removed' }. */

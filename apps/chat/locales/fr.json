@@ -154,5 +154,11 @@
   "call.failed": "Pas de connexion directe avec {name}. Entre certains réseaux (deux téléphones en données mobiles, par exemple), un appel a besoin d’un serveur TURN, et ce hub n’en indique aucun.",
   "call.busy": "Vous êtes déjà en appel.",
   "call.declinedBy": "{name} a refusé l’appel.",
-  "chat.how.3": "Les appels passent directement entre les navigateurs (WebRTC, chiffrés de bout en bout par DTLS-SRTP). La sonnerie est un message scellé comme un autre ; les navigateurs se trouvent grâce à des événements scellés sur les relais du hub, que les relais ne gardent pas. Un appel de groupe relie chacun à chacun, il convient donc à quelques personnes. Là où aucun chemin direct n’existe, seul un serveur TURN indiqué par le hub fait passer l’appel ; il transmet les données chiffrées et ne peut rien entendre."
+  "chat.how.3": "Les appels passent directement entre les navigateurs (WebRTC, chiffrés de bout en bout par DTLS-SRTP). La sonnerie est un message scellé comme un autre ; les navigateurs se trouvent grâce à des événements scellés sur les relais du hub, que les relais ne gardent pas. Un appel de groupe relie chacun à chacun, il convient donc à quelques personnes. Là où aucun chemin direct n’existe, seul un serveur TURN indiqué par le hub fait passer l’appel ; il transmet les données chiffrées et ne peut rien entendre.",
+  "chat.group.asking": "{name} demande à entrer",
+  "chat.group.askingMany": {
+    "one": "{n} personne demande à entrer",
+    "other": "{n} personnes demandent à entrer",
+    "many": "{n} personnes demandent à entrer"
+  }
 }

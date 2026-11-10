@@ -434,5 +434,8 @@
   "vault.error.notBackup": "To nie jest kopia zapasowa sejfu.",
   "notify.call": "{name} dzwoni",
   "notify.callGroup": "{name} dzwoni w grupie {group}",
-  "notify.answer": "Odbierz"
+  "notify.answer": "Odbierz",
+  "notify.groupKnock": "{name} prosi o dołączenie do „{group}”",
+  "notify.groupJoined": "Jesteś w „{group}”: gospodarz cię wpuścił.",
+  "notify.aGroup": "grupy"
 }

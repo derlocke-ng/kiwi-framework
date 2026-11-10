@@ -268,6 +268,7 @@ function GroupsTab({ convs }: { convs: any[] }) {
           ))}
           {sorted.map((g) => {
             const c = lastOf(g.pub);
+            const asking = g.host === identity.pk ? groups.requests(g.pub) : [];
             return (
               <li key={g.pub} className={`${unread(g.pub) ? 'unread' : ''}${pinned.includes(g.pub) ? ' pinned' : ''}`} data-group={g.pub.slice(0, 12)}>
                 <a href={`#/group/${g.pub}/${g.host}/${g.invite || '-'}/${encodeURIComponent(groups.info(g.pub)?.name || g.name)}`} className="conv">
@@ -277,17 +278,28 @@ function GroupsTab({ convs }: { convs: any[] }) {
                   <span className="conv-main">
                     <span className="conv-name">{groups.info(g.pub)?.name || g.name || t('chat.group.title')}</span>
                     <span className="conv-preview">
-                      {c
-                        ? c.system
-                          ? preview(t, c, identity.pk, (pk) => c.name || fingerprint(pk))
-                          : `${c.from === identity.pk ? t('chat.you') : c.name || fingerprint(c.from)}: ${preview(t, c)}`
-                        : t('chat.group.members', { n: groups.members(g.pub).length })}
+                      {asking.length
+                        ? asking.length === 1
+                          ? t('chat.group.asking', { name: asking[0].name || fingerprint(asking[0].pk) })
+                          : t('chat.group.askingMany', { n: asking.length })
+                        : c
+                          ? c.system
+                            ? preview(t, c, identity.pk, (pk) => c.name || fingerprint(pk))
+                            : `${c.from === identity.pk ? t('chat.you') : c.name || fingerprint(c.from)}: ${preview(t, c)}`
+                          : t('chat.group.members', { n: groups.members(g.pub).length })}
                     </span>
                   </span>
                   <span className="conv-meta">
                     {c ? <time>{relTime(c.at * 1000)}</time> : null}
                     {pinned.includes(g.pub) ? <Icon name="pin" /> : null}
-                    {unread(g.pub) ? <span className="dot" /> : null}
+                    {asking.length ? (
+                      <span className="badge" data-requests={asking.length}>
+                        <Icon name="user-plus" />
+                        {asking.length}
+                      </span>
+                    ) : unread(g.pub) ? (
+                      <span className="dot" />
+                    ) : null}
                   </span>
                 </a>
               </li>

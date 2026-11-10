@@ -351,21 +351,53 @@ export async function chatSuite(env, { app, settings, boards }) {
   assert.ok(onRelay.every((e) => e.pubkey.startsWith(groupPub)), 'all under the group’s anonymous key');
   assert.ok(!JSON.stringify(onRelay).includes('hello crew') && !JSON.stringify(onRelay).includes(pkA) && !JSON.stringify(onRelay).includes(pkB), 'the relay sees neither text nor members');
 
-  step('a stranger with the link knocks; the host lets them in; then removes them, and what follows is sealed with a key they never had');
+  step('a stranger with the link knocks; the host, on another page, is told and lets them in; the stranger, waiting elsewhere, is told they are in');
   const link = await A.getAttribute('.group', 'data-invite');
   assert.match(link, /#\/group\/[0-9a-f]{64}\/[0-9a-f]{64}\/[A-Za-z0-9_-]{8,}\//, 'the invite link names the group, the host and a token, never a key');
   const S = await dev('S');
   await S.goto(link);
   await S.waitForSelector('#joinGroup');
   const pkS = await pkOf(S);
-  await S.waitForSelector('#joinGroup');
   await S.fill('#joinGroup [name=name]', 'Sam');
+  // the host is not looking at the group: a knock must reach them wherever they are on the hub
+  await A.goto(SETTINGS);
   await S.click('#knockBtn');
   await S.waitForSelector('#knockWaiting');
-  await until(async () => (await A.$$('#requests [data-admit]')).length === 1, 'the host sees Sam at the door', 40000);
+  await S.goto(SETTINGS); // the stranger does not wait on the door either
+  await until(async () => (await texts(A, '.toast')).some((x) => x.includes('Sam asks to join “Crew”')), 'the host is told on the settings page', 40000);
+  await open(A, '#/groups');
+  await until(async () => (await A.$$('#groupList [data-requests="1"]')).length === 1, 'the group’s row says one person waits', 20000);
+  assert.match(await A.textContent('#groupList li:has([data-requests])'), /Sam asks to join/);
+  await A.click('#groupList li:has([data-requests]) .conv');
+  await A.waitForSelector('#requests [data-admit]');
   assert.ok((await A.textContent('#requests')).includes('Sam'));
   await A.click('#requests [data-admit]');
+  const inToast = S.locator('.toast', { hasText: 'You’re in “Crew”' });
+  await until(async () => (await inToast.count()) === 1, 'the stranger is told they are in, on another page', 40000);
+  await inToast.locator('.toast-action').click();
   await S.waitForSelector('#groupComposer textarea', { timeout: 40000 });
+
+  step('a knock the host declines stays declined after a reload, and nobody is told twice');
+  const V = await dev('V');
+  await V.goto(link);
+  await V.waitForSelector('#joinGroup');
+  await V.fill('#joinGroup [name=name]', 'Vic');
+  await V.click('#knockBtn');
+  await V.waitForSelector('#knockWaiting');
+  await until(async () => (await A.$$('#requests [data-decline]')).length === 1, 'Vic at the door, on the group’s page', 40000);
+  assert.ok(await absent(A, '.toast:has-text("Vic asks to join")'), 'no toast for what the page shows');
+  await A.click('#requests [data-decline]');
+  await until(async () => (await A.$$('#requests [data-decline]')).length === 0, 'declined');
+  await A.reload();
+  await A.waitForSelector('#groupComposer textarea');
+  await sleep(2500);
+  assert.ok(await absent(A, '#requests'), 'still declined after a reload');
+  await open(A, '#/groups');
+  await sleep(1000);
+  assert.equal((await A.$$('#groupList [data-requests]')).length, 0);
+  await V.ctx.close();
+  await A.goto(link); // back to the group, as its host
+  await A.waitForSelector('#groupComposer textarea');
   await say(S, 'hi all', '#groupComposer');
   await until(async () => (await groupMessages(A)).includes('hi all'), 'Sam’s message on A', 30000);
   await until(async () => (await A.textContent('#groupMembers')).includes('Sam'), 'Sam is listed', 20000);

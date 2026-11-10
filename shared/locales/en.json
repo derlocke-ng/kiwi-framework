@@ -410,5 +410,8 @@
   "vault.error.notBackup": "This is not a backup of a vault.",
   "notify.call": "{name} is calling",
   "notify.callGroup": "{name} calls in {group}",
-  "notify.answer": "Answer"
+  "notify.answer": "Answer",
+  "notify.groupKnock": "{name} asks to join “{group}”",
+  "notify.groupJoined": "You’re in “{group}”: its host let you in.",
+  "notify.aGroup": "a group"
 }
