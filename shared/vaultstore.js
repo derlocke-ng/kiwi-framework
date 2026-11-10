@@ -184,13 +184,17 @@ export class VaultStore {
       if (ev.kind === KINDS.VAULT_ITEM && ev.pubkey === this.pk) this.receive(ev);
     });
     for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
+    // the relays' first answer, once what they sent is stored (as AccountSettings does: not on a timer that a slow store outlasts)
     this.synced = new Promise((resolve) => {
       const t = setTimeout(resolve, 4000);
+      const arriving = [];
       this.sub = pool.subscribe([this.filter], {
-        onevent: (ev) => db.put(ev),
+        onevent: (ev) => {
+          arriving.push(Promise.resolve(db.put(ev)).catch(() => {}));
+        },
         oneose: () => {
           clearTimeout(t);
-          setTimeout(resolve, 50);
+          Promise.all(arriving).then(() => resolve());
         },
       });
     });

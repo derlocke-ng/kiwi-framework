@@ -76,3 +76,22 @@ test('a change made on a page that went away before it was published goes out fr
   await until(() => next.published.length > 0);
   assert.equal((await read(next.published[0])).lang, 'de', 'and publishes it');
 });
+
+test('a slow store: the relays’ answer counts once their events are stored and read, so a change does not go out over them', async () => {
+  mem.clear();
+  const B = device();
+  const put = B.net.db.put;
+  B.net.db.put = async (ev) => {
+    await new Promise((r) => setTimeout(r, 200)); // a busy device: the store takes its time
+    return put(ev);
+  };
+  const s = await new AccountSettings(id, B.net, 'suite').start();
+  const writing = s.set({ devices: { b: { name: 'B', seen: 2 } } }); // a device signing in records itself
+  const account = await event({ alias: 'ada', accountPk: 'f'.repeat(64), u: 5 }, Math.floor(Date.now() / 1000));
+  B.relay(account);
+  B.eose(); // the relay is done at once; the store is not
+  await writing;
+  const sent = await read(B.published.at(-1));
+  assert.equal(sent.alias, 'ada', 'the account’s name stays in the newest version');
+  assert.deepEqual(sent.devices, { b: { name: 'B', seen: 2 } });
+});

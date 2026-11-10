@@ -46,6 +46,7 @@ export class AccountSettings {
     this.listeners = new Set();
     this.newest = null; // the newest event applied: an older one arriving later is ignored
     this.synced = Promise.resolve(); // start() replaces it: the relays' first answer
+    this.applying = Promise.resolve(); // events are applied one after another (receive), so "all applied" can be awaited
   }
 
   get filter() {
@@ -59,14 +60,22 @@ export class AccountSettings {
       if (ev.kind === KINDS.SETTINGS && ev.pubkey === this.pk) this.receive(ev);
     });
     for (const ev of (await db.query([this.filter])).reverse()) await this.receive(ev);
-    // the relays' first answer (or a few seconds without one): from then on a change is written over the newest event
+    // The relays' first answer (or a few seconds without one): from then on a change is written over the newest event.
+    // Not before every event they sent has been stored and applied: a change written on top of a base that does not
+    // have them yet would go out as the newest version and lose them (a device signing in once wrote its device
+    // entry over the account's name this way, when the store was slow to take the account's settings).
     this.synced = new Promise((resolve) => {
       const t = setTimeout(resolve, SYNC_WAIT);
+      const arriving = [];
       this.sub = pool.subscribe([this.filter], {
-        onevent: (ev) => db.put(ev),
+        onevent: (ev) => {
+          arriving.push(Promise.resolve(db.put(ev)).catch(() => {}));
+        },
         oneose: () => {
           clearTimeout(t);
-          setTimeout(resolve, 50); // the stored events reach receive() first
+          Promise.all(arriving)
+            .then(() => this.applying) // the store handed them to receive() as it took them
+            .then(() => resolve());
         },
       });
     });
@@ -80,8 +89,14 @@ export class AccountSettings {
     this.offStore?.();
   }
 
+  /** An event of the namespace, applied after the ones before it. */
+  receive(ev) {
+    this.applying = this.applying.then(() => this.apply(ev)).catch(() => {});
+    return this.applying;
+  }
+
   /** The newest event wins, not the last call: a read of the store can hand over an older version after a newer one came in live. */
-  async receive(ev) {
+  async apply(ev) {
     if (ev.tags.find((t) => t[0] === 'd')?.[1] !== this.d) return;
     if (this.newest && !supersedes(ev, this.newest)) return;
     this.newest = ev;
