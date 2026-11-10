@@ -27,7 +27,10 @@ export function usePeopleNotices(): void {
     const offMessage = groups.onMessage((m: any) => {
       if (current === chat.id && messages?.active === m.conv) return;
       const g = groups.entry(m.conv);
-      const href = g ? `${base}${chat.id}/#/group/${g.secret}/${g.host}` : `${base}${chat.id}/#/groups`;
+      // the group's own link (a member's: no token), at the message
+      const href = g
+        ? `${base}${chat.id}/#/group/${m.conv}/${g.host}/${g.invite || '-'}/${encodeURIComponent(m.groupName || g.name || '')}?m=${m.id}`
+        : `${base}${chat.id}/#/groups`;
       const title = t('notify.groupMessage', { name: m.name || fingerprint(m.from), group: m.groupName || g?.name || '' });
       toast(title, 'info', 8000, { label: t('people.open'), href });
       notifyBrowser({ title, body: (m.file ? t('files.preview', { name: m.file.name }) : m.text).slice(0, 120), url: href, tag: `group-${m.conv}`, icon });

@@ -144,6 +144,24 @@ A group is a key pair. Its pubkey is where its events live and its secret (`w`) 
 
 Neither key is in the invite link: `#/group/<pub>/<host>/<invite token>/<name>`. Opening it **knocks**: a rumor of kind **7824** `GROUP_KNOCK` (`{ "pub", "invite", "name" }`) gift-wrapped to the host (§5). The host admits (or, when the group is `open` and the token is current, their device admits by itself) by sending a rumor of kind **7825** `GROUP_KEYS` (`{ "pub", "w", "k", "host", "name" }`) wrapped to the person; a member who invites friends sends them the same. A device accepts keys from the host, or from a friend. Keys answering the device's own knock put it in the group at once; keys arriving unasked (a friend or the host inviting) wait as an **invitation** the person says yes or no to. Keys for a group it already holds count as a **re-key** when they come from the host. A **live room** is offered the same way: kind **7826** `ROOM_INVITE` (`{ "secret", "name" }`) wrapped to a friend, who opens the room from the invitation; the secret never has to travel as a link. When someone leaves or is removed, the host makes a new `k`, sends it to everyone still in, and republishes the info under it; members keep every `k` they were given and open with the newest first. Closing is the info with `closed: true`: every member's device drops the group. The groups a person is in and the knocks they wait on are in their account's settings (kind 30791, `d` = `chat`).
 
+## 7c. After a message is sent: replies, reactions, edits, pins, deletions, disappearing messages (chat, 0.30)
+
+What happens to a message after it is sent travels the way the message did: in a conversation, as a rumor in the same two gift wraps (§5, NIP-17; `["p", <the other person>]`, `["ms", <0–999>]`); in a group (§7b), as a **7820** event like a message to the relays, whose inner event, signed by the member, has the kind below. A relay cannot tell a reaction from a message. Every change names its message with `["e", <message id>]` (the rumor's id in a conversation, the inner event's in a group) and is believed only as follows:
+
+| kind (rumor, or inner event) | content | who may | what it does |
+|---|---|---|---|
+| **14**, **15**, inner **7820** with `["e", <id>]` | the message | anyone in the conversation | a **reply** to that message (NIP-17's tag) |
+| **7** (NIP-25) | one emoji (`+` reads as 👍, `-` as 👎), ≤ 32 characters; `["k", "14" \| "15" \| "7820"]` | anyone in the conversation | a **reaction**; one a person, their newest counts; the last `e` tag is the message |
+| **7830** | the new text, ≤ 4000 characters | the message's writer | an **edit**; the newest by the writer is shown, marked as edited (not for files) |
+| **7831** | `pin` or `unpin` | anyone in the conversation | the message **pinned** above the conversation, or taken down; the newest per message counts |
+| **5** (NIP-09) | `""`; `["k", <the kind deleted>]`, one or more `e` | the writer of what it names | a **deletion**: a message (shown as deleted, its text, file and edits erased on every device that knows this), or the writer's own reactions (taking a reaction back) |
+
+Changes arrive in any order, before their message or long after; a device keeps them beside the messages and applies them when it shows a conversation, so the order does not matter. A deletion that comes first leaves the message erased the moment it arrives; an edit of something deleted is not kept. A client that knows none of this still shows the messages; another NIP-17 client may show reactions and replies, and may keep a deleted message.
+
+**Disappearing messages.** In a conversation, kind **7832** (`{ "seconds": <0–2419200> }`, 0 for off) sets the conversation's timer for both sides; the newest setting by either side counts, and each leaves a line in the conversation. In a group, the host's info (§7b) carries `"expire": <seconds>`. While a timer is on, a message carries NIP-40's `["expiration", <now + seconds>]` on the rumor (or the inner event) **and** on both gift wraps (or the outer 7820 event), so relays that keep to NIP-40 drop them, and a change to an expiring message carries the message's expiration. A device does not take an event whose expiration has passed, and forgets expiring events, messages and changes when their time is up (every 30 seconds, and hides them at once). Anyone could still have kept a copy (a screenshot, another app, a relay that ignores NIP-40).
+
+**Pinned conversations** (which conversations and groups come first in the chat's lists) are the person's own: `pinned` in the account's chat settings (kind 30791, `d` = `chat`), the last pinned first. The **search** runs on the device over what it holds; nothing is sent.
+
 ## 8. Live rooms (Payload, pong, chat)
 
 **Chat rooms** are on nostr already: a room is named by its link's `#secret`; its public id is `sha256("wjs|room|chat|" + secret)` as hex, and its key is `HKDF(secret, "wjs/room/chat")` (`shared/events.js` `deriveKey`). A message is an **ephemeral** event of kind **21710** with `["h", <room id>]` and content `seal(key, { "nick": <≤ 24 chars>, "text": <≤ 2000 chars> })`; presence is kind **21700** with the same tag and `seal(key, { "nick" })`, sent on entering, every 30 s, when someone new appears and on returning to the foreground (someone silent for 75 s has left); `{ "nick", "hello": true }` is the first ping of a visit (and the one on returning), which the others answer with a ping of their own so the newcomer's list fills now; `{ "nick", "bye": true }` says the person left, so the others drop them at once. A tab keeps its visit key and name in session storage, so a reload brings the same person back, not a newcomer beside a ghost. Each visit signs with a key made for it, so relays learn no identity; relays pass ephemeral events to the room's subscribers and store nothing, so a room has no history. Anyone with the link is in the room; there is no account.
@@ -209,6 +227,7 @@ A user's relay list is local today (`wjs.relays`), defaulting to the distributio
 | 10063 | the person's media servers ([BUD-03](https://github.com/hzrd149/blossom/blob/master/buds/03.md)), so others can find their files; the list is in the suite settings until then |
 | 21700–21702, 21710 | in use: live rooms (§8): presence, signals, data frames, chat-room messages |
 | 30720, 7820–7826 | chat groups and invitations (§7b) |
+| 7, 5, 7830–7832 | in use inside gift wraps and group seals only: reactions, deletions, edits, pins and timers (§7c) |
 | 5 | deletion (NIP-09) of a retired account entry (§2) |
 | 10002, 10050 | relay list (NIP-65) and inbox list (NIP-17) per network (§9) |
 | 30830 | in use: market listings (§14) |
@@ -283,6 +302,7 @@ The authenticator shows every entry with a `totp`: `name` and `username` stand f
 - **v1, extended** (0.27): the vault's second form, one sealed event per entry (kind 30792) under a wrapped vault key, for the password manager and the authenticator (§3, §16); 0.26's codes move into it on the first unlock.
 - **v1, extended** (0.28): keys and certificates in the vault (§16: entry types `ssh`, `ca`, `cert`). No existing format changed.
 - **v1, extended** (0.29): a certificate's `origin`, `csrPem`, `days` and `previous`, a CA's `permitted`, a subject's `st` and `l` (§16). No existing format changed.
+- **v1, extended** (0.30): replies, reactions, edits, pins, deletions and disappearing messages in conversations and groups (§7c: kinds 7, 5, 7830–7832 inside wraps and seals, NIP-40 on the wraps and group events, `expire` in a group's info, `pinned` in the chat settings). No existing format changed; a device before 0.30 shows the messages and leaves the rest unread until it is updated.
 
 
 ## 9. Relay lists, inboxes and hints

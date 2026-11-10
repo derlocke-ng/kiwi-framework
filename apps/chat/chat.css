@@ -814,13 +814,20 @@ body.thread .foot {
   color: var(--muted);
 }
 
-.search-box input {
+.search-box:focus-within {
+  border-color: var(--accent);
+}
+
+.search-box input,
+.search-box input:focus,
+.search-box input:focus-visible {
   flex: 1;
   min-width: 0;
   border: 0;
   background: none;
   padding: 0.65rem 0;
   outline: none;
+  box-shadow: none;
 }
 
 .result-text mark {
