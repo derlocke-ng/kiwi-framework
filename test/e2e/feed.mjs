@@ -5,8 +5,11 @@
 // a moderator's report folds an entry; an ad reported as unmarked waits under the moderator's Reported tab,
 // the moderator marks it (folded for someone without an account) and lifts the mark again; an entry marked
 // 18+ is folded for someone without an account; an
-// entry or a person opens in a panel over the feed, which keeps its place; a link opens the entry; the account
-// gate sends a person with a key alone to register and brings them back.
+// entry or a person opens in a panel over the feed, which keeps its place; a link opens the entry; diaries (a
+// diary for friends with a cover, entries added on its page and from the composer, read in order by a friend
+// and by no one else, nothing on the relay tying them together; pinned by a reader in the Diaries tab, pinned
+// to the writer's profile, finished, deleted, reported and marked); the account gate sends a person with a key alone to register
+// and brings them back.
 //
 // A distribution runs it against its own site:
 //   import { feedSuite } from 'kiwi-framework/test/e2e/feed.mjs';
@@ -47,7 +50,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
 
   async function open(page, url = app) {
     await page.goto(url);
-    await page.waitForSelector('#newEntry');
+    await page.waitForSelector('#newEntry, #newDiary');
     await until(async () => (await page.$eval('#sync', (el) => el.dataset.state)) === 'on', 'connected', 15000);
   }
   async function tab(page, which) {
@@ -74,6 +77,28 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
     assert.ok(i >= 0, `menu has "${label}": ${items.join(', ')}`);
     await page.click(`.menu [data-i="${i}"]`);
   }
+  async function act(page, opener, which) {
+    await page.click(opener);
+    await page.waitForSelector(`.menu [data-act=${which}]`);
+    await page.click(`.menu [data-act=${which}]`);
+  }
+  const diaryTexts = (page) => texts(page, '#panel #diaryEntries .entry-text');
+  const diaryCard = (page, title) => page.locator(`.diary-card[data-title="${title}"]`);
+  async function beginDiary(page, title, about, audience, cover = null) {
+    await tab(page, 'diaries');
+    await page.click('#newDiary');
+    await page.waitForSelector('#diaryFormBody');
+    await page.fill('#diaryFormBody [name=title]', title);
+    await page.fill('#diaryFormBody [name=about]', about);
+    if (cover) {
+      await page.setInputFiles('#diaryForm input[type=file]', cover);
+      await page.waitForSelector('#diaryCover img', { timeout: 20000 });
+    }
+    await page.selectOption('#diaryFormBody select[name=audience]', audience);
+    await page.click('#diaryFormBody [type=submit]');
+    await until(async () => (await page.textContent('#panel #diaryTitle').catch(() => '')) === title, `the diary “${title}” opens`, 20000);
+    return page.url().split('#/d/')[1].split('/')[1].split('?')[0];
+  }
   async function befriend(asker, asked) {
     await asked.goto(settings);
     await asked.waitForSelector('#myNpub');
@@ -97,7 +122,7 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   await A.click('#mediaForm [type=submit]');
   await A.waitForSelector(`#mediaList li[data-server="${env.blossom.url}"]`);
   await open(A);
-  assert.deepEqual(await A.$$eval('input[name=tab]', (els) => els.map((e) => e.value)), ['space', 'friends', 'mine']);
+  assert.deepEqual(await A.$$eval('input[name=tab]', (els) => els.map((e) => e.value)), ['space', 'diaries', 'friends', 'mine']);
   await until(async () => /Nothing in this space yet/.test(await A.textContent('.feed')), 'the empty feed (after the relay’s first answer)', 15000);
 
   step('an entry for the space with a photo: sealed on the relay, the photo encrypted on the media server, the text and photo shown');
@@ -265,6 +290,132 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
   await C.click('#panel [data-act=panel-back]');
   await until(async () => !(await C.$('#panel')) && Boolean(await C.$('#feedTabs')), 'back closes the panel onto the feed', 10000);
 
+  step('a diary for friends, with a cover: entries added on its page and from the composer, with their steps; the relay sees them apart');
+  await open(A);
+  const diaryD = await beginDiary(A, 'Autoflower run #1', 'Two plants under a **100 W** LED.', 'friends', { name: 'cover.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+  assert.match(await A.textContent('#panel .diary-head'), /Friends/);
+  await until(async () => A.$eval('#panel img.diary-hero', (img) => img.complete && img.naturalWidth > 0).catch(() => false), 'the cover over the diary', 20000);
+  for (const [text, at] of [
+    ['Day 1: germinated in paper towels', 'Week 1'],
+    ['Day 12: first nodes, watering every two days', 'Week 2'],
+  ]) {
+    await A.click('#addToDiary');
+    await A.waitForSelector('#composeForm');
+    assert.match(await A.textContent('#compose h2'), /Autoflower run #1/);
+    assert.ok(await absent(A, '#composeForm select[name=audience]'), 'an entry in a diary is for the diary’s readers');
+    assert.match(await A.textContent('#audienceHint'), /Friends/);
+    await A.fill('#composeForm textarea[name=text]', text);
+    await A.fill('#composeForm [name=step]', at);
+    await A.click('#composeForm .btn-primary');
+    await until(async () => !(await A.$('#composeForm')), 'composer closed', 20000);
+    await until(async () => (await diaryTexts(A)).includes(text), `“${text}” in the diary`, 20000);
+  }
+  await A.click('#panel [data-act=panel-back]');
+  await until(async () => !(await A.$('#panel')), 'back on the Diaries tab', 10000);
+  await tab(A, 'space');
+  await A.click('#newEntry');
+  await A.waitForSelector('#composeForm');
+  await A.selectOption('#composeForm select[name=diary]', { label: 'Autoflower run #1' });
+  await A.waitForSelector('#composeForm [name=step]');
+  assert.ok(await absent(A, '#composeForm select[name=audience]'));
+  await A.fill('#composeForm textarea[name=text]', 'Day 20: stretching, raised the light');
+  await A.fill('#composeForm [name=step]', 'Week 3');
+  await A.click('#composeForm .btn-primary');
+  await until(async () => !(await A.$('#composeForm')), 'composer closed', 20000);
+  const diaries = await env.relayEvents([{ kinds: [30821] }]);
+  assert.equal(diaries.length, 1, 'one diary on the relay');
+  assert.ok(!diaries[0].content.includes('Autoflower'), 'its title sealed');
+  const inDiary = (await env.relayEvents([{ kinds: [30820] }])).filter((e) => e.created_at >= diaries[0].created_at - 60);
+  assert.ok(inDiary.length >= 3);
+  assert.ok(!JSON.stringify(inDiary).includes(diaryD), 'no tag names the diary: which entries belong to it is sealed');
+
+  step('a friend reads the diary from its beginning, the steps beside the entries; the feed points at the diary; strangers see none of it');
+  await open(D);
+  await tab(D, 'diaries');
+  await until(async () => (await diaryCard(D, 'Autoflower run #1').count()) === 1, 'the diary on D', 40000);
+  await until(async () => (await diaryCard(D, 'Autoflower run #1').textContent()).includes('ada'), 'with its writer');
+  await diaryCard(D, 'Autoflower run #1').click();
+  await until(async () => (await diaryTexts(D)).length === 3, 'its three entries on D', 30000);
+  assert.deepEqual(await diaryTexts(D), [
+    'Day 1: germinated in paper towels',
+    'Day 12: first nodes, watering every two days',
+    'Day 20: stretching, raised the light',
+  ]);
+  assert.deepEqual(await texts(D, '#panel #diaryEntries .entry-step'), ['Week 1', 'Week 2', 'Week 3']);
+  assert.match(await D.textContent('#panel .diary-head'), /3 entries/);
+  assert.match(await D.textContent('#panel .diary-about'), /100 W/);
+  await until(async () => D.$eval('#panel img.diary-hero', (img) => img.complete && img.naturalWidth > 0).catch(() => false), 'the cover opens on D', 20000);
+  assert.ok(await absent(D, '#addToDiary'), 'only its writer adds to it');
+  await D.click('#panel [data-act=panel-back]');
+  await until(async () => !(await D.$('#panel')), 'back on the Diaries tab', 10000);
+  await tab(D, 'friends');
+  await until(async () => (await entryTexts(D)).includes('Day 20: stretching, raised the light'), 'the entry in D’s feed', 20000);
+  assert.match(await entryOn(D, 'Day 20').locator('.entry-diary').textContent(), /In Autoflower run #1 · Week 3/);
+  await open(C);
+  await tab(C, 'diaries');
+  await sleep(1500);
+  assert.equal(await diaryCard(C, 'Autoflower run #1').count(), 0, 'the stranger does not see the diary');
+  await C.goto(`${app}#/d/${pkA}/${diaryD}`);
+  await C.waitForSelector('#panel #notForYou', { timeout: 20000 });
+  await tab(C, 'space');
+
+  step('a second diary, for the space; a reader pins the first to the top of the Diaries tab, and it stays pinned');
+  await open(A);
+  await beginDiary(A, 'Balcony tomatoes', 'Three pots, one balcony.', 'space');
+  await A.click('#panel [data-act=panel-back]');
+  await open(D);
+  await tab(D, 'diaries');
+  await until(async () => (await texts(D, '.diary-card .diary-title')).join('|') === 'Balcony tomatoes|Autoflower run #1', 'both, the one written to last first', 30000);
+  await D.locator('.collection-item', { has: diaryCard(D, 'Autoflower run #1') }).locator('.pin-btn').click();
+  await until(async () => (await D.$$('[data-part=pinned] .diary-card[data-title="Autoflower run #1"]')).length === 1, 'pinned on top', 10000);
+  await open(D);
+  await until(async () => (await D.$$('[data-part=pinned] .diary-card[data-title="Autoflower run #1"]')).length === 1, 'still pinned after a reload', 20000);
+  // someone without an account sees a title once its marks are known (an 18+ diary is folded for them)
+  await until(async () => (await texts(D, '.diary-card .diary-title')).join('|') === 'Autoflower run #1|Balcony tomatoes', 'the pinned one first', 10000);
+
+  step('the writer pins the diary and an entry to their profile: on top of their page, for whoever can read them');
+  await open(A);
+  await tab(A, 'diaries');
+  await diaryCard(A, 'Autoflower run #1').click();
+  await A.waitForSelector('#panel #diaryEntries');
+  await act(A, '#panel [data-act=diary-menu]', 'pin-profile');
+  await A.waitForSelector('.toast-success');
+  await A.click('#panel [data-act=panel-back]');
+  await tab(A, 'space');
+  await until(async () => (await entryTexts(A)).includes('Week 2: first true leaves #grow'), 'the space entry on A');
+  await menu(A, 'Week 2: first true', 'Pin to my profile');
+  await until(async () => Boolean(await entryOn(A, 'Week 2: first true').locator('[data-pinned]').count()), 'marked pinned on A', 10000);
+  await D.goto(`${app}#/p/${pkA}`);
+  await until(
+    async () => (await D.$$('#personPinned .diary-card[data-title="Autoflower run #1"]')).length === 1 && (await texts(D, '#personPinned .entry-text')).includes('Week 2: first true leaves #grow'),
+    'D sees both pinned on A’s page',
+    30000,
+  );
+  assert.deepEqual(await texts(D, '#personDiaries .diary-title'), ['Balcony tomatoes'], 'the other diaries below, the pinned one not twice');
+  await C.goto(`${app}#/p/${pkA}`);
+  await until(async () => (await texts(C, '#personPinned .entry-text')).includes('Week 2: first true leaves #grow'), 'C sees the pinned space entry', 30000);
+  assert.ok(await absent(C, '#personPinned .diary-card'), 'not the friends’ diary');
+
+  step('finished, then deleted: a finished diary takes no more entries; a deleted one is gone, its entries stay');
+  await A.goto(`${app}#/d/${pkA}/${diaryD}`);
+  await A.waitForSelector('#panel #diaryEntries');
+  await act(A, '#panel [data-act=diary-menu]', 'finish');
+  await until(async () => Boolean(await A.$('#panel .diary-head [data-done]')) && (await absent(A, '#addToDiary')), 'finished on A', 10000);
+  await A.goto(app);
+  await A.waitForSelector('#feedTabs');
+  await tab(A, 'diaries');
+  await diaryCard(A, 'Balcony tomatoes').click();
+  await A.waitForSelector('#panel #addToDiary');
+  await act(A, '#panel [data-act=diary-menu]', 'delete-diary');
+  await A.waitForSelector('dialog.modal [data-ok]');
+  await A.click('dialog.modal [data-ok]');
+  await until(async () => !(await A.$('#panel')) && (await diaryCard(A, 'Balcony tomatoes').count()) === 0, 'gone on A', 20000);
+  await open(D);
+  await until(async () => (await diaryCard(D, 'Balcony tomatoes').count()) === 0, 'gone on D', 20000);
+  assert.equal(await diaryCard(D, 'Autoflower run #1').locator('[data-done]').count(), 1, 'the other shows as finished');
+  await tab(D, 'friends');
+  await tab(A, 'space');
+
   if (moderator) {
     step('a moderator of the space reports an entry: it is folded away for everyone else, not for its writer');
     await post(A, 'Buy cheap followers here', 'space');
@@ -326,6 +477,34 @@ export async function feedSuite(env, { app, settings, space, moderator = null, c
       'shown on C again, no longer folded as an ad',
       20000,
     );
+
+    step('a diary is reported and marked as an entry is: under Reported for the moderator, then an ad for someone without an account');
+    await open(A);
+    await beginDiary(A, 'Clone shop diary', 'Cuttings for sale, write me.', 'space');
+    await A.click('#panel [data-act=panel-back]');
+    await tab(A, 'space');
+    await open(C);
+    await tab(C, 'diaries');
+    await until(async () => (await diaryCard(C, 'Clone shop diary').count()) === 1, 'the diary on C', 20000);
+    await until(async () => (await diaryCard(C, 'Clone shop diary').locator('.diary-title').textContent()) === 'Clone shop diary', 'its title on C');
+    await diaryCard(C, 'Clone shop diary').click();
+    await C.waitForSelector('#panel #diary');
+    await act(C, '#panel [data-act=diary-menu]', 'report');
+    await C.waitForSelector('#reportForm');
+    await C.selectOption('#reportForm [name=type]', 'ad');
+    await C.click('#reportForm .btn-danger');
+    await until(async () => !(await C.$('#reportForm')), 'report sent', 20000);
+    await open(M);
+    await tab(M, 'review');
+    await until(async () => (await M.$$('#reportedDiaries .diary-card[data-title="Clone shop diary"]')).length === 1, 'under Reported on M', 20000);
+    await diaryCard(M, 'Clone shop diary').click();
+    await M.waitForSelector('#panel #diary');
+    await act(M, '#panel [data-act=diary-menu]', 'mark-ad');
+    await until(async () => (await M.$$('#reportedDiaries .diary-card')).length === 0, 'reviewed: off the Reported tab', 20000);
+    await open(C);
+    await until(async () => (await C.$$('.diary-card[data-label=ad][data-title="Clone shop diary"]')).length === 1, 'an ad on C', 20000);
+    assert.match(await diaryCard(C, 'Clone shop diary').locator('.diary-title').textContent(), /shown to people with an account/);
+    await tab(C, 'space');
     await M.ctx.close();
   }
 

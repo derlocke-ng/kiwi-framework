@@ -18,6 +18,7 @@ export const KINDS = {
   GROUP_INFO: 30720, // chat group: name, host, closed; signed by the group's key, sealed, host-signed inside
   SPACE: 34550, // NIP-72 community definition: a space (shared/spaces.js); posts in it carry ["a", <its address>]
   FEED_ENTRY: 30820, // the feed: an entry, sealed to an audience or the space (`key` tag: the key's id)
+  FEED_DIARY: 30821, // the feed: a diary, a series of entries (each names it inside its seal), sealed like an entry
   FEED_COMMENT: 30822, // the feed: a comment on an entry (["a", <entry address>]), sealed with the entry's key
   MARKET_LISTING: 30830, // the market: a listing, sealed like an entry, NIP-40 expiry, keyed-hash search labels (`l`)
   // Ephemeral (20000–29999): relays pass them on and forget them.

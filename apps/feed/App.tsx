@@ -1,7 +1,8 @@
 // The feed: entries with photos for the space a mount serves, for friends, a
 // circle or only me (Armory mounts it as Outpost, its grow reports).
 // Routes: #/ the feed, #/e/<author>/<d> one entry and its comments (a link
-// into the mount's space, ui/spaces.ts), #/p/<pk> one person, #/settings.
+// into the mount's space, ui/spaces.ts), #/d/<author>/<d> one diary, #/p/<pk>
+// one person, #/settings.
 import { useEffect, useState } from 'react';
 import { tErr } from '../../shared/i18n.js';
 import { AccountSettings } from '../../shared/settings.js';
@@ -13,6 +14,7 @@ import { resolveSpaceLink } from '../../ui/spaces';
 import { toast } from '../../ui/toast';
 import { Panel } from '../../ui/widgets/Panel';
 import { FeedData, NAMESPACE, parseRoute } from './data/feed.js';
+import { DiaryPage, DiaryProvider } from './pages/Diaries';
 import { EntryPage } from './pages/EntryPage';
 import { FeedSettings } from './pages/FeedSettings';
 import { FeedView } from './pages/FeedView';
@@ -27,7 +29,7 @@ export function FeedApp() {
   const hash = useHash({ scroll: false }); // an entry or a person opens over the feed, which keeps its place
   const route = parseRoute(hash);
   // a link into another space: this hub's mount for it, or a word that it is not served here
-  const link = route.page === 'entry' ? resolveSpaceLink(kiwi, route.params, hash) : null;
+  const link = route.page === 'entry' || route.page === 'diary' ? resolveSpaceLink(kiwi, route.params, hash) : null;
   useEffect(() => {
     if (link?.redirect) location.replace(link.redirect);
   }, [link?.redirect]);
@@ -73,6 +75,11 @@ export function FeedApp() {
           <EntryPage pk={route.pk} d={route.d} foreign={link?.foreign || null} />
         </Panel>
       ) : null}
+      {route.page === 'diary' ? (
+        <Panel key={`d/${route.pk}/${route.d}`} title={t('fd.diary.panel')} onClose={close}>
+          <DiaryPage pk={route.pk} d={route.d} />
+        </Panel>
+      ) : null}
       {route.page === 'person' ? (
         <Panel key={route.pk} title={t('fd.profile')} onClose={close}>
           <PersonPage pk={route.pk} />
@@ -82,7 +89,13 @@ export function FeedApp() {
   );
   return (
     <AppShell footer={t('fd.footer')} settings="#/settings">
-      {state ? <FeedContext.Provider value={state}>{page}</FeedContext.Provider> : page}
+      {state ? (
+        <FeedContext.Provider value={state}>
+          <DiaryProvider>{page}</DiaryProvider>
+        </FeedContext.Provider>
+      ) : (
+        page
+      )}
     </AppShell>
   );
 }

@@ -5,6 +5,8 @@
 // space reported, is folded away until someone asks to see it. An entry marked
 // 18+ or as an ad (by its writer, by two reports, or by a moderator) is shown
 // to people with an account only; a moderator marks entries from the menu.
+// An entry in a diary names it and its step above the text; its writer pins
+// it to the top of their profile from the menu.
 import { type FormEvent, useEffect, useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { relTime, tErr } from '../../../shared/i18n.js';
@@ -20,12 +22,14 @@ import { copyText, toast } from '../../../ui/toast';
 import { Markdown } from '../../../ui/widgets/Markdown';
 import { Modal } from '../../../ui/widgets/Modal';
 import { PhotoGrid } from '../../../ui/widgets/PhotoGrid';
-import { entryHash } from '../data/feed.js';
+import { diaryHash, entryHash } from '../data/feed.js';
 import { useAudienceLabel, useFeed, useNameOf, useSocial } from '../state';
+import { useDiaries } from './Diaries';
 
 const fail = (err: unknown) => toast(tErr(err), 'error');
 
-function ReportDialog({ entry, label, onClose }: { entry: any; label: string; onClose: () => void }) {
+/** Reporting an entry or a diary (`entry`): a mark it should carry first, then the kinds of abuse. */
+export function ReportDialog({ entry, label, onClose }: { entry: any; label: string; onClose: () => void }) {
   const t = useT();
   const { data } = useFeed();
   const [busy, setBusy] = useState(false);
@@ -81,11 +85,14 @@ export function EntryCard({
   onEdit,
   full = false,
   onTag,
+  inDiary = false,
 }: {
   entry: any;
   onEdit?: (entry: any) => void;
   full?: boolean;
   onTag?: (tag: string) => void;
+  /** shown on its diary's page: no line pointing at the diary */
+  inDiary?: boolean;
 }) {
   const t = useT();
   const kiwi = useKiwi();
@@ -95,6 +102,7 @@ export function EntryCard({
   const space = useSpace();
   const social = useSocial();
   const { data } = useFeed();
+  const diaries = useDiaries();
   const nameOf = useNameOf();
   const audienceLabel = useAudienceLabel();
   const [open, setOpen] = useState(false);
@@ -134,12 +142,19 @@ export function EntryCard({
   const comments = social.commentEvents(entry.address, isBlocked).length;
   const name = nameOf(entry.pubkey, entry.name);
   const link = () => `${location.href.split('#')[0]}${entryHash(entry, spaceLinkQuery(kiwi))}`;
+  const diary = entry.diary ? diaries.get(entry.pubkey, entry.diary) : null;
   const menu = (el: HTMLElement) =>
     openMenu(el, [
       { label: t('fd.copyLink'), icon: 'link', run: () => copyText(link(), t('fd.link')) },
       ...(mine
         ? [
             { label: t('fd.edit'), icon: 'pencil', run: () => onEdit?.(entry) },
+            {
+              label: entry.pinned ? t('fd.unpinProfile') : t('fd.pinProfile'),
+              icon: entry.pinned ? 'pin-off' : 'pin',
+              act: entry.pinned ? 'unpin-profile' : 'pin-profile',
+              run: () => data.pin(entry, !entry.pinned).then(() => toast(t(entry.pinned ? 'fd.unpinnedDone' : 'fd.pinnedDone'), 'success'), fail),
+            },
             {
               label: t('fd.delete'),
               icon: 'trash-2',
@@ -204,7 +219,26 @@ export function EntryCard({
               <Icon name={entry.audience === 'space' ? 'users-round' : entry.audience === 'me' ? 'lock' : 'users'} />
               {audienceLabel(entry.audience, space?.name)}
             </span>
+            {entry.pinned && mine ? (
+              <span className="entry-pinned" data-pinned>
+                {' · '}
+                <Icon name="pin" /> {t('fd.pinned')}
+              </span>
+            ) : null}
           </span>
+          {entry.diary && !inDiary ? (
+            <a className="entry-diary small" href={diary ? diaryHash(diary) : undefined} data-diary={entry.diary}>
+              <Icon name="notebook" />
+              <span>
+                {diary ? t('fd.diary.in', { title: diary.title }) : t('fd.diary.inUnknown')}
+                {entry.step ? ` · ${entry.step}` : ''}
+              </span>
+            </a>
+          ) : entry.step && inDiary ? (
+            <span className="entry-step small" data-step>
+              {entry.step}
+            </span>
+          ) : null}
         </span>
         <button type="button" className="icon-btn" data-act="menu" aria-label={t('fd.more')} onClick={(e) => menu(e.currentTarget)}>
           <Icon name="ellipsis" />

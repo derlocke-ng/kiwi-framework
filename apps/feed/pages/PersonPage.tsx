@@ -1,6 +1,7 @@
 // One person in this feed: their name and key, whether we are friends (and the
-// way to become friends or to write to them), and their entries this device
-// can read: the space's, and those of their audiences I am in.
+// way to become friends or to write to them), what they pinned to the top
+// (diaries and entries), their diaries, and their entries this device can
+// read: the space's, and those of their audiences I am in.
 import { useState } from 'react';
 import { npub } from '../../../shared/account.js';
 import { fingerprint, KINDS } from '../../../shared/events.js';
@@ -12,6 +13,7 @@ import { toast } from '../../../ui/toast';
 import { Feed } from '../../../ui/widgets/Feed';
 import { useNameOf } from '../state';
 import { Compose } from './Compose';
+import { DiaryCard, useDiaries } from './Diaries';
 import { EntryCard } from './EntryCard';
 import { useEntries } from './FeedView';
 
@@ -26,6 +28,9 @@ export function PersonPage({ pk }: { pk: string }) {
   const [editing, setEditing] = useState<any>(null);
   const list = useEntries([{ kinds: [KINDS.FEED_ENTRY], authors: [pk], ...(space ? { '#a': [space.address] } : {}) }]);
   const written = list.entries.find((e: any) => e.name)?.name || '';
+  const diaries = useDiaries().list.filter((x: any) => x.pubkey === pk);
+  const pinnedDiaries = diaries.filter((x: any) => x.pinned);
+  const pinnedEntries = list.entries.filter((e: any) => e.pinned);
   const me = pk === id.pk;
   const friend = Boolean(people?.isFriend(pk));
   const asked = Boolean(people?.outgoing().some((r: any) => r.pk === pk));
@@ -75,8 +80,31 @@ export function PersonPage({ pk }: { pk: string }) {
           </div>
         )}
       </section>
+      {pinnedDiaries.length || pinnedEntries.length ? (
+        <section className="person-pinned" id="personPinned" aria-label={t('fd.pinned')}>
+          <h3 className="collection-head">
+            <Icon name="pin" /> {t('fd.pinned')}
+          </h3>
+          {pinnedDiaries.map((x: any) => (
+            <DiaryCard key={x.address} diary={x} />
+          ))}
+          {pinnedEntries.map((e: any) => (
+            <EntryCard key={e.address} entry={e} onEdit={setEditing} />
+          ))}
+        </section>
+      ) : null}
+      {diaries.length > pinnedDiaries.length ? (
+        <section className="person-diaries" id="personDiaries" aria-label={t('fd.person.diaries')}>
+          <h3 className="collection-head">{t('fd.person.diaries')}</h3>
+          {diaries
+            .filter((x: any) => !x.pinned)
+            .map((x: any) => (
+              <DiaryCard key={x.address} diary={x} />
+            ))}
+        </section>
+      ) : null}
       <Feed
-        items={list.entries}
+        items={list.entries.filter((e: any) => !e.pinned)}
         keyOf={(e: any) => e.address}
         renderItem={(e: any) => <EntryCard entry={e} onEdit={setEditing} />}
         hasMore={list.hasMore}

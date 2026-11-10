@@ -2,7 +2,8 @@
 // are for), or mine alone; newest first, more as you scroll; a search over
 // text, hashtags and names. What this device holds no key for is not shown.
 // A moderator of the space has one more tab: the entries whose reports wait
-// for a review.
+// for a review. The Diaries tab lists the diaries this device can read
+// (./Diaries.tsx); its round button begins a diary.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { KINDS } from '../../../shared/events.js';
 import { isModerator } from '../../../shared/spaces.js';
@@ -13,9 +14,10 @@ import { useEvents } from '../../../ui/useEvents';
 import { Feed } from '../../../ui/widgets/Feed';
 import { useFeed, useOpened, useSocial } from '../state';
 import { Compose } from './Compose';
+import { DiaryCard, DiaryForm, DiaryList, useDiaries } from './Diaries';
 import { EntryCard } from './EntryCard';
 
-type Tab = 'space' | 'friends' | 'mine' | 'review';
+type Tab = 'space' | 'diaries' | 'friends' | 'mine' | 'review';
 
 /** Entries matching a search: in the text, a hashtag (with or without #), or the writer's name. */
 export const matches = (entry: any, q: string) => {
@@ -57,7 +59,7 @@ export function FeedView() {
   const space = useSpace();
   const social = useSocial();
   const moderator = isModerator(space, id.pk);
-  const tabs: Tab[] = space ? ['space', 'friends', 'mine', ...(moderator ? (['review'] as Tab[]) : [])] : ['friends', 'mine'];
+  const tabs: Tab[] = space ? ['space', 'diaries', 'friends', 'mine', ...(moderator ? (['review'] as Tab[]) : [])] : ['friends', 'diaries', 'mine'];
   const tabKey = `feed.tab.${kiwi.current}`;
   const [tab, setTabState] = useState<Tab>(() => {
     const saved = store.get(tabKey) as Tab;
@@ -69,16 +71,21 @@ export function FeedView() {
   };
   const [query, setQuery] = useState('');
   const [compose, setCompose] = useState<{ existing: any } | null>(null);
+  const [beginning, setBeginning] = useState(false);
   const inSpace = space ? { '#a': [space.address] } : {};
   const friends = (people?.friends() || []).map((f: any) => f.pk);
   const filters =
-    tab === 'space' || tab === 'review'
+    tab === 'space' || tab === 'review' || tab === 'diaries'
       ? [{ kinds: [KINDS.FEED_ENTRY], ...inSpace }]
       : tab === 'friends'
         ? [{ kinds: [KINDS.FEED_ENTRY], authors: [id.pk, ...friends], ...inSpace }]
         : [{ kinds: [KINDS.FEED_ENTRY], authors: [id.pk], ...inSpace }];
   // the review tab: entries in the space with reports waiting; it follows the reports as they come
   const version = social.version;
+  // diaries in the space with reports waiting, above the entries on the review tab
+  const allDiaries = useDiaries().list;
+  const reportedDiaries =
+    tab === 'review' && version >= 0 ? allDiaries.filter((x: any) => x.audience === 'space' && x.pubkey !== id.pk && social.pending(x.address) > 0) : [];
   const waiting = useCallback((e: any) => version >= 0 && isSpace(e) && e.pubkey !== id.pk && social.pending(e.address) > 0, [social, version, id.pk]);
   const list = useEntries(filters, tab === 'space' ? isSpace : tab === 'review' ? waiting : anyEntry);
   const shown = list.entries.filter((e: any) => matches(e, query));
@@ -115,20 +122,46 @@ export function FeedView() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="button" className="btn btn-primary fab" id="newEntry" onClick={() => setCompose({ existing: null })}>
-          <Icon name="plus" />
-          <span>{t('fd.new')}</span>
-        </button>
+        {tab === 'diaries' ? (
+          <button type="button" className="btn btn-primary fab" id="newDiary" onClick={() => setBeginning(true)}>
+            <Icon name="notebook" />
+            <span>{t('fd.diary.new')}</span>
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary fab" id="newEntry" onClick={() => setCompose({ existing: null })}>
+            <Icon name="plus" />
+            <span>{t('fd.new')}</span>
+          </button>
+        )}
       </div>
-      <Feed
-        items={shown}
-        keyOf={(e: any) => e.address}
-        renderItem={(e: any) => <EntryCard entry={e} onEdit={(entry) => setCompose({ existing: entry })} onTag={(tag) => setQuery(`#${tag}`)} />}
-        hasMore={list.hasMore}
-        loading={list.loading || list.opening}
-        onLoadMore={list.loadMore}
-        empty={<p className="empty">{empty}</p>}
-      />
+      {tab === 'review' && reportedDiaries.length ? (
+        <div className="diary-review" id="reportedDiaries">
+          {reportedDiaries.map((x: any) => (
+            <DiaryCard key={x.address} diary={x} />
+          ))}
+        </div>
+      ) : null}
+      {tab === 'diaries' ? (
+        <DiaryList query={query} />
+      ) : (
+        <Feed
+          items={shown}
+          keyOf={(e: any) => e.address}
+          renderItem={(e: any) => <EntryCard entry={e} onEdit={(entry) => setCompose({ existing: entry })} onTag={(tag) => setQuery(`#${tag}`)} />}
+          hasMore={list.hasMore}
+          loading={list.loading || list.opening}
+          onLoadMore={list.loadMore}
+          empty={tab === 'review' && reportedDiaries.length ? null : <p className="empty">{empty}</p>}
+        />
+      )}
+      {beginning ? (
+        <DiaryForm
+          onClose={() => setBeginning(false)}
+          onSaved={(d) => {
+            if (d) location.hash = `#/d/${id.pk}/${d}`;
+          }}
+        />
+      ) : null}
       {compose ? (
         <Compose
           existing={compose.existing}

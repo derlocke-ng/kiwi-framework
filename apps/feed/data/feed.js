@@ -6,6 +6,14 @@
 // without that key never sees the entry. Photos are encrypted with keys of
 // their own, which travel inside the sealed content.
 //
+// A diary (kind 30821, 0.32) is a series of entries, a grow diary from
+// seed to harvest: a title, a few lines about it, a cover photo, sealed to an
+// audience like an entry. An entry in it names it (its `d`) and its step
+// ("Week 3") inside the entry's own seal, so relays see neither which entries
+// belong together nor what they are; a reader who opens the diary and its
+// entries puts them together. A writer pins a diary or an entry to the top of
+// their profile (`pinned`, inside the seal too).
+//
 // Entries made on a mount on a space carry the space's `a` tag; a feed on a
 // space reads only those, a feed on no space only entries in none. Comments
 // are sealed with the entry's key, so whoever reads the entry reads its
@@ -19,7 +27,8 @@ import { fail, randomId } from '../../../shared/util.js';
 
 export { keyTag };
 
-export const LIMITS = { text: 5000, media: 6, tags: 10, tag: 32, name: 40, comment: 1000 };
+export const LIMITS = { text: 5000, media: 6, tags: 10, tag: 32, name: 40, comment: 1000, title: 80, about: 1000, step: 40 };
+const D = /^[A-Za-z0-9_-]{1,64}$/; // an address's d, as randomId() makes them
 /** What a writer may say an entry is: for adults, or an ad. Such an entry is shown to people with an account only. */
 export const LABELS = ['adult', 'ad'];
 /** The app's own settings in the account (kind 30791, d = 'feed'): the audience new entries start with. */
@@ -65,11 +74,56 @@ export function cleanEntry(v) {
     .filter(Boolean)
     .slice(0, LIMITS.tags);
   const label = LABELS.includes(v.label) ? v.label : '';
-  return { text, media, tags, name: String(v.name || '').slice(0, LIMITS.name), at: Number(v.at) > 0 ? Number(v.at) : 0, label };
+  // in a diary: its d (the writer's own diary) and the step this entry is in it
+  const diary = D.test(String(v.diary || '')) ? String(v.diary) : '';
+  const step = diary ? String(v.step || '').trim().slice(0, LIMITS.step) : '';
+  return {
+    text,
+    media,
+    tags,
+    name: String(v.name || '').slice(0, LIMITS.name),
+    at: Number(v.at) > 0 ? Number(v.at) : 0,
+    label,
+    ...(diary ? { diary } : {}),
+    ...(step ? { step } : {}),
+    ...(v.pinned === true ? { pinned: true } : {}),
+  };
+}
+
+/**
+ * What a diary says, checked: a title, a few lines about it, a cover photo, the writer's name, when it was begun and
+ * last added to (ms), whether it is finished, whether its writer pinned it. Null without a title.
+ */
+export function cleanDiary(v) {
+  if (!v || typeof v !== 'object') return null;
+  const title = String(v.title || '')
+    .trim()
+    .slice(0, LIMITS.title);
+  if (!title) return null;
+  const cover = cleanMedia(v.cover);
+  const at = Number(v.at) > 0 ? Number(v.at) : 0;
+  return {
+    title,
+    about: String(v.about || '').slice(0, LIMITS.about),
+    ...(cover ? { cover } : {}),
+    name: String(v.name || '').slice(0, LIMITS.name),
+    at,
+    last: Math.max(at, Number(v.last) > 0 ? Number(v.last) : 0),
+    label: LABELS.includes(v.label) ? v.label : '',
+    done: v.done === true,
+    ...(v.pinned === true ? { pinned: true } : {}),
+  };
 }
 
 /** An entry's route: `#/e/<author>/<d>`, with the space and hints in the query (ui/spaces.ts). */
 export const entryHash = (entry, query = '') => `#/e/${entry.pubkey}/${encodeURIComponent(entry.d)}${query ? `?${query}` : ''}`;
+
+/** A diary's route: `#/d/<author>/<d>`. */
+export const diaryHash = (diary, query = '') => `#/d/${diary.pubkey}/${encodeURIComponent(diary.d)}${query ? `?${query}` : ''}`;
+
+/** The entries of a diary in the order it was written: oldest first. */
+export const diaryEntries = (diary, entries) =>
+  entries.filter((e) => e.pubkey === diary.pubkey && e.diary === diary.d && !e.deleted).sort((a, b) => a.at - b.at);
 
 export class FeedData {
   /**
@@ -114,12 +168,17 @@ export class FeedData {
   }
 
   async readEntry(ev) {
-    if (ev.kind !== KINDS.FEED_ENTRY) return null;
+    if (ev.kind !== KINDS.FEED_ENTRY && ev.kind !== KINDS.FEED_DIARY) return null;
     const opened = await this.seal.open(ev);
     if (!opened) return null;
     const { value: v, k, kid, audience } = opened;
     const address = addressOf(ev);
     const base = { address, d: address.split(':').slice(2).join(':'), pubkey: ev.pubkey, event: ev, id: ev.id, kid, k, audience, created_at: ev.created_at };
+    if (ev.kind === KINDS.FEED_DIARY) {
+      if (v?.del) return { ...base, diaryOf: true, deleted: true, title: '', about: '', name: '', at: ev.created_at * 1000, last: 0 };
+      const diary = cleanDiary(v);
+      return diary ? { ...base, diaryOf: true, ...diary, at: diary.at || ev.created_at * 1000, last: diary.last || ev.created_at * 1000 } : null;
+    }
     if (v?.del) return { ...base, deleted: true, text: '', media: [], tags: [], name: '', at: ev.created_at * 1000 };
     const clean = cleanEntry(v);
     return clean ? { ...base, ...clean, at: clean.at || ev.created_at * 1000 } : null;
@@ -169,20 +228,46 @@ export class FeedData {
 
   /**
    * Post an entry, or a new version of one (`d`, `at` of the old). Returns the event. `label`: 'adult' or 'ad', inside the seal.
-   * @param {{ text: string, media?: any[], audience: string, d?: string, at?: number, label?: string }} entry
+   * `diary`: one of my diaries (the entry goes to that diary's audience and the diary counts as added to); `step`:
+   * where in it ("Week 3"); `pinned`: on top of my profile; `bump`: a new entry moves its diary up the lists (an edit does not).
+   * @param {{ text: string, media?: any[], audience: string, d?: string, at?: number, label?: string, diary?: any, step?: string, pinned?: boolean, bump?: boolean }} entry
    */
-  async post({ text, media = [], audience, d = randomId(), at = Date.now(), label = '' }) {
-    const value = cleanEntry({ text, media, tags: hashtags(text), name: this.identity.alias || '', at, label });
+  async post({ text, media = [], audience, d = randomId(), at = Date.now(), label = '', diary = null, step = '', pinned = false, bump = true }) {
+    const inDiary = diary && diary.pubkey === this.identity.pk && !diary.deleted ? diary : null;
+    const value = cleanEntry({ text, media, tags: hashtags(text), name: this.identity.alias || '', at, label, diary: inDiary?.d, step, pinned });
     if (!value) throw fail('fd.error.empty', 'Write something or add a photo.');
-    const { k, kid } = await this.sealFor(audience);
+    const { k, kid } = await this.sealFor(inDiary ? inDiary.audience : audience);
     const ev = makeAddressable(KINDS.FEED_ENTRY, d, await seal(k, { v: 1, ...value }), this.identity.sk, this.tags(kid));
+    await this.net.sync.publish(ev);
+    // the diary moves up its readers' lists: it was added to now
+    if (inDiary && bump && inDiary.title) await this.saveDiary({ ...inDiary, last: Date.now() });
+    return ev;
+  }
+
+  /** Pin an entry or a diary of mine to the top of my profile, or take it down: a new version with the same key's audience. */
+  async pin(item, on) {
+    if (item.diaryOf) return this.saveDiary({ ...item, pinned: Boolean(on) });
+    const diary = item.diary ? { d: item.diary, pubkey: item.pubkey, audience: item.audience } : null;
+    return this.post({ ...item, diary, pinned: Boolean(on), bump: false });
+  }
+
+  /**
+   * Begin a diary, or save a new version of one (`d`, `at` of the old). Returns the event.
+   * @param {{ title: string, about?: string, cover?: any, audience: string, d?: string, at?: number, last?: number, label?: string, done?: boolean, pinned?: boolean }} diary
+   */
+  async saveDiary({ title, about = '', cover = null, audience, d = randomId(), at = Date.now(), last = 0, label = '', done = false, pinned = false }) {
+    const value = cleanDiary({ title, about, cover, name: this.identity.alias || '', at, last: last || at, label, done, pinned });
+    if (!value) throw fail('fd.error.noTitle', 'A diary needs a title.');
+    const { k, kid } = await this.sealFor(audience);
+    const ev = makeAddressable(KINDS.FEED_DIARY, d, await seal(k, { v: 1, ...value }), this.identity.sk, this.tags(kid));
     await this.net.sync.publish(ev);
     return ev;
   }
 
-  /** Delete an entry everywhere: a tombstone under the same key, so whoever could read it learns it is gone. */
+  /** Delete an entry (or a diary) everywhere: a tombstone under the same key, so whoever could read it learns it is gone. */
   async remove(entry) {
-    const ev = makeAddressable(KINDS.FEED_ENTRY, entry.d, await seal(entry.k, { del: 1, u: Date.now() }), this.identity.sk, this.tags(entry.kid));
+    const kind = entry.diaryOf ? KINDS.FEED_DIARY : KINDS.FEED_ENTRY;
+    const ev = makeAddressable(kind, entry.d, await seal(entry.k, { del: 1, u: Date.now() }), this.identity.sk, this.tags(entry.kid));
     await this.net.sync.publish(ev);
   }
 
@@ -233,7 +318,7 @@ export class FeedData {
           ['p', entry.pubkey, kind],
           ['e', entry.id, kind],
           ['a', entry.address],
-          ['k', String(KINDS.FEED_ENTRY)],
+          ['k', String(entry.event?.kind || KINDS.FEED_ENTRY)],
           ...(mark ? markTags(mark) : []),
           ...this.tags(),
         ],
@@ -254,7 +339,7 @@ export class FeedData {
       {
         kind: KINDS.LABEL,
         created_at: Math.max(now(), after + 1),
-        tags: [...markTags(mark), ['a', entry.address], ['p', entry.pubkey], ['k', String(KINDS.FEED_ENTRY)], ...this.tags()],
+        tags: [...markTags(mark), ['a', entry.address], ['p', entry.pubkey], ['k', String(entry.event?.kind || KINDS.FEED_ENTRY)], ...this.tags()],
         content: '',
       },
       this.identity.sk,
@@ -265,14 +350,14 @@ export class FeedData {
 }
 
 /**
- * A route in the feed: the feed, one entry, one person, the settings.
+ * A route in the feed: the feed, one entry, one diary, one person, the settings.
  * @param {string} hash
- * @returns {{ page: 'feed' } | { page: 'settings' } | { page: 'person', pk: string } | { page: 'entry', pk: string, d: string, params: URLSearchParams }}
+ * @returns {{ page: 'feed' } | { page: 'settings' } | { page: 'person', pk: string } | { page: 'entry' | 'diary', pk: string, d: string, params: URLSearchParams }}
  */
 export function parseRoute(hash) {
   const h = String(hash || '');
-  const e = /^#\/e\/([0-9a-f]{64})\/([^/?]+)(?:\?(.*))?$/.exec(h);
-  if (e) return { page: 'entry', pk: e[1], d: decodeURIComponent(e[2]), params: new URLSearchParams(e[3] || '') };
+  const e = /^#\/(e|d)\/([0-9a-f]{64})\/([^/?]+)(?:\?(.*))?$/.exec(h);
+  if (e) return { page: e[1] === 'd' ? 'diary' : 'entry', pk: e[2], d: decodeURIComponent(e[3]), params: new URLSearchParams(e[4] || '') };
   const p = /^#\/p\/([0-9a-f]{64})/.exec(h);
   if (p && isHex64(p[1])) return { page: 'person', pk: p[1] };
   if (h.startsWith('#/settings')) return { page: 'settings' };

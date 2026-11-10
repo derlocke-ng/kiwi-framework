@@ -16,6 +16,8 @@ The audience keys are derived from the writer's key, so every device of theirs h
 ## What is on the wire
 
 - An **entry** is a kind 30820 addressable event: `d` a random id, `a` the space (on a mount on a space), `key` the id of the key it is sealed with (16 hex characters of its SHA-256); content sealed (`docs/protocol.md` §1) to `{ v: 1, text, media: [<media object>…], tags: [<hashtag>…], name, at }`. Editing republishes under the same `d`; deleting publishes `{ del: 1 }` under the same key.
+- A **diary** (0.32) is a kind 30821 addressable event sealed like an entry: `{ v: 1, title, about, cover?, name, at, last, label?, done?, pinned? }`. An entry in it carries `diary` (the diary's `d`) and `step` inside its own seal and is sealed with the diary's key; relays see no link between them. A new entry republishes the diary with a later `last`; deleting a diary leaves its entries.
+- **Pins**: `pinned` inside an entry or a diary puts it at the top of its writer's page; the diaries a reader pins in the Diaries tab are in their settings (`feed`, `pinnedDiaries`).
 - A **comment** is a kind 30822 addressable event with the entry's address in an `a` tag and the entry's `key`, sealed with the entry's key: `{ text, name, at }`.
 - **Likes** are NIP-25 reactions (`+`, an empty content takes one back) with the entry's `a` and `["k", "30820"]`; **reports** NIP-56 with the entry's `a`, `e` and `k`. A report by one of the space's moderators folds an entry away on its own, three by anyone else do.
 
@@ -23,7 +25,7 @@ The audience keys are derived from the writer's key, so every device of theirs h
 
 | File | What |
 |---|---|
-| `data/feed.js` | opening, posting, editing, deleting entries and comments; likes and reports; routes |
+| `data/feed.js` | opening, posting, editing, deleting entries, diaries and comments; pins; likes and reports; routes |
 | `shared/social.js` (the framework's) | the likes, comments and reports of the entries a page shows |
 | `state.ts` | the context and the hooks the pages share |
-| `pages/` | the feed (tabs: the space, friends, mine), an entry with its comments, a person, the composer, the settings |
+| `pages/` | the feed (tabs: the space, diaries, friends, mine), an entry with its comments, a diary (`Diaries.tsx`: the index every screen asks for a diary's title, the tab, the form, the page), a person with what they pinned, the composer, the settings |
